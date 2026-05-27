@@ -129,9 +129,9 @@ export interface ParseResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Base URL — via proxy Vite /py → Python :8001
+// Base URL — via proxy Vite /py → Python :8001 en dev, absolue via env en prod
 // ---------------------------------------------------------------------------
-const BASE = '/py/api/v1';
+const BASE = import.meta.env.VITE_PYTHON_API_URL || '/py/api/v1';
 
 // ---------------------------------------------------------------------------
 // Fetch helper

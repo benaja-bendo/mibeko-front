@@ -115,9 +115,9 @@ export interface RawCatalogResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Base URL — proxy Vite en dev, URL directe en prod
+// Base URL — proxy Vite en dev, URL absolue via env en prod
 // ---------------------------------------------------------------------------
-const BASE = '/api/v1';
+const BASE = import.meta.env.VITE_LARAVEL_API_URL || '/api/v1';
 
 // ---------------------------------------------------------------------------
 // Fetch helper avec gestion d'erreurs uniforme

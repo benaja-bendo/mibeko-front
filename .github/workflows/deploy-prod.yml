@@ -54,6 +54,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_LARAVEL_API_URL=${{ secrets.VITE_LARAVEL_API_URL }}
+            VITE_PYTHON_API_URL=${{ secrets.VITE_PYTHON_API_URL }}
 
   deploy:
     name: Deploy to VPS
