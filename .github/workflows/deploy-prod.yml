@@ -1,8 +1,10 @@
 name: 🚀 Deploy Production
 
 on:
-  push:
+  workflow_run:
+    workflows: ["✅ CI"]
     branches: [main]
+    types: [completed]
   workflow_dispatch: {}
 
 env:
@@ -14,12 +16,15 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -54,9 +59,12 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: build-and-push
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Lowercase repository name
         run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
@@ -107,4 +115,3 @@ jobs:
 
             docker compose up -d --remove-orphans
             docker image prune -f
-
