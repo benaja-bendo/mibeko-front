@@ -117,12 +117,12 @@ export interface RawCatalogResponse {
 // ---------------------------------------------------------------------------
 // Base URL — proxy Vite en dev, URL absolue via env en prod
 // ---------------------------------------------------------------------------
-const BASE = import.meta.env.VITE_LARAVEL_API_URL || '/api/v1';
+export const BASE = import.meta.env.VITE_LARAVEL_API_URL || '/api/v1';
 
 // ---------------------------------------------------------------------------
 // Fetch helper avec gestion d'erreurs uniforme
 // ---------------------------------------------------------------------------
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     credentials: 'include',

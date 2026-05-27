@@ -6,6 +6,7 @@ import { useDocumentMutations } from '../../hooks/useDocumentData';
 import { useParams } from 'react-router-dom';
 import { GitGraph, Search, Trash2, Calendar } from 'lucide-react';
 import type { TreeNode } from '../../types/database';
+import { apiFetch } from '../../services/laravelApi';
 
 interface AddRelationModalProps {
   open: boolean;
@@ -61,8 +62,7 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
   const handleSearch = async () => {
     if (search.length < 3) return;
     try {
-      const res = await fetch(`/api/v1/relations/search?q=${encodeURIComponent(search)}`);
-      const data = await res.json();
+      const data = await apiFetch<{data: any[]}>(`/relations/search?q=${encodeURIComponent(search)}`);
       setResults(data.data || []);
     } catch (err) {
       console.error('Search failed', err);

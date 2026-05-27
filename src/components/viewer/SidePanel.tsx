@@ -4,6 +4,7 @@ import { useViewerStore } from '../../store/useViewerStore';
 import { useDocumentMutations } from '../../hooks/useDocumentData';
 import { cn } from '../../lib/utils';
 import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
+import { apiFetch } from '../../services/laravelApi';
 import { Button } from '../ui/Button';
 import ValidityModal from './ValidityModal';
 import AddRelationModal from './AddRelationModal';
@@ -31,8 +32,7 @@ export default function SidePanel() {
   React.useEffect(() => {
     // Fetch relations if activeTab is meta
     if (selectedNode?.id && activeTab === 'meta' && selectedNode.type === 'ARTICLE') {
-      fetch(`/api/v1/articles/${selectedNode.id}/relations`)
-        .then(res => res.json())
+      apiFetch<{data: any[]}>(`/articles/${selectedNode.id}/relations`)
         .then(data => setRelations(data.data || []))
         .catch(err => console.error('Failed to fetch relations', err));
     }

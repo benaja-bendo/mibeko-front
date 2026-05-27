@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { LegalDocument, TreeNode } from '../types/database';
 import { mockTreeData, mockPdfPages } from '../lib/mockData';
+import { apiFetch, BASE } from '../services/laravelApi';
 
 interface DocumentData {
   document: LegalDocument;
@@ -83,22 +84,18 @@ export function useDocumentData(id: string) {
     queryKey: ['document', id],
     queryFn: async () => {
       try {
-        const [docRes, treeRes] = await Promise.all([
-          fetch(`/api/v1/legal-documents/${id}`),
-          fetch(`/api/v1/legal-documents/${id}/tree`)
+        const [docData, treeData] = await Promise.all([
+          apiFetch<{ data?: LegalDocument }>(`/legal-documents/${id}`),
+          apiFetch<{ data?: TreeNode[] }>(`/legal-documents/${id}/tree`)
         ]);
 
-        if (docRes.ok && treeRes.ok) {
-          const docData = await docRes.json();
-          const treeData = await treeRes.json();
-          const pdfUrl = `/api/v1/legal-documents/${id}/pdf`;
+        const pdfUrl = `${BASE}/legal-documents/${id}/pdf`;
 
-          return {
-            document: docData.data || docData,
-            tree: buildTree(treeData.data || treeData),
-            pdfUrl,
-          };
-        }
+        return {
+          document: (docData.data || docData) as LegalDocument,
+          tree: buildTree((treeData.data || treeData) as TreeNode[]),
+          pdfUrl,
+        };
       } catch (err) {
         console.warn('Failed to fetch from API, falling back to mock data', err);
       }
@@ -128,48 +125,37 @@ export function useDocumentMutations(documentId: string) {
 
   const createNode = useMutation({
     mutationFn: async (data: { type_unite: string, numero?: string, titre?: string, parent_id?: string, sort_order?: number }) => {
-      const res = await fetch('/api/v1/structure-nodes', {
+      return apiFetch<unknown>('/structure-nodes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, document_id: documentId }),
       });
-      if (!res.ok) throw new Error('Failed to create node');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const updateNode = useMutation({
     mutationFn: async ({ id, ...data }: { id: string, type_unite?: string, numero?: string, titre?: string, validation_status?: string }) => {
-      const res = await fetch(`/api/v1/structure-nodes/${id}`, {
+      return apiFetch<unknown>(`/structure-nodes/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update node');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const deleteNode = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/v1/structure-nodes/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete node');
-      return res.json();
+      return apiFetch<unknown>(`/structure-nodes/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const createArticle = useMutation({
     mutationFn: async (data: { parent_node_id: string, numero_article: string, content: string, ordre_affichage?: number }) => {
-      const res = await fetch('/api/v1/articles', {
+      return apiFetch<unknown>('/articles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, document_id: documentId }),
       });
-      if (!res.ok) throw new Error('Failed to create article');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
@@ -190,39 +176,30 @@ export function useDocumentMutations(documentId: string) {
         height: number;
       } | null
     }) => {
-      const res = await fetch(`/api/v1/articles/${id}`, {
+      return apiFetch<unknown>(`/articles/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update article');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const addArticleVersion = useMutation({
     mutationFn: async ({ id, content, start_date }: { id: string, content: string, start_date: string }) => {
-      const res = await fetch(`/api/v1/articles/${id}/versions`, {
+      return apiFetch<unknown>(`/articles/${id}/versions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, start_date }),
       });
-      if (!res.ok) throw new Error('Failed to add version');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const moveNode = useMutation({
     mutationFn: async ({ id, parent_id, sort_order }: { id: string, parent_id: string | null, sort_order: number }) => {
-      const res = await fetch(`/api/v1/structure-nodes/${id}/move`, {
+      return apiFetch<unknown>(`/structure-nodes/${id}/move`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parent_id, sort_order }),
       });
-      if (!res.ok) throw new Error('Failed to move node');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
@@ -237,22 +214,17 @@ export function useDocumentMutations(documentId: string) {
       commentaire?: string,
       effective_date?: string
     }) => {
-      const res = await fetch(`/api/v1/articles/${data.source_article_id}/relations`, {
+      return apiFetch<unknown>(`/articles/${data.source_article_id}/relations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to create relation');
-      return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const deleteRelation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/v1/relations/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete relation');
-      return res.json();
+      return apiFetch<unknown>(`/relations/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
