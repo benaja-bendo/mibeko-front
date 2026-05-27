@@ -1,0 +1,21 @@
+services:
+  front:
+    image: ghcr.io/${GITHUB_REPOSITORY}:latest
+    container_name: mibeko-front
+    restart: unless-stopped
+    networks: [proxy]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      - "traefik.http.routers.mibeko-front.rule=Host(`${MIBEKO_FRONT_HOST:-mibeko.fr}`)"
+      - "traefik.http.routers.mibeko-front.entrypoints=websecure"
+      - "traefik.http.routers.mibeko-front.tls.certresolver=myresolver"
+      - "traefik.http.routers.mibeko-front.priority=1"
+
+      - "traefik.http.services.mibeko-front.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+

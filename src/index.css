@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0c0d0f;
+  --color-s1: #141517;
+  --color-s2: #1b1d21;
+  --color-s3: #222428;
+  --color-s4: #2a2d33;
+  --color-b1: rgba(255,255,255,.055);
+  --color-b2: rgba(255,255,255,.10);
+  --color-b3: rgba(255,255,255,.16);
+  --color-t1: #e9e7e1;
+  --color-t2: #9b9891;
+  --color-t3: #5e5c57;
+  --color-t4: #3a3936;
+  --color-gold: #c8a86a;
+  --color-gold-d: rgba(200,168,106,.12);
+  --color-gold-d2: rgba(200,168,106,.22);
+  --color-blue: #5c8fd4;
+  --color-blue-d: rgba(92,143,212,.13);
+  --color-green: #56a07a;
+  --color-green-d: rgba(86,160,122,.12);
+  --color-red: #c4614e;
+  --color-red-d: rgba(196,97,78,.12);
+  --color-purple: #9478c8;
+  --color-purple-d: rgba(148,120,200,.13);
+  --color-amber: #c4903a;
+  --color-amber-d: rgba(196,144,58,.12);
+
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Instrument Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+  --radius-sm: 5px;
+  --radius-md: 9px;
+  --radius-lg: 14px;
+}
+
+@layer base {
+  :root {
+    --bg: #0c0d0f;
+    --s1: #141517;
+    --s2: #1b1d21;
+    --s3: #222428;
+    --s4: #2a2d33;
+    --b1: rgba(255,255,255,.055);
+    --b2: rgba(255,255,255,.10);
+    --b3: rgba(255,255,255,.16);
+    --t1: #e9e7e1;
+    --t2: #9b9891;
+    --t3: #5e5c57;
+    --t4: #3a3936;
+    --gold: #c8a86a;
+    --gold-d: rgba(200,168,106,.12);
+    --gold-d2: rgba(200,168,106,.22);
+    --blue: #5c8fd4;
+    --blue-d: rgba(92,143,212,.13);
+    --green: #56a07a;
+    --green-d: rgba(86,160,122,.12);
+    --red: #c4614e;
+    --red-d: rgba(196,97,78,.12);
+    --purple: #9478c8;
+    --purple-d: rgba(148,120,200,.13);
+    --amber: #c4903a;
+    --amber-d: rgba(196,144,58,.12);
+  }
+
+  body {
+    @apply bg-bg text-t1 font-body;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Tooltip global classes */
+.tip { position: relative; }
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  background: #1e2026;
+  color: var(--t1);
+  font-size: 11px;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--b3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s, transform .15s;
+  z-index: 9999;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  letter-spacing: .01em;
+}
+.tip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.tip-b::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translateX(-50%) translateY(-3px);
+}
+.tip-b:hover::after {
+  transform: translateX(-50%) translateY(0);
+}
+.tip-r::after {
+  left: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%) translateX(-3px);
+  white-space: nowrap;
+}
+.tip-r:hover::after {
+  transform: translateY(-50%) translateX(0);
+}
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--s4);
+  border-radius: 2px;
+}
