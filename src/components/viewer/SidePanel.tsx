@@ -7,6 +7,7 @@ import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, Aler
 import { Button } from '../ui/Button';
 import ValidityModal from './ValidityModal';
 import AddRelationModal from './AddRelationModal';
+import type { ArticleVersionUI } from '../../types/database';
 
 export default function SidePanel() {
   const { id: documentId } = useParams<{ id: string }>();
@@ -16,7 +17,12 @@ export default function SidePanel() {
   const [content, setContent] = React.useState('');
   const [validityModalOpen, setValidityModalOpen] = React.useState(false);
   const [relationModalOpen, setRelationModalOpen] = React.useState(false);
-  const [relations, setRelations] = React.useState<any[]>([]);
+  const [relations, setRelations] = React.useState<Array<{
+    id: string;
+    relation_type: string;
+    target_article?: { numero_article?: string | null } | null;
+    target_document?: { titre_officiel?: string | null } | null;
+  }>>([]);
 
   React.useEffect(() => {
     setContent(selectedNode?.content || '');
@@ -30,7 +36,7 @@ export default function SidePanel() {
         .then(data => setRelations(data.data || []))
         .catch(err => console.error('Failed to fetch relations', err));
     }
-  }, [selectedNode?.id, activeTab]);
+  }, [activeTab, selectedNode?.id, selectedNode?.type]);
 
   if (!selectedNode) return null;
 
@@ -190,7 +196,7 @@ export default function SidePanel() {
                 <div className="text-[9.5px] font-mono uppercase tracking-[0.09em] text-t3 mb-2 pb-1 border-b border-b1">
                   Historique
                 </div>
-                {versions.map((v: any, i: number) => (
+                {versions.map((v: ArticleVersionUI, i: number) => (
                   <div key={v.id || i} className="p-2.5 rounded border border-b1 bg-s2 relative group">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[10px] font-mono text-gold">v{versions.length - i}</span>

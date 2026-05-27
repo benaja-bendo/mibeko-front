@@ -118,7 +118,7 @@ export default function PdfViewer({
 
       return () => clearTimeout(timer);
     }
-  }, [selectedNode?.id, selectedNode?.source_locator]);
+  }, [pdfPage, selectedNode?.id, selectedNode?.source_locator, setPdfPage]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!selectionMode || !ppRef.current) return;
@@ -389,4 +389,3 @@ export default function PdfViewer({
     </div>
   );
 }
-

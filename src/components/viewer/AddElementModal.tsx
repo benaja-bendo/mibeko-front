@@ -32,16 +32,13 @@ export default function AddElementModal() {
   const [titre, setTitre] = React.useState('');
   const [content, setContent] = React.useState('');
 
-  React.useEffect(() => {
-    if (addElementModalOpen) {
-      setNumero('');
-      setTitre('');
-      setContent('');
-      // Default to ARTICLE if adding to a node that isn't a root,
-      // or based on user preference. For now, default to NODE.
-      setType('NODE');
-    }
-  }, [addElementModalOpen]);
+  const resetForm = React.useCallback(() => {
+    setNumero('');
+    setTitre('');
+    setContent('');
+    setType('NODE');
+    setNodeType('TITRE');
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +66,13 @@ export default function AddElementModal() {
   };
 
   return (
-    <Dialog open={addElementModalOpen} onOpenChange={(open) => setAddElementModal(open)}>
+    <Dialog
+      open={addElementModalOpen}
+      onOpenChange={(open) => {
+        if (open) resetForm();
+        setAddElementModal(open);
+      }}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

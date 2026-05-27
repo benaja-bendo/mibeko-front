@@ -4,6 +4,7 @@ import { useViewerStore } from '../../store/useViewerStore';
 import { useDocumentMutations } from '../../hooks/useDocumentData';
 import { cn } from '../../lib/utils';
 import { Clock, Plus, Save } from 'lucide-react';
+import type { ArticleVersionUI } from '../../types/database';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +44,7 @@ export default function VersionModal() {
   };
 
   const versions = selectedNode.versions || [];
-  const filteredVersions = versions.filter((v: any) => (
+  const filteredVersions = versions.filter((v: ArticleVersionUI) => (
     versionFilter === 'all' || v.type === versionFilter
   ));
 
@@ -90,7 +91,7 @@ export default function VersionModal() {
                   <p className="text-[12px] italic font-serif">Aucun historique disponible</p>
                 </div>
               ) : (
-                filteredVersions.map((v: any, i: number) => (
+                filteredVersions.map((v: ArticleVersionUI, i: number) => (
                   <div key={v.id || i} className={cn(
                     "p-4 rounded-xl border transition-all relative group",
                     i === 0 ? "bg-s2 border-gold/30 shadow-lg" : "bg-s1/50 border-b1 hover:border-b2"

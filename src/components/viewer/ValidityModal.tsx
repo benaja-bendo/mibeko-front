@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useDocumentMutations } from '../../hooks/useDocumentData';
+import type { TreeNode } from '../../types/database';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Calendar } from 'lucide-react';
 
-export default function ValidityModal({ open, onOpenChange, node }: { open: boolean, onOpenChange: (open: boolean) => void, node: any }) {
+export default function ValidityModal({ open, onOpenChange, node }: { open: boolean, onOpenChange: (open: boolean) => void, node: TreeNode | null }) {
   const { id: documentId } = useParams<{ id: string }>();
   const { updateArticle } = useDocumentMutations(documentId || '');
 
