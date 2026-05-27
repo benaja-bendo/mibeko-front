@@ -62,7 +62,7 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
   const handleSearch = async () => {
     if (search.length < 3) return;
     try {
-      const data = await apiFetch<{data: Array<Record<string, unknown>>}>(`/relations/search?q=${encodeURIComponent(search)}`);
+      const data = await apiFetch<{data: SearchResult[]}>(`/relations/search?q=${encodeURIComponent(search)}`);
       setResults(data.data || []);
     } catch (err) {
       console.error('Search failed', err);
