@@ -32,7 +32,12 @@ export default function SidePanel() {
   React.useEffect(() => {
     // Fetch relations if activeTab is meta
     if (selectedNode?.id && activeTab === 'meta' && selectedNode.type === 'ARTICLE') {
-      apiFetch<{data: any[]}>(`/articles/${selectedNode.id}/relations`)
+      apiFetch<{data: Array<{
+        id: string;
+        relation_type: string;
+        target_article?: { numero_article?: string | null } | null;
+        target_document?: { titre_officiel?: string | null } | null;
+      }>}>(`/articles/${selectedNode.id}/relations`)
         .then(data => setRelations(data.data || []))
         .catch(err => console.error('Failed to fetch relations', err));
     }
