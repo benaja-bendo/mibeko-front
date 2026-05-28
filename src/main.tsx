@@ -6,7 +6,8 @@ import './index.css';
 import App from './App.tsx';
 
 // Configuration du worker PDF.js indispensable pour react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// On utilise exactement la même version de pdfjs-dist pour le worker
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 const queryClient = new QueryClient({
   defaultOptions: {

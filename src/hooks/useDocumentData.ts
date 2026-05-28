@@ -92,8 +92,8 @@ export function useDocumentData(id: string) {
         const pdfUrl = `${BASE}/legal-documents/${id}/pdf`;
 
         return {
-          document: (docData.data || docData) as LegalDocument,
-          tree: buildTree((treeData.data || treeData) as TreeNode[]),
+          document: (docData?.data || docData) as LegalDocument,
+          tree: buildTree((treeData?.data || treeData || []) as TreeNode[]),
           pdfUrl,
         };
       } catch (err) {
