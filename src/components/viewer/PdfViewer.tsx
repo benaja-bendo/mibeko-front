@@ -12,8 +12,9 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// 2. Configuration du Worker via CDN pour plus de stabilité avec Vite
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// 2. Configuration du Worker (déjà fait dans main.tsx, mais on le rappelle pour s'assurer que c'est pris en compte)
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+//pdf.worker.min.mjs
 
 interface Zone {
   id: string;
