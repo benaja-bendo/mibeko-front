@@ -1,14 +1,14 @@
 import { useParams } from 'react-router-dom';
-import { useDocumentData } from '../hooks/useDocumentData';
-import Topbar from '../components/viewer/Topbar';
-import TreeView from '../components/viewer/TreeView';
-import Splitter from '../components/viewer/Splitter';
-import PdfViewer from '../components/viewer/PdfViewer';
-import SidePanel from '../components/viewer/SidePanel';
-import VersionModal from '../components/viewer/VersionModal';
-import AddElementModal from '../components/viewer/AddElementModal';
-import RenameNodeModal from '../components/viewer/RenameNodeModal';
-import DeleteConfirmModal from '../components/viewer/DeleteConfirmModal';
+import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
+import Topbar from '@/features/viewer/components/Topbar';
+import TreeView from '@/features/viewer/components/TreeView';
+import Splitter from '@/features/viewer/components/Splitter';
+import PdfViewer from '@/features/viewer/components/PdfViewer';
+import SidePanel from '@/features/viewer/components/SidePanel';
+import VersionModal from '@/features/viewer/components/VersionModal';
+import AddElementModal from '@/features/viewer/components/AddElementModal';
+import RenameNodeModal from '@/features/viewer/components/RenameNodeModal';
+import DeleteConfirmModal from '@/features/viewer/components/DeleteConfirmModal';
 
 export default function Viewer() {
   const { id } = useParams<{ id: string }>();
@@ -38,9 +38,13 @@ export default function Viewer() {
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-bg text-t1 font-body">
       <Topbar document={data.document} />
 
-      <div className="flex-1 flex overflow-hidden relative">
-        <TreeView treeData={data.tree} />
-        <Splitter />
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        <div className="hidden md:block shrink-0 h-full">
+          <TreeView treeData={data.tree} />
+        </div>
+        <div className="hidden md:block">
+          <Splitter />
+        </div>
 
         <div className="flex-1 flex flex-col overflow-hidden relative min-w-[200px]">
           <PdfViewer pdfUrl={data.pdfUrl} pdfPages={data.pdfPages} treeData={data.tree} />

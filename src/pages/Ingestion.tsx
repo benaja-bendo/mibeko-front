@@ -1,6 +1,6 @@
 /**
  * Ingestion.tsx — Page de gestion de l'ingestion de documents PDF.
- * Pilote le backend Python : upload, parse, suivi SSE en temps réel.
+ * Pilote le système d'extraction IA : upload, parse, suivi SSE en temps réel.
  */
 import React, { useCallback, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,9 +10,10 @@ import {
   parseDocument,
   deletePythonDocument,
   type PythonDocumentSummary,
-} from '../services/pythonApi';
-import { usePythonStream } from '../hooks/usePythonStream';
-import AppLayout from '../components/layout/AppLayout';
+} from '@/features/ingestion/api/pythonApi';
+import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
+import AppLayout from '@/shared/components/layout/AppLayout';
+import { useAuthStore } from "@/features/auth/store/authStore";
 
 // ---------------------------------------------------------------------------
 // Types locaux
@@ -32,6 +33,11 @@ const STATUS_CFG: Record<string, string> = {
   queued:     'text-purple bg-purple/10 border-purple/20',
 };
 
+/**
+ * Affiche un badge de statut stylisé en fonction de l'état d'extraction.
+ * @param {Object} props - Les propriétés du composant.
+ * @param {string | null} [props.status] - Le statut de l'extraction.
+ */
 function StatusBadge({ status }: { status?: string | null }) {
   const cls = STATUS_CFG[status || ''] || 'text-t3 bg-s2 border-b1';
   return (
@@ -44,6 +50,13 @@ function StatusBadge({ status }: { status?: string | null }) {
 // ---------------------------------------------------------------------------
 // Upload Form
 // ---------------------------------------------------------------------------
+
+/**
+ * Formulaire d'upload de documents PDF.
+ * Permet de définir le titre, le rôle, et de joindre des artefacts optionnels.
+ * @param {Object} props - Les propriétés du composant.
+ * @param {(msg: string) => void} props.onSuccess - Fonction appelée lors du succès de l'upload.
+ */
 function UploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
   const [isDragging, setIsDragging] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -152,7 +165,7 @@ function UploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
       </div>
 
       {/* Rôle + Stock Code */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-mono uppercase tracking-widest text-t3 mb-1.5">Rôle</label>
           <select
@@ -179,7 +192,7 @@ function UploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
       </div>
 
       {/* Artefacts optionnels */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-mono uppercase tracking-widest text-t3 mb-1.5">
             Markdown (optionnel)
@@ -245,6 +258,14 @@ function UploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 // ---------------------------------------------------------------------------
 // Document row
 // ---------------------------------------------------------------------------
+
+/**
+ * Ligne affichant un document avec son statut, ses informations et les actions disponibles.
+ * @param {Object} props - Les propriétés du composant.
+ * @param {PythonDocumentSummary} props.doc - Les données du document.
+ * @param {(id: string, fmt: 'md' | 'json') => void} props.onParse - Callback pour lancer le parsing.
+ * @param {(id: string) => void} props.onDelete - Callback pour supprimer le document.
+ */
 function DocRow({
   doc,
   onParse,
@@ -340,7 +361,14 @@ function DocRow({
 // ---------------------------------------------------------------------------
 // Ingestion page
 // ---------------------------------------------------------------------------
+
+/**
+ * Page principale de l'ingestion.
+ * Gère l'upload, l'affichage de la liste des documents, et écoute les événements SSE.
+ * Accès restreint aux rôles 'admin' et 'editor'.
+ */
 export default function Ingestion() {
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -390,22 +418,35 @@ export default function Ingestion() {
     failed:    (docs || []).filter((d) => d.extraction_status === 'failed'),
   };
 
+  if (!user || (!user.roles?.includes('admin') && !user.roles?.includes('editor'))) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-4 px-4">
+            <h1 className="text-2xl font-bold text-red">Accès refusé</h1>
+            <p className="text-t2 text-sm">Vous n'avez pas les droits nécessaires pour accéder à cette page.</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="h-full overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <div className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6 space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-xl font-display font-semibold text-t1">Ingestion de documents</h1>
             <p className="text-t3 text-xs font-mono mt-0.5">
-              Déposez des PDFs pour extraction — piloté par le backend Python (MinerU + spaCy)
+              Déposez des PDFs pour extraction — piloté par le système d'extraction IA
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             {/* Upload form */}
             <div className="lg:col-span-2">
-              <div className="bg-s1 border border-b1 rounded-xl p-4 space-y-4 sticky top-6">
+              <div className="bg-s1 border border-b1 rounded-xl p-4 space-y-4 lg:sticky lg:top-6">
                 <div className="text-t1 text-sm font-semibold font-body">Nouveau document</div>
                 <UploadForm
                   onSuccess={(msg) => {
@@ -479,7 +520,7 @@ export default function Ingestion() {
       </div>
 
       {/* Toasts */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80">
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-[calc(100vw-2rem)] sm:w-80 max-w-[calc(100vw-2rem)] sm:max-w-none">
         {toasts.map((t) => (
           <div
             key={t.id}

@@ -5,10 +5,11 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getCatalog } from '../services/laravelApi';
-import { getPythonGlobalStats, getPythonDocuments } from '../services/pythonApi';
-import { usePythonStream } from '../hooks/usePythonStream';
-import AppLayout from '../components/layout/AppLayout';
+import { getCatalog } from '@/features/documents/api/laravelApi';
+import { getPythonGlobalStats, getPythonDocuments } from '@/features/ingestion/api/pythonApi';
+import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
+import { useAuthStore } from "@/features/auth/store/authStore";
+import AppLayout from '@/shared/components/layout/AppLayout';
 
 // ---------------------------------------------------------------------------
 // KPI Card
@@ -130,6 +131,9 @@ const IconExtracted = () => (
 // Dashboard component
 // ---------------------------------------------------------------------------
 export default function Dashboard() {
+  const { user } = useAuthStore();
+  const isAdminOrEditor = user?.roles?.includes('admin') || user?.roles?.includes('editor');
+
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = React.useRef(0);
 
@@ -177,24 +181,26 @@ export default function Dashboard() {
               <p className="text-t3 text-xs font-mono mt-0.5">Mibeko LegalTech — Vue d'ensemble</p>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                to="/ingestion"
-                className="flex items-center gap-2 h-8 px-3 bg-gold text-[#120e00] rounded-md text-xs font-semibold hover:opacity-90 transition-opacity"
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Nouveau document
-              </Link>
+              {isAdminOrEditor && (
+                <Link
+                  to="/ingestion"
+                  className="flex items-center gap-2 h-8 px-3 bg-gold text-[#120e00] rounded-md text-xs font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Nouveau document
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* KPIs Python */}
-          {pyStats && (
+          {/* KPIs */}
+          {isAdminOrEditor && pyStats && (
             <section>
               <div className="text-[11px] font-mono uppercase tracking-widest text-t3 mb-3">
-                Ingestion Python
+                Traitement des documents
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <KpiCard
@@ -230,12 +236,12 @@ export default function Dashboard() {
             </section>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Catalogue Laravel récent */}
+          <div className={`grid grid-cols-1 ${isAdminOrEditor ? 'lg:grid-cols-2' : ''} gap-5`}>
+            {/* Documents récents */}
             <section className="bg-s1 border border-b1 rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-b1">
-                <div className="text-t1 text-sm font-semibold font-body">Catalogue récent</div>
-                <Link to="/catalogue" className="text-[11px] text-gold hover:opacity-80 font-mono">
+                <div className="text-t1 text-sm font-semibold font-body">Documents récents</div>
+                <Link to="/documents" className="text-[11px] text-gold hover:opacity-80 font-mono">
                   Voir tout →
                 </Link>
               </div>
@@ -271,47 +277,49 @@ export default function Dashboard() {
               </div>
             </section>
 
-            {/* File d'ingestion Python */}
-            <section className="bg-s1 border border-b1 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-b1">
-                <div className="text-t1 text-sm font-semibold font-body">File d'ingestion</div>
-                <Link to="/ingestion" className="text-[11px] text-gold hover:opacity-80 font-mono">
-                  Gérer →
-                </Link>
-              </div>
-              <div className="divide-y divide-b1">
-                {!pyDocs || pyDocs.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-t3 text-xs font-mono">
-                    Aucun document ingéré
-                  </div>
-                ) : pyDocs.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-start gap-3 px-4 py-3 hover:bg-s2 transition-colors"
-                  >
-                    <div className={[
-                      'w-1.5 h-1.5 rounded-full mt-2 shrink-0',
-                      doc.extraction_status === 'completed' ? 'bg-green' :
-                      doc.extraction_status === 'processing' || doc.latest_run_status === 'running' ? 'bg-amber animate-pulse' :
-                      doc.extraction_status === 'failed' ? 'bg-red' : 'bg-t3'
-                    ].join(' ')} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-t1 text-xs font-body truncate">{doc.titre_officiel}</div>
-                      <div className="text-t3 text-[11px] font-mono mt-0.5 flex items-center gap-2">
-                        {doc.latest_run_source && <span>{doc.latest_run_source}</span>}
-                        {doc.has_md && <span className="text-green">MD ✓</span>}
-                        {doc.has_json && <span className="text-blue">JSON ✓</span>}
-                      </div>
+            {/* File d'ingestion */}
+            {isAdminOrEditor && (
+              <section className="bg-s1 border border-b1 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-b1">
+                  <div className="text-t1 text-sm font-semibold font-body">File d'attente d'analyse</div>
+                  <Link to="/ingestion" className="text-[11px] text-gold hover:opacity-80 font-mono">
+                    Gérer →
+                  </Link>
+                </div>
+                <div className="divide-y divide-b1">
+                  {!pyDocs || pyDocs.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-t3 text-xs font-mono">
+                      Aucun document en traitement
                     </div>
-                    <StatusBadge status={doc.extraction_status} />
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ) : pyDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-s2 transition-colors"
+                    >
+                      <div className={[
+                        'w-1.5 h-1.5 rounded-full mt-2 shrink-0',
+                        doc.extraction_status === 'completed' ? 'bg-green' :
+                        doc.extraction_status === 'processing' || doc.latest_run_status === 'running' ? 'bg-amber animate-pulse' :
+                        doc.extraction_status === 'failed' ? 'bg-red' : 'bg-t3'
+                      ].join(' ')} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-t1 text-xs font-body truncate">{doc.titre_officiel}</div>
+                        <div className="text-t3 text-[11px] font-mono mt-0.5 flex items-center gap-2">
+                          {doc.latest_run_source && <span>{doc.latest_run_source}</span>}
+                          {doc.has_md && <span className="text-green">MD ✓</span>}
+                          {doc.has_json && <span className="text-blue">JSON ✓</span>}
+                        </div>
+                      </div>
+                      <StatusBadge status={doc.extraction_status} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Extraction status bar */}
-          {pyStats && pyStats.total_documents > 0 && (
+          {isAdminOrEditor && pyStats && pyStats.total_documents > 0 && (
             <section className="bg-s1 border border-b1 rounded-xl p-4">
               <div className="text-t2 text-xs font-mono mb-3 uppercase tracking-widest">
                 État d'extraction global
