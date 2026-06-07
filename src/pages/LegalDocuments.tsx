@@ -509,8 +509,8 @@ export default function LegalDocuments() {
           const doc = row.original;
           const titre = docTitle(doc);
           return (
-            <div className="flex flex-col min-w-[280px] max-w-[380px]">
-              <span className={`font-body text-sm font-medium line-clamp-2 group-hover:text-gold transition-colors ${titre ? 'text-t1' : 'text-t4 italic'}`}>
+            <Link to={`/editor/viewer/${doc.id}`} className="flex flex-col min-w-[280px] max-w-[380px]">
+              <span className={`font-body text-sm font-medium line-clamp-2 group-hover:text-gold transition-colors hover:underline ${titre ? 'text-t1' : 'text-t4 italic'}`}>
                 {titre || '(Sans titre)'}
               </span>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -523,7 +523,7 @@ export default function LegalDocuments() {
                   <span className="text-t4 text-[10px] font-mono italic">{doc.document_role}</span>
                 )}
               </div>
-            </div>
+            </Link>
           );
         },
       }),

@@ -255,21 +255,29 @@ export default function SidePanel() {
                       { id: 'error', label: 'Erreur', icon: AlertCircle, color: 'text-red bg-red-d' },
                       { id: 'pending', label: 'Attente', icon: Clock, color: 'text-amber bg-amber-d' },
                       { id: 'draft', label: 'Brouillon', icon: Edit2, color: 'text-t3 bg-s3' },
-                    ].map(status => (
-                      <button
-                        key={status.id}
-                        onClick={() => handleStatusChange(status.id)}
-                        className={cn(
-                          "h-[28px] px-2 rounded border border-b1 flex items-center gap-1.5 transition-all",
-                          selectedNode.vs === (status.id === 'validated' ? 'ok' : status.id === 'error' ? 'err' : 'pend') 
-                            ? `${status.color} border-transparent font-bold scale-[1.02]` 
-                            : "bg-transparent text-t3 hover:border-b2 hover:text-t2"
-                        )}
-                      >
-                        <status.icon className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-body">{status.label}</span>
-                      </button>
-                    ))}
+                    ].map(status => {
+                      // Normalize the API value to match the buttons
+                      const currentStatus = selectedNode.vs === 'ok' ? 'validated' : 
+                                            selectedNode.vs === 'err' ? 'error' : 
+                                            selectedNode.vs === 'pend' ? 'pending' : 
+                                            selectedNode.vs || 'draft'; // fallback
+
+                      return (
+                        <button
+                          key={status.id}
+                          onClick={() => handleStatusChange(status.id === 'validated' ? 'ok' : status.id === 'error' ? 'err' : status.id === 'pending' ? 'pend' : 'draft')}
+                          className={cn(
+                            "h-[28px] px-2 rounded border border-b1 flex items-center gap-1.5 transition-all",
+                            currentStatus === status.id 
+                              ? `${status.color} border-transparent font-bold scale-[1.02]` 
+                              : "bg-transparent text-t3 hover:border-b2 hover:text-t2"
+                          )}
+                        >
+                          <status.icon className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-body">{status.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

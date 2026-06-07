@@ -217,6 +217,24 @@ export const getDocumentTree = (id: string): Promise<{ data: LaravelTreeNode[] }
 export const getDocumentPdfUrl = (id: string): string =>
   `${BASE}/legal-documents/${id}/pdf`;
 
+/** URL Export PDF consolidé. */
+export const getDocumentExportUrl = (id: string): string =>
+  `${BASE}/legal-documents/${id}/export`;
+
+/** URL Export JSON. */
+export const getDocumentJsonUrl = (id: string): string =>
+  `${BASE}/legal-documents/${id}/download`;
+
+export const downloadFile = async (url: string, filename: string) => {
+  const response = await apiClient.get(url, { responseType: 'blob' });
+  const blob = new Blob([response.data]);
+  const link = document.createElement('a');
+  link.href = window.URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(link.href);
+};
+
 export const deleteLegalDocument = (id: string): Promise<{ success: boolean; message?: string }> =>
   apiFetch(`/legal-documents/${id}`, { method: 'DELETE' });
 

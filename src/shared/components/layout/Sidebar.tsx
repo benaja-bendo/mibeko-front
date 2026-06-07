@@ -2,6 +2,18 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { logout } from '@/features/auth/api/authApi';
 import logoMibeko from '@/assets/logo_mibeko.svg';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/DropdownMenu';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/shared/components/ui/Sheet';
+import { Settings, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 // ---------------------------------------------------------------------------
 // Nav definitions
@@ -130,6 +142,12 @@ export default function Sidebar({ space }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Fermer le menu mobile lors d'un changement de route
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const isAdmin = user?.roles?.includes('admin') ?? false;
   const isEditorOrAbove = isAdmin || (user?.roles?.includes('editor') ?? false);
@@ -151,10 +169,10 @@ export default function Sidebar({ space }: SidebarProps) {
     return isEditorOrAbove;
   });
 
-  return (
-    <aside className="fixed bottom-0 left-0 right-0 z-50 flex h-16 bg-s1 border-t border-b1 select-none md:relative md:w-[200px] md:shrink-0 md:flex-col md:h-full md:border-t-0 md:border-r">
+  const SidebarContent = (
+    <div className="flex flex-col h-full bg-s1 select-none w-[240px]">
       {/* Logo */}
-      <div className="hidden md:flex items-center gap-2.5 px-4 py-4 border-b border-b1">
+      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-b1 shrink-0">
         <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
           <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
         </div>
@@ -166,7 +184,7 @@ export default function Sidebar({ space }: SidebarProps) {
 
       {/* Space switcher — editor/admin uniquement, affiche leurs espaces disponibles */}
       {isEditorOrAbove && visibleTabs.length > 1 && (
-        <div className="hidden md:flex gap-1 px-3 py-2 border-b border-b1">
+        <div className="flex gap-1 px-3 py-2 border-b border-b1 shrink-0">
           {visibleTabs.map((tab) => {
             const isActive = location.pathname.startsWith(`/${tab.space === 'app' ? 'app' : tab.space}`);
             return (
@@ -189,8 +207,8 @@ export default function Sidebar({ space }: SidebarProps) {
       )}
 
       {/* Nav items */}
-      <nav className="flex flex-1 flex-row items-center justify-around px-2 md:flex-col md:justify-start md:py-3 md:space-y-0.5 md:overflow-y-auto md:items-stretch">
-        <div className="hidden md:block text-[10px] font-mono uppercase tracking-widest text-t4 px-2 mb-2">
+      <nav className="flex flex-col flex-1 py-3 space-y-0.5 overflow-y-auto items-stretch">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-t4 px-4 mb-2">
           Navigation
         </div>
         {navItems.map((item) => {
@@ -203,35 +221,107 @@ export default function Sidebar({ space }: SidebarProps) {
               to={item.to}
               title={item.label}
               className={[
-                'flex items-center justify-center md:justify-start gap-2.5 rounded-md text-[13px] font-body transition-all duration-150 group',
-                'p-2.5 md:px-2.5 md:py-2',
+                'flex items-center justify-start gap-3 rounded-md text-[14px] font-body transition-all duration-150 group',
+                'mx-2 px-3 py-2',
                 isActive
-                  ? 'bg-gold/10 text-gold border border-gold/15'
+                  ? 'bg-gold/10 text-gold border border-gold/15 font-medium'
                   : 'text-t2 hover:bg-s2 hover:text-t1 border border-transparent',
               ].join(' ')}
             >
               <span className={isActive ? 'text-gold' : 'text-t3 group-hover:text-t2'}>
                 {item.icon}
               </span>
-              <span className="hidden md:inline">{item.label}</span>
+              <span>{item.label}</span>
             </NavLink>
           );
         })}
       </nav>
 
-      {/* User + Logout */}
+      {/* User + Logout Dropdown Menu */}
       {user && (
-        <div className="hidden md:flex flex-col gap-1 px-3 py-3 border-t border-b1">
-          <div className="text-t2 text-xs truncate font-medium">{user.name}</div>
-          <div className="text-t4 text-[10px] font-mono truncate">{user.email}</div>
-          <button
-            onClick={handleLogout}
-            className="mt-1 text-left text-[11px] text-t3 hover:text-red-400 transition-colors"
-          >
-            Déconnexion
-          </button>
+        <div className="mt-auto p-2 border-t border-b1 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 w-full p-2 rounded-md hover:bg-s2 transition-colors outline-none focus:ring-2 focus:ring-gold/50">
+                <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold uppercase shrink-0">
+                  {user.name?.charAt(0) || 'U'}
+                </div>
+                <div className="flex flex-col items-start flex-1 min-w-0">
+                  <span className="text-t1 text-sm font-medium truncate w-full text-left">{user.name}</span>
+                  <span className="text-t3 text-xs font-mono truncate w-full text-left">{user.email}</span>
+                </div>
+                <ChevronUp className="w-4 h-4 text-t3 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" className="w-[224px] mb-1">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none text-t1">{user.name}</p>
+                  <p className="text-xs leading-none text-t3 font-mono">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="gap-2">
+                  <Sparkles className="w-4 h-4 text-gold" />
+                  <span className="text-gold font-medium">Passer à la version Pro</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  <span>Compte</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  <span>Facturation</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2">
+                  <Bell className="w-4 h-4" />
+                  <span>Notifications</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-500 focus:bg-red-400/10">
+                <LogOut className="w-4 h-4" />
+                <span>Déconnexion</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Topbar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-s1 border-b border-b1 z-40 flex items-center px-4 justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 flex items-center justify-center overflow-hidden">
+            <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
+          </div>
+          <div className="text-t1 font-display text-sm font-semibold leading-none">Mibeko</div>
+        </div>
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <button className="p-2 -mr-2 text-t2 hover:text-t1 transition-colors">
+              <Menu className="w-5 h-5" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-[240px] border-r border-b1">
+            <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+            <SheetDescription className="sr-only">Liens de navigation et profil utilisateur</SheetDescription>
+            {SidebarContent}
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex md:relative md:w-[240px] md:shrink-0 md:flex-col md:h-full md:border-r border-b1 z-50">
+        {SidebarContent}
+      </aside>
+    </>
   );
 }

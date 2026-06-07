@@ -60,8 +60,12 @@ interface ViewerState {
 
   // Delete Modal
   deleteModalOpen: boolean;
-  deleteNode: TreeNode | null;
-  setDeleteModal: (open: boolean, node?: TreeNode | null) => void;
+  deleteNode: TreeNode | { id: string; type: 'DOCUMENT'; content: string | null | undefined } | null;
+  setDeleteModal: (open: boolean, node?: TreeNode | { id: string; type: 'DOCUMENT'; content: string | null | undefined } | null) => void;
+
+  // Info Modal
+  infoModalOpen: boolean;
+  setInfoModalOpen: (open: boolean) => void;
 }
 
 export const useViewerStore = create<ViewerState>((set) => ({
@@ -150,4 +154,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
     deleteModalOpen: open,
     deleteNode: node
   }),
+
+  infoModalOpen: false,
+  setInfoModalOpen: (open) => set({ infoModalOpen: open }),
 }));
