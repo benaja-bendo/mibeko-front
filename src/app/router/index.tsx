@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RequireAuth, RedirectIfAuthenticated } from './guards';
 import {
   AdminDashboardRoutePage,
+  AppDashboardRoutePage,
   AssistantRoutePage,
   DashboardRoutePage,
   DossiersRoutePage,
@@ -79,6 +80,14 @@ export const router = createBrowserRouter([
   },
 
   // ─── Pro space (/app/*) — user_pro + editor + admin ───────────────────────
+  {
+    path: '/app',
+    element: (
+      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+        <AppDashboardRoutePage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/app/library',
     element: (

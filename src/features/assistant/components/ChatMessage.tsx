@@ -1,0 +1,92 @@
+/**
+ * ChatMessage.tsx — Affichage d'un message du fil de discussion.
+ *
+ * - Message utilisateur : bulle compacte alignée à droite.
+ * - Message assistant : pleine largeur, rendu Markdown, statut de recherche,
+ *   curseur clignotant pendant le streaming, puis cartes de citations.
+ */
+
+import { useRef } from 'react';
+import { Sparkles, User, Loader2, AlertTriangle } from 'lucide-react';
+import type { ChatMessage as ChatMessageType } from '@/features/assistant/types';
+import MarkdownLite from './MarkdownLite';
+import SourceCitations from './SourceCitations';
+
+interface ChatMessageProps {
+  message: ChatMessageType;
+  /** Statut transitoire (ex. "Recherche…") affiché si la réponse est vide. */
+  status?: string | null;
+}
+
+export default function ChatMessage({ message, status }: ChatMessageProps) {
+  const sourcesRef = useRef<HTMLDivElement>(null);
+  const isUser = message.role === 'user';
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end gap-3">
+        <div className="max-w-[80%] rounded-2xl rounded-tr-sm border border-b1 bg-s2 px-4 py-2.5 text-sm leading-relaxed text-t1 whitespace-pre-wrap">
+          {message.content}
+        </div>
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-s3 text-t2">
+          <User className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    );
+  }
+
+  /** Fait défiler jusqu'aux citations au clic sur un marqueur [n]. */
+  const handleCitationClick = () => {
+    sourcesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const showStatus = !!status && !message.content;
+  const showTypingCursor = message.pending && !!message.content;
+
+  return (
+    <div className="flex gap-3">
+      <div
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${
+          message.error
+            ? 'border-red/30 bg-red-d text-red'
+            : 'border-gold/20 bg-gold/10 text-gold'
+        }`}
+      >
+        {message.error ? (
+          <AlertTriangle className="h-3.5 w-3.5" />
+        ) : (
+          <Sparkles className="h-3.5 w-3.5" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 pt-0.5">
+        {showStatus ? (
+          <div className="flex items-center gap-2 text-sm text-t3">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+            <span>{status}</span>
+          </div>
+        ) : message.pending && !message.content ? (
+          <div className="flex items-center gap-1.5 py-1 text-t3">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-t3 [animation-delay:-0.3s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-t3 [animation-delay:-0.15s]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-t3" />
+          </div>
+        ) : (
+          <div className={message.error ? 'text-red' : ''}>
+            <MarkdownLite
+              content={message.content}
+              onCitationClick={handleCitationClick}
+            />
+            {showTypingCursor && (
+              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-gold align-text-bottom" />
+            )}
+          </div>
+        )}
+
+        {message.sources && message.sources.length > 0 && (
+          <SourceCitations ref={sourcesRef} sources={message.sources} />
+        )}
+      </div>
+    </div>
+  );
+}

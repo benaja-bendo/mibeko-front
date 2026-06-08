@@ -37,6 +37,7 @@ const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
 const Ingestion = lazy(() => import('@/pages/Ingestion'));
 const Viewer = lazy(() => import('@/pages/Viewer'));
 const Settings = lazy(() => import('@/pages/Settings'));
+const AppDashboard = lazy(() => import('@/pages/app/Dashboard'));
 const Library = lazy(() => import('@/pages/app/Library'));
 const AssistantPage = lazy(() => import('@/pages/app/Assistant'));
 const Dossiers = lazy(() => import('@/pages/app/Dossiers'));
@@ -83,6 +84,13 @@ export function ViewerRoutePage() {
  */
 export function SettingsRoutePage() {
   return <LazyPage Component={Settings} />;
+}
+
+/**
+ * Rend le tableau de bord Pro (accueil de l'espace) en lazy loading.
+ */
+export function AppDashboardRoutePage() {
+  return <LazyPage Component={AppDashboard} />;
 }
 
 /**

@@ -33,7 +33,7 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
 
   if (isAuthenticated && user) {
     const isEditor = user.roles?.includes('admin') || user.roles?.includes('editor');
-    return <Navigate to={isEditor ? '/editor' : '/app/library'} replace />;
+    return <Navigate to={isEditor ? '/editor' : '/app'} replace />;
   }
 
   return <>{children}</>;

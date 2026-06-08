@@ -1,40 +1,178 @@
+/**
+ * Dossiers.tsx — Espace "Gestion des dossiers".
+ *
+ * Pilotage des affaires en cours : vues tableau / kanban, création, suivi des
+ * statuts, références juridiques, pièces, génération de documents et export PDF.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, LayoutGrid, Table2, FolderOpen } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
+import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import DossierTable from '@/features/dossiers/components/DossierTable';
+import DossierKanban from '@/features/dossiers/components/DossierKanban';
+import DossierDrawer from '@/features/dossiers/components/DossierDrawer';
+import NewDossierModal from '@/features/dossiers/components/NewDossierModal';
+
+type ViewMode = 'table' | 'kanban';
 
 export default function Dossiers() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dossiers = useDossiersStore((s) => s.dossiers);
+  const ensureSeeded = useDossiersStore((s) => s.ensureSeeded);
+
+  const [view, setView] = useState<ViewMode>('table');
+  const [search, setSearch] = useState('');
+  const [newOpen, setNewOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Données d'exemple au premier lancement uniquement.
+  useEffect(() => {
+    ensureSeeded();
+  }, [ensureSeeded]);
+
+  // Ouverture directe d'un dossier via ?open=<id>.
+  useEffect(() => {
+    const open = searchParams.get('open');
+    if (open) {
+      setActiveId(open);
+      setDrawerOpen(true);
+      searchParams.delete('open');
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return dossiers;
+    return dossiers.filter((d) =>
+      [d.title, d.client, d.adverse, d.reference]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q)),
+    );
+  }, [dossiers, search]);
+
+  const openDossier = (id: string) => {
+    setActiveId(id);
+    setDrawerOpen(true);
+  };
+
   return (
     <AppLayout space="app">
-      <div className="flex flex-col h-full">
-        <header className="px-6 py-5 border-b border-b1">
-          <h1 className="text-t1 font-display text-xl font-semibold">Mes dossiers</h1>
-          <p className="text-t3 text-sm mt-1">
-            Organisez vos documents et recherches juridiques
-          </p>
+      <div className="flex h-full flex-col">
+        {/* En-tête */}
+        <header className="shrink-0 border-b border-b1 px-4 py-4 md:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="font-display text-xl font-semibold text-t1">
+                Mes dossiers
+              </h1>
+              <p className="text-xs text-t3">
+                {dossiers.length} affaire{dossiers.length > 1 ? 's' : ''} ·
+                organisez clients, pièces et références
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Recherche */}
+              <div className="relative hidden sm:block">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-t3" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="h-9 w-48 rounded-lg border border-b1 bg-s1 pl-8 pr-3 text-xs text-t1 placeholder:text-t3 focus:outline-none focus:ring-1 focus:ring-gold/40"
+                />
+              </div>
+
+              {/* Bascule de vue */}
+              <div className="flex items-center rounded-lg border border-b1 bg-s1 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setView('table')}
+                  title="Vue tableau"
+                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                    view === 'table'
+                      ? 'bg-s3 text-t1'
+                      : 'text-t3 hover:text-t1'
+                  }`}
+                >
+                  <Table2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView('kanban')}
+                  title="Vue kanban"
+                  className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                    view === 'kanban'
+                      ? 'bg-s3 text-t1'
+                      : 'text-t3 hover:text-t1'
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setNewOpen(true)}
+                className="flex h-9 items-center gap-2 rounded-lg bg-gold px-3 text-sm font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nouveau dossier</span>
+              </button>
+            </div>
+          </div>
         </header>
 
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 stroke-gold fill-none stroke-[1.5]">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
+        {/* Corps */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+          {dossiers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/10">
+                <FolderOpen className="h-7 w-7 text-gold" />
+              </div>
+              <h2 className="font-display text-lg font-semibold text-t1">
+                Aucun dossier
+              </h2>
+              <p className="mt-1.5 max-w-sm text-sm text-t3">
+                Créez votre premier dossier pour regrouper vos références
+                juridiques, pièces et documents.
+              </p>
+              <button
+                type="button"
+                onClick={() => setNewOpen(true)}
+                className="mt-5 flex h-9 items-center gap-2 rounded-lg bg-gold px-4 text-sm font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                Nouveau dossier
+              </button>
             </div>
-            <p className="text-t2 text-sm font-medium">Gestion des dossiers</p>
-            <p className="text-t3 text-xs max-w-xs">
-              Créez et organisez vos dossiers juridiques. Fonctionnalité à venir.
+          ) : filtered.length === 0 ? (
+            <p className="py-16 text-center text-sm text-t3">
+              Aucun dossier ne correspond à «&nbsp;{search}&nbsp;».
             </p>
-            <button
-              disabled
-              className="mt-2 inline-flex items-center gap-2 bg-s1 border border-b1 text-t3 text-xs font-medium rounded-lg px-4 py-2 cursor-not-allowed"
-            >
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-[1.5]">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Nouveau dossier (bientôt)
-            </button>
-          </div>
+          ) : view === 'table' ? (
+            <DossierTable dossiers={filtered} onOpen={openDossier} />
+          ) : (
+            <DossierKanban dossiers={filtered} onOpen={openDossier} />
+          )}
         </div>
       </div>
+
+      <NewDossierModal
+        open={newOpen}
+        onOpenChange={setNewOpen}
+        onCreated={openDossier}
+      />
+      <DossierDrawer
+        dossierId={activeId}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </AppLayout>
   );
 }

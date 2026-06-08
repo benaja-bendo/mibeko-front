@@ -71,6 +71,19 @@ const EDITOR_NAV = [
 
 const APP_NAV = [
   {
+    to: '/app',
+    exact: true,
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[1.5]">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
+    label: 'Tableau de bord',
+  },
+  {
     to: '/app/library',
     exact: false,
     icon: (
@@ -131,7 +144,7 @@ interface SpaceTab {
 const SPACE_TABS: SpaceTab[] = [
   { space: 'admin', to: '/admin', label: 'Admin', adminOnly: true },
   { space: 'editor', to: '/editor', label: 'Éditeur' },
-  { space: 'app', to: '/app/library', label: 'Pro' },
+  { space: 'app', to: '/app', label: 'Pro' },
 ];
 
 interface SidebarProps {
