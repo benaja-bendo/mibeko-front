@@ -15,7 +15,7 @@ import TreeNode from './TreeNode.tsx';
 
 export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
   const { id: documentId } = useParams<{ id: string }>();
-  const { leftPanelWidth, searchQuery, setSearchQuery, collapseAll, expandAll, setAddElementModal } = useViewerStore();
+  const { searchQuery, setSearchQuery, collapseAll, expandAll, setAddElementModal } = useViewerStore();
   const { moveNode } = useDocumentMutations(documentId || '');
   const [isDragOver, setIsDragOver] = React.useState(false);
 

@@ -431,7 +431,8 @@ export default function LegalDocuments() {
   const institutions = institutionsData?.data ?? [];
   const types = (typesData?.data ?? []) as { code: string; nom: string }[];
 
-  const docs = Array.isArray(data?.data) ? data.data : [];
+  const rawDocs = data?.data;
+  const docs = useMemo(() => (Array.isArray(rawDocs) ? rawDocs : []), [rawDocs]);
   const pagination = data?.pagination;
   const totalPages = pagination?.last_page ?? 1;
 
@@ -630,6 +631,8 @@ export default function LegalDocuments() {
     [isAdmin],
   );
 
+  // TanStack Table expose des callbacks non compatibles avec React Compiler.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: docs,
     columns,
