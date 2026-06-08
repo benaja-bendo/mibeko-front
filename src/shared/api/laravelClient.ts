@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getStoredToken } from '@/features/auth/store/authStore';
 
-export const laravelBaseUrl = import.meta.env.VITE_LARAVEL_API_URL || '/api';
+export const laravelBaseUrl = import.meta.env.VITE_LARAVEL_API_URL || '/api/v1';
 
 export const laravelClient = axios.create({
   baseURL: laravelBaseUrl,

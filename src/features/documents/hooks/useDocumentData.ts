@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { LegalDocument, TreeNode } from '@/shared/types/database';
-import { mockTreeData, mockPdfPages } from '@/shared/lib/mockData';
 import { apiFetch } from '@/features/documents/api/laravelApi';
 import { laravelBaseUrl as BASE } from '@/shared/api';
 
@@ -84,37 +83,17 @@ export function useDocumentData(id: string) {
   return useQuery<DocumentData>({
     queryKey: ['document', id],
     queryFn: async () => {
-      try {
-        const [docData, treeData] = await Promise.all([
-          apiFetch<{ data?: LegalDocument }>(`/legal-documents/${id}`),
-          apiFetch<{ data?: TreeNode[] }>(`/legal-documents/${id}/tree`)
-        ]);
+      const [docData, treeData] = await Promise.all([
+        apiFetch<{ data?: LegalDocument }>(`/legal-documents/${id}`),
+        apiFetch<{ data?: TreeNode[] }>(`/legal-documents/${id}/tree`)
+      ]);
 
-        const pdfUrl = `${BASE}/legal-documents/${id}/pdf`;
-
-        return {
-          document: (docData?.data || docData) as LegalDocument,
-          tree: buildTree((treeData?.data || treeData || []) as TreeNode[]),
-          pdfUrl,
-        };
-      } catch (err) {
-        console.warn('Failed to fetch from API, falling back to mock data', err);
-      }
+      const pdfUrl = `${BASE}/legal-documents/${id}/pdf`;
 
       return {
-        document: {
-          id,
-          type_code: 'LOI',
-          titre_officiel: 'Loi n° 2024-537 du 13 juin 2024',
-          reference_nor: null,
-          date_signature: '2024-06-13',
-          date_publication: '2024-06-14',
-          statut: 'vigueur',
-          curation_status: 'published'
-        },
-        tree: mockTreeData,
-        pdfUrl: `${BASE}/legal-documents/${id}/pdf`,
-        pdfPages: mockPdfPages,
+        document: (docData?.data || docData) as LegalDocument,
+        tree: buildTree((treeData?.data || treeData || []) as TreeNode[]),
+        pdfUrl,
       };
     },
     enabled: !!id,
@@ -147,6 +126,13 @@ export function useDocumentMutations(documentId: string) {
   const deleteNode = useMutation({
     mutationFn: async (id: string) => {
       return apiFetch<unknown>(`/structure-nodes/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
+  });
+
+  const deleteArticle = useMutation({
+    mutationFn: async (id: string) => {
+      return apiFetch<unknown>(`/articles/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
@@ -234,6 +220,7 @@ export function useDocumentMutations(documentId: string) {
     createNode,
     updateNode,
     deleteNode,
+    deleteArticle,
     createArticle,
     updateArticle,
     addArticleVersion,

@@ -253,7 +253,7 @@ export default function Dashboard() {
                 ) : recentDocs.map((doc) => (
                   <Link
                     key={doc.id}
-                    to={`/viewer/${doc.id}`}
+                    to={`/editor/viewer/${doc.id}`}
                     className="flex items-start gap-3 px-4 py-3 hover:bg-s2 transition-colors group"
                   >
                     <div className="w-7 h-7 rounded-md bg-gold/8 border border-gold/12 flex items-center justify-center shrink-0 mt-0.5">

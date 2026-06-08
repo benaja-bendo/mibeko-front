@@ -1,39 +1,19 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
 import { RequireAuth, RedirectIfAuthenticated } from './guards';
-
-function PageFallback() {
-  return (
-    <div className="h-screen w-screen flex items-center justify-center bg-bg text-gold font-mono text-xs tracking-widest uppercase">
-      Chargement…
-    </div>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Wrap = ({ Component }: { Component: React.LazyExoticComponent<any> }) => (
-  <Suspense fallback={<PageFallback />}>
-    <Component />
-  </Suspense>
-);
-
-// Auth
-const LoginPage = lazy(() => import('@/features/auth/components/LoginPage'));
-
-// Editor space
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
-const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
-const Ingestion = lazy(() => import('@/pages/Ingestion'));
-const Viewer = lazy(() => import('@/pages/Viewer'));
-const Settings = lazy(() => import('@/pages/Settings'));
-
-// Pro space
-const Library = lazy(() => import('@/pages/app/Library'));
-const AssistantPage = lazy(() => import('@/pages/app/Assistant'));
-const Dossiers = lazy(() => import('@/pages/app/Dossiers'));
-
-// Admin space
-const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+import {
+  AdminDashboardRoutePage,
+  AssistantRoutePage,
+  DashboardRoutePage,
+  DossiersRoutePage,
+  IngestionRoutePage,
+  LegalDocumentsRoutePage,
+  LegacyViewerRedirectPage,
+  LibraryRoutePage,
+  LoginRoutePage,
+  SettingsRoutePage,
+  UpgradeRoutePage,
+  ViewerRoutePage,
+} from './routeElements';
 
 export const router = createBrowserRouter([
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -41,7 +21,7 @@ export const router = createBrowserRouter([
     path: '/auth/login',
     element: (
       <RedirectIfAuthenticated>
-        <Wrap Component={LoginPage} />
+        <LoginRoutePage />
       </RedirectIfAuthenticated>
     ),
   },
@@ -51,7 +31,7 @@ export const router = createBrowserRouter([
     path: '/admin',
     element: (
       <RequireAuth roles={['admin']} requiredRole="admin">
-        <Wrap Component={AdminDashboard} />
+        <AdminDashboardRoutePage />
       </RequireAuth>
     ),
   },
@@ -61,7 +41,7 @@ export const router = createBrowserRouter([
     path: '/editor',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
-        <Wrap Component={Dashboard} />
+        <DashboardRoutePage />
       </RequireAuth>
     ),
   },
@@ -69,7 +49,7 @@ export const router = createBrowserRouter([
     path: '/editor/documents',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
-        <Wrap Component={LegalDocuments} />
+        <LegalDocumentsRoutePage />
       </RequireAuth>
     ),
   },
@@ -77,7 +57,7 @@ export const router = createBrowserRouter([
     path: '/editor/ingestion',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
-        <Wrap Component={Ingestion} />
+        <IngestionRoutePage />
       </RequireAuth>
     ),
   },
@@ -85,7 +65,7 @@ export const router = createBrowserRouter([
     path: '/editor/viewer/:id',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
-        <Wrap Component={Viewer} />
+        <ViewerRoutePage />
       </RequireAuth>
     ),
   },
@@ -93,7 +73,7 @@ export const router = createBrowserRouter([
     path: '/editor/settings',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
-        <Wrap Component={Settings} />
+        <SettingsRoutePage />
       </RequireAuth>
     ),
   },
@@ -103,7 +83,7 @@ export const router = createBrowserRouter([
     path: '/app/library',
     element: (
       <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
-        <Wrap Component={Library} />
+        <LibraryRoutePage />
       </RequireAuth>
     ),
   },
@@ -111,7 +91,7 @@ export const router = createBrowserRouter([
     path: '/app/library/:id',
     element: (
       <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
-        <Wrap Component={Library} />
+        <LibraryRoutePage />
       </RequireAuth>
     ),
   },
@@ -119,7 +99,7 @@ export const router = createBrowserRouter([
     path: '/app/assistant',
     element: (
       <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
-        <Wrap Component={AssistantPage} />
+        <AssistantRoutePage />
       </RequireAuth>
     ),
   },
@@ -127,7 +107,15 @@ export const router = createBrowserRouter([
     path: '/app/dossiers',
     element: (
       <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
-        <Wrap Component={Dossiers} />
+        <DossiersRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/app/upgrade',
+    element: (
+      <RequireAuth>
+        <UpgradeRoutePage />
       </RequireAuth>
     ),
   },
@@ -138,6 +126,7 @@ export const router = createBrowserRouter([
   { path: '/ingestion', element: <Navigate to="/editor/ingestion" replace /> },
   { path: '/settings', element: <Navigate to="/editor/settings" replace /> },
   { path: '/viewer', element: <Navigate to="/editor" replace /> },
+  { path: '/viewer/:id', element: <LegacyViewerRedirectPage /> },
 
   // ─── Catch-all ─────────────────────────────────────────────────────────────
   { path: '*', element: <Navigate to="/" replace /> },

@@ -11,7 +11,7 @@ export default function Home() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (docId.trim()) {
-      navigate(`/viewer/${docId.trim()}`);
+      navigate(`/editor/viewer/${docId.trim()}`);
     }
   };
 

@@ -18,7 +18,7 @@ describe('LegalDocuments', () => {
 
     renderWithProviders(<LegalDocuments />);
 
-    expect(screen.getByRole('heading', { name: 'Documents légaux' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Documents juridiques' })).toBeInTheDocument();
     expect(await screen.findByText('Aucun document trouvé')).toBeInTheDocument();
   });
 

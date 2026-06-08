@@ -1,4 +1,3 @@
-import React from 'react';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { Info, Calendar, Hash, FileText, Activity } from 'lucide-react';
 import type { LegalDocument } from '@/shared/types/database';
@@ -11,6 +10,7 @@ import {
 
 export default function DocumentInfoModal({ document }: { document?: LegalDocument }) {
   const { infoModalOpen, setInfoModalOpen } = useViewerStore();
+  const legalStatus = document?.statut || document?.status || 'vigueur';
 
   if (!document) return null;
 
@@ -75,7 +75,7 @@ export default function DocumentInfoModal({ document }: { document?: LegalDocume
                 <span className="text-[10px] font-mono uppercase tracking-wider">Statut Juridique</span>
               </div>
               <p className="text-[13px] text-t1 font-medium">
-                {document.statut_juridique || 'VIGUEUR'}
+                {legalStatus.toUpperCase()}
               </p>
             </div>
           </div>
