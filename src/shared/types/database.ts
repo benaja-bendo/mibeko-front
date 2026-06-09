@@ -12,6 +12,7 @@ export interface LegalDocument {
   statut?: 'vigueur' | 'abroge' | 'projet';
   status?: string;
   curation_status?: string | null;
+  legal_scope?: 'national' | 'ohada' | 'communautaire' | null;
 }
 
 export interface StructureNode {

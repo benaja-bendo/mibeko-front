@@ -5,6 +5,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getDocumentTypes,
+  getInstitutions,
   searchLibrary,
   type SearchParams,
 } from '@/features/library/api/libraryApi';
@@ -13,6 +14,7 @@ export const libraryKeys = {
   all: ['library'] as const,
   search: (params: SearchParams) => [...libraryKeys.all, 'search', params] as const,
   types: () => [...libraryKeys.all, 'document-types'] as const,
+  institutions: () => [...libraryKeys.all, 'institutions'] as const,
 };
 
 /**
@@ -35,6 +37,15 @@ export function useDocumentTypes() {
   return useQuery({
     queryKey: libraryKeys.types(),
     queryFn: getDocumentTypes,
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Institutions émettrices pour les filtres (mis en cache longuement). */
+export function useInstitutions() {
+  return useQuery({
+    queryKey: libraryKeys.institutions(),
+    queryFn: getInstitutions,
     staleTime: 10 * 60_000,
   });
 }
