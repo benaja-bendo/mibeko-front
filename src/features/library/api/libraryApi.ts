@@ -1,16 +1,23 @@
 /**
  * libraryApi.ts — Client de la Bibliothèque Juridique (backend Laravel).
  *
- * Recherche hybride (vectorielle + plein-texte) avec filtres serveur robustes
- * (type, institution, périmètre, dates, tri), pagination réelle et réponse RAG
- * optionnelle. Fournit aussi les URLs d'actions documentaires (PDF, JSON).
+ * Deux couches strictement découplées :
+ *  - **Recherche** : moteur 100 % PostgreSQL (full-text), filtres serveur,
+ *    pagination réelle. Aucune IA, aucune synthèse — uniquement des résultats.
+ *  - **IA à la demande** : explication d'un article ou synthèse d'une recherche,
+ *    en streaming SSE, déclenchées explicitement par l'utilisateur.
+ *
+ * Fournit aussi les URLs d'actions documentaires (PDF, JSON).
  */
 
 import { laravelClient, laravelBaseUrl } from '@/shared/api';
+import { getStoredToken } from '@/features/auth/store/authStore';
 import type {
   DocumentTypeOption,
   InstitutionOption,
   LegalScope,
+  LibraryAiCallbacks,
+  LibraryFilterState,
   LibrarySearchResult,
   SearchResultItem,
   SearchSort,
@@ -31,18 +38,15 @@ export interface SearchParams {
   sort?: SearchSort;
   /** Restreindre à un document précis. */
   documentId?: string | null;
-  /** Demander une réponse de synthèse (RAG / mode sémantique). */
-  rag?: boolean;
   page?: number;
   perPage?: number;
 }
 
 /**
- * Recherche dans la base juridique.
+ * Recherche full-text dans la base juridique (moteur 100 % PostgreSQL).
  *
- * Normalise les deux formes de réponse du backend :
- *  - RAG    : `data: { answer, sources: [...], pagination }`
- *  - simple : `data: [...items], pagination`
+ * Renvoie toujours une liste paginée d'articles classés par pertinence —
+ * jamais de synthèse IA (l'IA est une action volontaire distincte).
  */
 export async function searchLibrary(
   params: SearchParams,
@@ -50,15 +54,9 @@ export async function searchLibrary(
   const res = await laravelClient.get<{
     success: boolean;
     message?: string;
-    data:
-      | SearchResultItem[]
-      | {
-          answer?: string;
-          sources?: SearchResultItem[];
-          pagination?: LibrarySearchResult['pagination'];
-        };
+    data: SearchResultItem[];
     pagination?: LibrarySearchResult['pagination'];
-  }>('search', {
+  }>('library/search', {
     params: {
       q: params.q,
       type: params.type || undefined,
@@ -72,26 +70,14 @@ export async function searchLibrary(
       date_to: params.dateTo || undefined,
       sort: params.sort && params.sort !== 'relevance' ? params.sort : undefined,
       document_id: params.documentId || undefined,
-      rag: params.rag ? 1 : undefined,
       page: params.page || undefined,
       per_page: params.perPage || undefined,
     },
   });
 
-  const body = res.data;
-
-  if (body.data && !Array.isArray(body.data)) {
-    return {
-      answer: body.data.answer ?? null,
-      results: body.data.sources ?? [],
-      pagination: body.data.pagination ?? null,
-    };
-  }
-
   return {
-    answer: null,
-    results: Array.isArray(body.data) ? body.data : [],
-    pagination: body.pagination ?? null,
+    results: Array.isArray(res.data?.data) ? res.data.data : [],
+    pagination: res.data?.pagination ?? null,
   };
 }
 
@@ -110,6 +96,153 @@ export async function getInstitutions(): Promise<InstitutionOption[]> {
     { params: { sort: 'nom' } },
   );
   return res.data?.data ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// IA à la demande — streaming SSE (explication d'article / synthèse)
+// ---------------------------------------------------------------------------
+
+/** Découpe une trame SSE brute en `{ event, data }` (même format que l'Assistant). */
+function parseSseFrame(frame: string): { event: string; data: string } | null {
+  const lines = frame.split('\n');
+  let event = 'message';
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).replace(/^ /, ''));
+    }
+  }
+
+  if (dataLines.length === 0) return null;
+  return { event, data: dataLines.join('\n') };
+}
+
+/**
+ * Consomme un flux SSE POST et branche chaque évènement sur les callbacks.
+ *
+ * `EventSource` ne gérant pas les requêtes POST avec corps, on lit le flux via
+ * `fetch` + `ReadableStream` (comme la feature Assistant).
+ */
+async function consumeSse(
+  path: string,
+  body: Record<string, unknown>,
+  callbacks: LibraryAiCallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = getStoredToken();
+
+  const response = await fetch(`${laravelBaseUrl}/${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: 'include',
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok || !response.body) {
+    let detail = `Erreur ${response.status}`;
+    try {
+      const payload = await response.json();
+      detail = payload?.message || detail;
+    } catch {
+      /* corps non JSON — on garde le code HTTP */
+    }
+    throw new Error(detail);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split('\n\n');
+    buffer = frames.pop() ?? '';
+
+    for (const rawFrame of frames) {
+      if (!rawFrame.trim()) continue;
+      const parsed = parseSseFrame(rawFrame);
+      if (!parsed) continue;
+
+      const { event, data } = parsed;
+
+      if (data === '[DONE]') {
+        callbacks.onDone?.();
+        return;
+      }
+
+      try {
+        switch (event) {
+          case 'status': {
+            callbacks.onStatus?.(JSON.parse(data).message ?? '');
+            break;
+          }
+          case 'sources': {
+            const sources = JSON.parse(data);
+            if (Array.isArray(sources)) callbacks.onSources?.(sources);
+            break;
+          }
+          case 'error': {
+            callbacks.onError?.(JSON.parse(data).message ?? 'Erreur inconnue');
+            break;
+          }
+          // Évènement par défaut "message" => fragment de texte.
+          default: {
+            const payload = JSON.parse(data);
+            if (payload.type === 'text_delta' && typeof payload.delta === 'string') {
+              callbacks.onDelta?.(payload.delta);
+            }
+          }
+        }
+      } catch {
+        // Trame JSON malformée — on l'ignore pour ne pas casser le flux.
+      }
+    }
+  }
+
+  callbacks.onDone?.();
+}
+
+/** Streame l'explication pédagogique d'un article précis. */
+export function streamLibraryExplain(
+  { articleId, signal }: { articleId: string; signal?: AbortSignal },
+  callbacks: LibraryAiCallbacks,
+): Promise<void> {
+  return consumeSse('library/explain', { article_id: articleId }, callbacks, signal);
+}
+
+/** Streame la synthèse Mibeko IA du top-K d'une recherche (mêmes filtres serveur). */
+export function streamLibrarySynthesis(
+  {
+    q,
+    filters,
+    signal,
+  }: { q: string; filters: LibraryFilterState; signal?: AbortSignal },
+  callbacks: LibraryAiCallbacks,
+): Promise<void> {
+  return consumeSse(
+    'library/synthesis',
+    {
+      q,
+      type: filters.typeCode || undefined,
+      legal_scope: filters.legalScope !== 'all' ? filters.legalScope : undefined,
+      institution_id: filters.institutionId || undefined,
+      date_from: filters.dateFrom || undefined,
+      date_to: filters.dateTo || undefined,
+    },
+    callbacks,
+    signal,
+  );
 }
 
 // ---------------------------------------------------------------------------

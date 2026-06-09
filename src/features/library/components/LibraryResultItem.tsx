@@ -7,13 +7,15 @@
  */
 
 import { Fragment } from 'react';
-import { FileText, FolderPlus, Check } from 'lucide-react';
+import { FileText, FolderPlus, Check, Sparkles } from 'lucide-react';
 import { SCOPE_LABELS, type SearchResultItem } from '@/features/library/types';
 
 interface LibraryResultItemProps {
   item: SearchResultItem;
   query: string;
   onOpen: (item: SearchResultItem) => void;
+  /** Demande une explication IA de cet article (panneau droit). */
+  onExplain?: (item: SearchResultItem) => void;
   /** Document actuellement affiché dans le panneau de lecture. */
   active?: boolean;
   /** Active le bouton « Ajouter au dossier » (flux depuis un dossier). */
@@ -60,6 +62,7 @@ export default function LibraryResultItem({
   item,
   query,
   onOpen,
+  onExplain,
   active,
   onAddToDossier,
   added,
@@ -129,30 +132,44 @@ export default function LibraryResultItem({
           {pubYear && <span className="font-mono">· {pubYear}</span>}
         </div>
 
-        {onAddToDossier && (
-          <button
-            type="button"
-            onClick={() => onAddToDossier(item)}
-            disabled={added}
-            className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
-              added
-                ? 'border-green/30 bg-green-d text-green'
-                : 'border-b1 bg-s2 text-t2 hover:border-gold/30 hover:text-t1'
-            }`}
-          >
-            {added ? (
-              <>
-                <Check className="h-3 w-3" />
-                Ajouté
-              </>
-            ) : (
-              <>
-                <FolderPlus className="h-3 w-3" />
-                Dossier
-              </>
-            )}
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {onExplain && (
+            <button
+              type="button"
+              onClick={() => onExplain(item)}
+              title="Expliquer cet article avec l'IA"
+              className="flex items-center gap-1 rounded-md border border-b1 bg-s2 px-2 py-1 text-[10px] font-medium text-t2 transition-colors hover:border-gold/30 hover:text-gold"
+            >
+              <Sparkles className="h-3 w-3" />
+              Expliquer
+            </button>
+          )}
+
+          {onAddToDossier && (
+            <button
+              type="button"
+              onClick={() => onAddToDossier(item)}
+              disabled={added}
+              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+                added
+                  ? 'border-green/30 bg-green-d text-green'
+                  : 'border-b1 bg-s2 text-t2 hover:border-gold/30 hover:text-t1'
+              }`}
+            >
+              {added ? (
+                <>
+                  <Check className="h-3 w-3" />
+                  Ajouté
+                </>
+              ) : (
+                <>
+                  <FolderPlus className="h-3 w-3" />
+                  Dossier
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

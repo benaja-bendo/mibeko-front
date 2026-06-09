@@ -2,11 +2,11 @@
  * Library.tsx — Poste de travail "Bibliothèque Juridique".
  *
  * Interface double-panneau pensée pour un usage quotidien :
- *  - gauche : recherche (sémantique/précise), filtres serveur, résultats paginés ;
- *  - droite : lecture structurée du document sélectionné + actions rapides.
- *
- * Tous les filtres et la pagination sont appliqués côté serveur. Le périmètre
- * Congo/OHADA s'appuie sur le vrai champ `legal_scope` (plus d'heuristique).
+ *  - gauche : recherche documentaire classique (full-text PostgreSQL), filtres
+ *    serveur, résultats paginés triés par pertinence — sans aucune IA imposée ;
+ *  - droite : surface adaptative qui affiche, selon l'action de l'utilisateur,
+ *    soit la LECTURE d'un article/document, soit une réponse IA (explication
+ *    d'un article ou synthèse d'une recherche), déclenchée volontairement.
  *
  * S'ouvre directement sur un document via `?doc=&article=` (citations Assistant)
  * et passe en mode « ajout au dossier » via `?addTo=<dossierId>`.
@@ -22,7 +22,6 @@ import {
   ArrowLeft,
   BookOpenText,
   Sparkles,
-  Search,
 } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import {
@@ -32,14 +31,16 @@ import {
 } from '@/shared/components/ui/Resizable';
 import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/Sheet';
 import { useIsDesktop } from '@/shared/hooks/useMediaQuery';
-import { useLibrarySearch } from '@/features/library/hooks/useLibrary';
+import {
+  useLibrarySearch,
+  useLibraryAi,
+} from '@/features/library/hooks/useLibrary';
 import LibrarySearchBar from '@/features/library/components/LibrarySearchBar';
 import LibraryFilters from '@/features/library/components/LibraryFilters';
 import LibraryResultItem from '@/features/library/components/LibraryResultItem';
-import LibraryAiAnswer from '@/features/library/components/LibraryAiAnswer';
 import LibraryPagination from '@/features/library/components/LibraryPagination';
-import DocumentReader from '@/features/library/components/DocumentReader';
 import DocumentReaderView from '@/features/library/components/DocumentReaderView';
+import LibraryAiPanel from '@/features/library/components/LibraryAiPanel';
 import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
 import type {
   LibraryFilterState,
@@ -49,7 +50,6 @@ import type {
 const PER_PAGE = 12;
 
 const DEFAULT_FILTERS: LibraryFilterState = {
-  mode: 'semantic',
   typeCode: null,
   legalScope: 'all',
   institutionId: null,
@@ -99,13 +99,16 @@ export default function Library() {
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(isDesktop);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [mobileReaderOpen, setMobileReaderOpen] = useState(false);
+  const [mobileRightOpen, setMobileRightOpen] = useState(false);
 
-  // Document affiché dans le panneau de lecture.
+  // Document/article affiché dans le panneau de lecture.
   const [selected, setSelected] = useState<{
     documentId: string;
     articleId: string | null;
   } | null>(null);
+
+  // Surface IA du panneau droit (explication / synthèse, en streaming).
+  const ai = useLibraryAi();
 
   // Initialisation depuis l'URL (?q, ?doc, ?article).
   useEffect(() => {
@@ -118,7 +121,7 @@ export default function Library() {
     }
     if (doc) {
       setSelected({ documentId: doc, articleId: article });
-      if (!isDesktop) setMobileReaderOpen(true);
+      if (!isDesktop) setMobileRightOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -131,7 +134,6 @@ export default function Library() {
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
     sort: filters.sort,
-    rag: filters.mode === 'semantic',
     page,
     perPage: PER_PAGE,
   });
@@ -155,14 +157,67 @@ export default function Library() {
   };
 
   const resetFilters = () => {
-    setFilters((prev) => ({ ...DEFAULT_FILTERS, mode: prev.mode }));
+    setFilters(DEFAULT_FILTERS);
     setPage(1);
   };
 
+  // ── Actions du panneau droit ───────────────────────────────────────────────
+
+  /** Lire un article : bascule la surface droite en mode lecture. */
   const selectResult = (item: SearchResultItem) => {
     if (!item.document_id) return;
     setSelected({ documentId: item.document_id, articleId: item.id ?? null });
-    if (!isDesktop) setMobileReaderOpen(true);
+    ai.close(); // la lecture prend la priorité sur une éventuelle réponse IA
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  /** Expliquer un article via l'IA (et garder l'article comme lecture de repli). */
+  const explainResult = (item: SearchResultItem) => {
+    if (item.document_id) {
+      setSelected({ documentId: item.document_id, articleId: item.id ?? null });
+    }
+    ai.start({
+      kind: 'explain',
+      articleId: item.id,
+      documentTitle: item.document_title || 'Document',
+      articleNumber: item.number,
+    });
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  /** Synthèse Mibeko IA du top-K de la recherche courante. */
+  const runSynthesis = () => {
+    if (!hasSearched) return;
+    ai.start({ kind: 'synthesis', q: submittedQuery, filters });
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  /** Explication déclenchée depuis le lecteur (article en cours de lecture). */
+  const explainFromReader = (payload: {
+    articleId: string;
+    documentTitle: string;
+    articleNumber?: string | null;
+  }) => {
+    ai.start({ kind: 'explain', ...payload });
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  /** Ferme la surface IA (le lecteur reprend la main s'il y en a un). */
+  const closeAi = () => {
+    ai.close();
+    if (!isDesktop && !selected) setMobileRightOpen(false);
+  };
+
+  /** Ouvre une source de la réponse IA dans le lecteur. */
+  const openSourceInReader = (item: SearchResultItem) => {
+    if (!item.document_id) return;
+    setSelected({ documentId: item.document_id, articleId: item.id ?? null });
+    ai.close();
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  const retryAi = () => {
+    if (ai.request) ai.start(ai.request);
   };
 
   const handleAddToDossier = (item: SearchResultItem) => {
@@ -179,7 +234,7 @@ export default function Library() {
   // ── Colonne de gauche (recherche + filtres + résultats) ────────────────────
   const leftColumn = (
     <div className="flex h-full flex-col">
-      {/* Recherche + mode + bouton filtres */}
+      {/* Recherche + bouton filtres */}
       <div className="shrink-0 space-y-2.5 border-b border-b1 p-3">
         <LibrarySearchBar
           value={query}
@@ -188,36 +243,7 @@ export default function Library() {
           isLoading={isFetching && hasSearched}
         />
 
-        <div className="flex items-center justify-between gap-2">
-          {/* Mode de recherche */}
-          <div className="flex items-center rounded-lg border border-b1 bg-s1 p-0.5">
-            <button
-              type="button"
-              onClick={() => patchFilters({ mode: 'semantic' })}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                filters.mode === 'semantic'
-                  ? 'bg-gold/15 text-gold'
-                  : 'text-t3 hover:text-t1'
-              }`}
-            >
-              <Sparkles className="h-3 w-3" />
-              Sémantique
-            </button>
-            <button
-              type="button"
-              onClick={() => patchFilters({ mode: 'precise' })}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                filters.mode === 'precise'
-                  ? 'bg-s3 text-t1'
-                  : 'text-t3 hover:text-t1'
-              }`}
-            >
-              <Search className="h-3 w-3" />
-              Précise
-            </button>
-          </div>
-
-          {/* Bouton filtres (inline desktop / Sheet mobile) */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() =>
@@ -285,24 +311,28 @@ export default function Library() {
             </div>
           ) : (
             <>
-              {/* Synthèse IA (mode sémantique) */}
-              {data?.answer && (
-                <LibraryAiAnswer
-                  answer={data.answer}
-                  sourceCount={results.length}
-                  query={submittedQuery}
-                />
-              )}
-
-              {/* Compteur */}
+              {/* En-tête résultats : compteur + Synthèse IA volontaire */}
               {!isError && (
-                <p className="px-1 text-[11px] text-t3">
-                  {isFetching
-                    ? 'Recherche en cours…'
-                    : pagination
-                      ? `${pagination.total} résultat${pagination.total > 1 ? 's' : ''}`
-                      : `${results.length} résultat${results.length > 1 ? 's' : ''}`}
-                </p>
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <p className="text-[11px] text-t3">
+                    {isFetching
+                      ? 'Recherche en cours…'
+                      : pagination
+                        ? `${pagination.total} résultat${pagination.total > 1 ? 's' : ''}`
+                        : `${results.length} résultat${results.length > 1 ? 's' : ''}`}
+                  </p>
+
+                  {results.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={runSynthesis}
+                      className="flex items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold transition-colors hover:bg-gold/15"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Synthèse Mibeko IA
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Skeletons */}
@@ -342,6 +372,7 @@ export default function Library() {
                   item={item}
                   query={submittedQuery}
                   onOpen={selectResult}
+                  onExplain={explainResult}
                   active={selected?.documentId === item.document_id}
                   onAddToDossier={
                     addToDossierId ? handleAddToDossier : undefined
@@ -364,11 +395,19 @@ export default function Library() {
     </div>
   );
 
-  // ── Panneau de lecture (droite, desktop) ───────────────────────────────────
-  const previewPanel = selected ? (
+  // ── Surface droite : IA (priorité) > lecture > vide ────────────────────────
+  const rightSurface = ai.active ? (
+    <LibraryAiPanel
+      state={ai}
+      onClose={closeAi}
+      onOpenSource={openSourceInReader}
+      onRetry={retryAi}
+    />
+  ) : selected ? (
     <DocumentReaderView
       documentId={selected.documentId}
       articleId={selected.articleId}
+      onExplainArticle={explainFromReader}
       onAddToDossier={
         addToDossierId
           ? () =>
@@ -391,8 +430,8 @@ export default function Library() {
       <div>
         <p className="text-sm font-medium text-t2">Espace de lecture</p>
         <p className="mt-1 max-w-xs text-xs text-t3">
-          Sélectionnez un texte dans les résultats pour le lire ici, avec sa
-          structure et ses actions.
+          Sélectionnez un texte pour le lire ici, ou demandez une explication IA
+          depuis un résultat.
         </p>
       </div>
     </div>
@@ -428,7 +467,7 @@ export default function Library() {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={54} minSize={30}>
-              {previewPanel}
+              {rightSurface}
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
@@ -437,14 +476,17 @@ export default function Library() {
         <div className="flex min-h-0 flex-1 flex-col lg:hidden">{leftColumn}</div>
       </div>
 
-      {/* Lecteur en Sheet (mobile) */}
+      {/* Surface droite en Sheet (mobile) : lecture ou IA */}
       {!isDesktop && (
-        <DocumentReader
-          documentId={selected?.documentId ?? null}
-          articleId={selected?.articleId}
-          open={mobileReaderOpen}
-          onOpenChange={setMobileReaderOpen}
-        />
+        <Sheet open={mobileRightOpen} onOpenChange={setMobileRightOpen}>
+          <SheetContent
+            side="right"
+            className="flex w-full flex-col p-0 sm:max-w-none md:w-[88vw]"
+          >
+            <SheetTitle className="sr-only">Panneau de lecture</SheetTitle>
+            {rightSurface}
+          </SheetContent>
+        </Sheet>
       )}
 
       {/* Filtres en Sheet (mobile) */}

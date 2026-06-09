@@ -10,7 +10,9 @@ import { useRef } from 'react';
 import { Sparkles, User, Loader2, AlertTriangle } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/features/assistant/types';
 import MarkdownLite from './MarkdownLite';
-import SourceCitations from './SourceCitations';
+import SourceCitations, {
+  type SourceCitationsHandle,
+} from './SourceCitations';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -19,7 +21,7 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message, status }: ChatMessageProps) {
-  const sourcesRef = useRef<HTMLDivElement>(null);
+  const sourcesRef = useRef<SourceCitationsHandle>(null);
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -35,9 +37,9 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
     );
   }
 
-  /** Fait défiler jusqu'aux citations au clic sur un marqueur [n]. */
-  const handleCitationClick = () => {
-    sourcesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  /** Amène à l'écran la source [n] cliquée dans la réponse, et la surligne. */
+  const handleCitationClick = (index: number) => {
+    sourcesRef.current?.scrollToSource(index);
   };
 
   const showStatus = !!status && !message.content;

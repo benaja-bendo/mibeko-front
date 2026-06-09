@@ -9,9 +9,6 @@
 /** Périmètre juridique — champ serveur réel (`legal_documents.legal_scope`). */
 export type LegalScope = 'all' | 'national' | 'ohada' | 'communautaire';
 
-/** Mode de recherche : sémantique (avec synthèse IA) ou précise (texte exact). */
-export type SearchMode = 'semantic' | 'precise';
-
 /** Tri des résultats. */
 export type SearchSort = 'relevance' | 'date_desc' | 'date_asc';
 
@@ -42,10 +39,12 @@ export interface SearchPagination {
   last_page: number;
 }
 
-/** Réponse de recherche normalisée (gère les deux formes du backend). */
+/**
+ * Réponse de recherche : liste paginée d'articles, classés par pertinence.
+ * La recherche est un moteur 100 % PostgreSQL — elle ne renvoie JAMAIS de
+ * synthèse IA (celle-ci est une action volontaire, cf. {@link LibraryAiRequest}).
+ */
 export interface LibrarySearchResult {
-  /** Réponse synthétique de l'IA si le mode sémantique est actif (sinon null). */
-  answer: string | null;
   results: SearchResultItem[];
   pagination: SearchPagination | null;
 }
@@ -66,13 +65,49 @@ export interface InstitutionOption {
 
 /** État des filtres de la Bibliothèque (tous appliqués côté serveur). */
 export interface LibraryFilterState {
-  mode: SearchMode;
   typeCode: string | null;
   legalScope: LegalScope;
   institutionId: string | null;
   dateFrom: string | null;
   dateTo: string | null;
   sort: SearchSort;
+}
+
+/**
+ * Requête vers la couche IA « à la demande » de la Bibliothèque, rendue dans
+ * le panneau droit. Deux natures :
+ *  - `explain`   : expliquer UN article précis ;
+ *  - `synthesis` : synthétiser le top-K d'une recherche (mêmes filtres serveur).
+ */
+export type LibraryAiRequest =
+  | {
+      kind: 'explain';
+      articleId: string;
+      /** Titre du document (affichage de l'en-tête du panneau). */
+      documentTitle: string;
+      articleNumber?: string | null;
+    }
+  | {
+      kind: 'synthesis';
+      q: string;
+      filters: LibraryFilterState;
+    };
+
+/**
+ * Callbacks branchés sur le flux SSE des endpoints IA de la Bibliothèque
+ * (`/library/explain`, `/library/synthesis`). Mêmes événements que l'Assistant.
+ */
+export interface LibraryAiCallbacks {
+  /** Statut intermédiaire éventuel. */
+  onStatus?: (message: string) => void;
+  /** Sources juridiques ayant servi de contexte (émises avant le texte). */
+  onSources?: (sources: SearchResultItem[]) => void;
+  /** Fragment de texte (effet machine à écrire). */
+  onDelta?: (delta: string) => void;
+  /** Erreur de génération côté serveur. */
+  onError?: (message: string) => void;
+  /** Fin du flux (`[DONE]`). */
+  onDone?: () => void;
 }
 
 /** Libellés d'affichage des périmètres. */
