@@ -43,6 +43,10 @@ const AssistantPage = lazy(() => import('@/pages/app/Assistant'));
 const Dossiers = lazy(() => import('@/pages/app/Dossiers'));
 const Upgrade = lazy(() => import('@/pages/app/Upgrade'));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
+const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
+const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
+const SettingsSupport = lazy(() => import('@/pages/settings/Support'));
 
 /**
  * Rend la page de connexion en lazy loading.
@@ -126,4 +130,32 @@ export function UpgradeRoutePage() {
  */
 export function AdminDashboardRoutePage() {
   return <LazyPage Component={AdminDashboard} />;
+}
+
+/**
+ * Rend la page « Compte » des paramètres en lazy loading.
+ */
+export function SettingsAccountRoutePage() {
+  return <LazyPage Component={SettingsAccount} />;
+}
+
+/**
+ * Rend la page « Notifications » des paramètres en lazy loading.
+ */
+export function SettingsNotificationsRoutePage() {
+  return <LazyPage Component={SettingsNotifications} />;
+}
+
+/**
+ * Rend la page « Facturation » des paramètres en lazy loading.
+ */
+export function SettingsBillingRoutePage() {
+  return <LazyPage Component={SettingsBilling} />;
+}
+
+/**
+ * Rend la page « Support & Légal » des paramètres en lazy loading.
+ */
+export function SettingsSupportRoutePage() {
+  return <LazyPage Component={SettingsSupport} />;
 }

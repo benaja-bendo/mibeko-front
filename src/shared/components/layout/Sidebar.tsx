@@ -275,22 +275,22 @@ export default function Sidebar({ space }: SidebarProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem className="gap-2">
+                <DropdownMenuItem className="gap-2" onClick={() => navigate('/app/upgrade')}>
                   <Sparkles className="w-4 h-4 text-gold" />
                   <span className="text-gold font-medium">Passer à la version Pro</span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem className="gap-2">
+                <DropdownMenuItem className="gap-2" onClick={() => navigate('/settings/account')}>
                   <Settings className="w-4 h-4" />
                   <span>Compte</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2">
+                <DropdownMenuItem className="gap-2" onClick={() => navigate('/settings/billing')}>
                   <CreditCard className="w-4 h-4" />
                   <span>Facturation</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2">
+                <DropdownMenuItem className="gap-2" onClick={() => navigate('/settings/notifications')}>
                   <Bell className="w-4 h-4" />
                   <span>Notifications</span>
                 </DropdownMenuItem>

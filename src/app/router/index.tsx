@@ -12,6 +12,10 @@ import {
   LibraryRoutePage,
   LoginRoutePage,
   SettingsRoutePage,
+  SettingsAccountRoutePage,
+  SettingsBillingRoutePage,
+  SettingsNotificationsRoutePage,
+  SettingsSupportRoutePage,
   UpgradeRoutePage,
   ViewerRoutePage,
 } from './routeElements';
@@ -125,6 +129,44 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <UpgradeRoutePage />
+      </RequireAuth>
+    ),
+  },
+
+  // ─── Settings (/settings/*) — tout utilisateur authentifié ────────────────
+  {
+    path: '/settings',
+    element: <Navigate to="/settings/account" replace />,
+  },
+  {
+    path: '/settings/account',
+    element: (
+      <RequireAuth>
+        <SettingsAccountRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings/notifications',
+    element: (
+      <RequireAuth>
+        <SettingsNotificationsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings/billing',
+    element: (
+      <RequireAuth>
+        <SettingsBillingRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings/support',
+    element: (
+      <RequireAuth>
+        <SettingsSupportRoutePage />
       </RequireAuth>
     ),
   },
