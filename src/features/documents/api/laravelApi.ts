@@ -197,6 +197,12 @@ export const bulkUpdateDocuments = (payload: {
 }): Promise<{ data: { updated_count: number }; message: string }> =>
   apiFetch('/legal-documents/bulk', { method: 'PATCH', body: JSON.stringify(payload) });
 
+export const bulkDeleteDocuments = (payload: {
+  ids: string[];
+  force?: boolean;
+}): Promise<{ data: { deleted_count: number }; message: string }> =>
+  apiFetch('/legal-documents/bulk', { method: 'DELETE', body: JSON.stringify(payload) });
+
 /** Catalogue mobile /catalog — retourne {data:{resources:[...]}} pour sync */
 export const getMobileCatalog = (): Promise<RawCatalogResponse> =>
   apiFetch('/catalog');
@@ -235,8 +241,8 @@ export const downloadFile = async (url: string, filename: string) => {
   window.URL.revokeObjectURL(link.href);
 };
 
-export const deleteLegalDocument = (id: string): Promise<{ success: boolean; message?: string }> =>
-  apiFetch(`/legal-documents/${id}`, { method: 'DELETE' });
+export const deleteLegalDocument = (id: string, force?: boolean): Promise<{ success: boolean; message?: string }> =>
+  apiFetch(`/legal-documents/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' });
 
 /** Recherche full-text dans les articles. */
 export const searchDocuments = (query: string): Promise<{ data: LaravelDocument[] }> =>
