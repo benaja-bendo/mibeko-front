@@ -40,6 +40,8 @@ export interface LaravelDocument {
   articles_count?: number;
   relations_count?: number;
   tags_count?: number;
+  embedded_articles_count?: number;
+  embedding_in_progress?: boolean;
   missing_stock_code?: boolean;
   // Timestamps
   created_at?: string;
@@ -243,6 +245,17 @@ export const downloadFile = async (url: string, filename: string) => {
 
 export const deleteLegalDocument = (id: string, force?: boolean): Promise<{ success: boolean; message?: string }> =>
   apiFetch(`/legal-documents/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' });
+
+export const triggerDocumentEmbedding = (
+  id: string,
+): Promise<{ success: boolean; message: string; data: { pending_count: number; in_progress: boolean; batch_id?: string; total_chunks?: number } }> =>
+  apiFetch(`/legal-documents/${id}/embed`, { method: 'POST' });
+
+/** Interrompt l'indexation en cours (les embeddings déjà calculés sont conservés). */
+export const cancelDocumentEmbedding = (
+  id: string,
+): Promise<{ success: boolean; message: string; data: { in_progress: boolean } }> =>
+  apiFetch(`/legal-documents/${id}/embed`, { method: 'DELETE' });
 
 /** Recherche full-text dans les articles. */
 export const searchDocuments = (query: string): Promise<{ data: LaravelDocument[] }> =>

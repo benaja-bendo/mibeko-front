@@ -21,7 +21,7 @@ export default function DeleteConfirmModal() {
   const { deleteModalOpen, deleteNode, setDeleteModal } = useViewerStore();
   const { deleteNode: deleteNodeMutation, deleteArticle: deleteArticleMutation } = useDocumentMutations(documentId || '');
   const deleteDocumentMutation = useMutation({
-    mutationFn: deleteLegalDocument,
+    mutationFn: (id: string) => deleteLegalDocument(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       setDeleteModal(false);

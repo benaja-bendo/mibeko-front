@@ -20,6 +20,8 @@ import {
   getInstitutions,
   getDocumentTypes,
   deleteLegalDocument,
+  triggerDocumentEmbedding,
+  cancelDocumentEmbedding,
   type LaravelDocument,
   type CatalogFilters,
 } from '@/features/documents/api/laravelApi';
@@ -142,6 +144,80 @@ function CompletenessIndicators({ doc }: { doc: LaravelDocument }) {
           </svg>
         </span>
       )}
+    </div>
+  );
+}
+
+// ─── Embedding status cell ────────────────────────────────────────────────────
+
+interface EmbeddingStatusCellProps {
+  doc: LaravelDocument;
+  isInProgress: boolean;
+  onEmbed: (doc: LaravelDocument) => void;
+  onCancel: (id: string) => void;
+  isTriggering: boolean;
+  isCancelling: boolean;
+}
+
+function EmbeddingStatusCell({ doc, isInProgress, onEmbed, onCancel, isTriggering, isCancelling }: EmbeddingStatusCellProps) {
+  const total = doc.articles_count ?? 0;
+  const embedded = doc.embedded_articles_count ?? 0;
+
+  if (total === 0) {
+    return <span className="text-t4 text-[10px] font-mono">—</span>;
+  }
+
+  const pct = Math.min(100, Math.round((embedded / total) * 100));
+
+  // En cours : barre animée + arrêt possible
+  if (isInProgress) {
+    return (
+      <div className="flex items-center gap-2 min-w-[110px]">
+        <div className="flex-1 h-1 bg-s2 rounded-full overflow-hidden">
+          <div className="h-full bg-violet-400 rounded-full animate-pulse transition-all" style={{ width: `${Math.max(pct, 6)}%` }} />
+        </div>
+        <span className="text-violet-400 text-[10px] font-mono shrink-0 tabular-nums">{embedded}/{total}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onCancel(doc.id); }}
+          disabled={isCancelling}
+          title="Interrompre l'indexation (le travail déjà fait est conservé)"
+          className="h-5 px-1.5 text-[9px] font-mono bg-red-500/10 border border-red-500/20 text-red-400 rounded hover:bg-red-500/20 disabled:opacity-50 transition-all shrink-0"
+        >
+          Stop
+        </button>
+      </div>
+    );
+  }
+
+  // Terminé
+  if (embedded >= total) {
+    return (
+      <span className="inline-flex items-center gap-1 text-emerald-400 text-[10px] font-mono" title="Tous les articles sont indexés">
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 stroke-current fill-none stroke-[2.5]">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        {total}/{total}
+      </span>
+    );
+  }
+
+  // Partiel / absent : bouton d'indexation
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`text-[10px] font-mono tabular-nums shrink-0 ${embedded === 0 ? 'text-t4' : 'text-amber-400'}`}
+        title={`${embedded} article(s) indexé(s) sur ${total}`}
+      >
+        {embedded}/{total}
+      </span>
+      <button
+        onClick={(e) => { e.stopPropagation(); onEmbed(doc); }}
+        disabled={isTriggering}
+        title="Rendre ces articles consultables par l'IA et la recherche intelligente"
+        className="h-5 px-1.5 text-[9px] font-mono bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded hover:bg-violet-500/20 disabled:opacity-50 transition-all whitespace-nowrap"
+      >
+        ↳ Indexer
+      </button>
     </div>
   );
 }
@@ -402,6 +478,8 @@ export default function LegalDocuments() {
   const [deleteTarget, setDeleteTarget] = useState<LaravelDocument | null>(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isForceDelete, setIsForceDelete] = useState(false);
+  const [embeddingInProgress, setEmbeddingInProgress] = useState<Set<string>>(new Set());
+  const [embedTarget, setEmbedTarget] = useState<LaravelDocument | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -425,6 +503,13 @@ export default function LegalDocuments() {
     queryKey: ['documents', apiFilters],
     queryFn: () => getCatalog(apiFilters),
     placeholderData: (prev) => prev,
+    // Rafraîchit tant qu'une indexation tourne, qu'elle vienne du serveur
+    // (job_batches) ou d'un clic local qui n'a pas encore été confirmé.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.data;
+      const serverActive = Array.isArray(rows) && rows.some((d) => d.embedding_in_progress);
+      return serverActive || embeddingInProgress.size > 0 ? 3000 : false;
+    },
   });
 
   const { data: institutionsData } = useQuery({
@@ -478,6 +563,48 @@ export default function LegalDocuments() {
       console.info(res.message || 'Document supprimé');
     },
   });
+
+  const embeddingMutation = useMutation({
+    mutationFn: (id: string) => triggerDocumentEmbedding(id),
+    onSuccess: (res, id) => {
+      setEmbedTarget(null);
+      // in_progress=false → rien à faire (déjà indexé) : on rafraîchit juste les compteurs.
+      if (res.data?.in_progress) {
+        setEmbeddingInProgress((prev) => new Set(prev).add(id));
+      }
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+
+  const cancelEmbeddingMutation = useMutation({
+    mutationFn: (id: string) => cancelDocumentEmbedding(id),
+    onSuccess: (_, id) => {
+      setEmbeddingInProgress((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+
+  // Réconcilie le Set optimiste avec la vérité serveur : on retire un doc dès que
+  // le serveur confirme l'indexation (il pilote alors la barre) ou qu'elle est finie.
+  useEffect(() => {
+    if (embeddingInProgress.size === 0 || docs.length === 0) return;
+    setEmbeddingInProgress((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      docs.forEach((doc) => {
+        const done = (doc.embedded_articles_count ?? 0) >= (doc.articles_count ?? 1);
+        if (prev.has(doc.id) && (doc.embedding_in_progress || done)) {
+          next.delete(doc.id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [docs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedIds = useMemo(
     () => Object.entries(rowSelection).filter(([, v]) => v).map(([idx]) => docs[Number(idx)]?.id).filter(Boolean),
@@ -582,6 +709,23 @@ export default function LegalDocuments() {
         size: 120,
       }),
 
+      // Embedding
+      columnHelper.display({
+        id: 'embedding',
+        header: 'Embedding',
+        cell: ({ row }) => (
+          <EmbeddingStatusCell
+            doc={row.original}
+            isInProgress={Boolean(row.original.embedding_in_progress) || embeddingInProgress.has(row.original.id)}
+            onEmbed={(doc) => setEmbedTarget(doc)}
+            onCancel={(id) => cancelEmbeddingMutation.mutate(id)}
+            isTriggering={embeddingMutation.isPending && embeddingMutation.variables === row.original.id}
+            isCancelling={cancelEmbeddingMutation.isPending && cancelEmbeddingMutation.variables === row.original.id}
+          />
+        ),
+        size: 150,
+      }),
+
       // Validité
       columnHelper.accessor('statut', {
         header: 'Validité',
@@ -649,7 +793,7 @@ export default function LegalDocuments() {
         size: 140,
       }),
     ],
-    [isAdmin],
+    [isAdmin, embeddingInProgress, embeddingMutation, cancelEmbeddingMutation],
   );
 
   // TanStack Table expose des callbacks non compatibles avec React Compiler.
@@ -996,6 +1140,84 @@ export default function LegalDocuments() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EmbedConfirmDialog
+        doc={embedTarget}
+        onClose={() => setEmbedTarget(null)}
+        onConfirm={(id) => embeddingMutation.mutate(id)}
+        isPending={embeddingMutation.isPending}
+      />
     </AppLayout>
+  );
+}
+
+// ─── Embedding confirmation dialog ────────────────────────────────────────────
+
+interface EmbedConfirmDialogProps {
+  doc: LaravelDocument | null;
+  onClose: () => void;
+  onConfirm: (id: string) => void;
+  isPending: boolean;
+}
+
+function EmbedConfirmDialog({ doc, onClose, onConfirm, isPending }: EmbedConfirmDialogProps) {
+  const total = doc?.articles_count ?? 0;
+  const embedded = doc?.embedded_articles_count ?? 0;
+  const pending = Math.max(0, total - embedded);
+  const isLarge = pending > 100;
+  const isResume = embedded > 0;
+
+  return (
+    <Dialog open={Boolean(doc)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shrink-0">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[1.8]">
+                <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              </svg>
+            </span>
+            Indexer ce document pour l'IA ?
+          </DialogTitle>
+          <DialogDescription className="space-y-3 pt-1">
+            <span className="block">
+              L'indexation transforme chaque article en « empreinte numérique » qui permet à
+              l'<strong className="text-t2">assistant IA</strong> et à la <strong className="text-t2">recherche intelligente</strong>{' '}
+              de retrouver et citer ce document. Sans elle, le document reste invisible pour ces fonctionnalités.
+            </span>
+            <span className="block text-t2">
+              {isResume
+                ? <>Il reste <strong className="text-violet-400">{pending}</strong> article(s) à indexer sur {total}.</>
+                : <><strong className="text-violet-400">{pending}</strong> article(s) seront indexés.</>}
+            </span>
+            <span className="block text-[13px] text-t3">
+              Le traitement se fait en arrière-plan, par petits lots. Vous pouvez continuer à
+              travailler ou quitter la page — il se poursuit tout seul, et vous pourrez l'interrompre à tout moment.
+            </span>
+            {isLarge && (
+              <span className="flex items-start gap-2 text-[13px] text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg p-2.5">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2 shrink-0 mt-0.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Ce document est volumineux : l'indexation peut prendre plusieurs minutes.
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="pt-4">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            onClick={() => { if (doc) onConfirm(doc.id); }}
+            disabled={isPending}
+            className="bg-violet-500 text-white hover:bg-violet-600"
+          >
+            {isPending ? 'Lancement…' : "Lancer l'indexation"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
