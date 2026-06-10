@@ -13,7 +13,7 @@ bootstrapTheme();
 
 // Configuration du worker PDF.js indispensable pour react-pdf
 // On utilise le worker copié dans le dossier public pour éviter tout problème de chemin ou de CORS
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
