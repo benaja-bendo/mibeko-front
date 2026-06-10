@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/msw/server';
 import { renderWithProviders } from '../test/render';
@@ -19,7 +19,9 @@ describe('LegalDocuments', () => {
     renderWithProviders(<LegalDocuments />);
 
     expect(screen.getByRole('heading', { name: 'Documents juridiques' })).toBeInTheDocument();
-    expect(await screen.findByText('Aucun document trouvé')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Aucun document trouvé')).toBeInTheDocument();
+    });
   });
 
   it('affiche une ligne quand un document est retourné', async () => {
@@ -44,7 +46,9 @@ describe('LegalDocuments', () => {
 
     renderWithProviders(<LegalDocuments />);
 
-    expect(await screen.findByText('Loi n° 1')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Loi n° 1')).toBeInTheDocument();
+    });
     expect(screen.getByText('NOR123')).toBeInTheDocument();
   });
 });
