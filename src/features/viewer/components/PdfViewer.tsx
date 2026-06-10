@@ -18,11 +18,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 //pdf.worker.min.mjs
 // pdfjs.GlobalWorkerOptions.workerSrc = 'https://app.unpkg.com/pdfjs-dist@6.0.227/files/build/pdf.worker.min.mjs';
 
-// AJOUTEZ celle-ci (Vite gérera le chemin et le hashage du fichier de façon transparente) :
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Utilisez le CDN pour garantir que le worker trouve ses fichiers .wasm adjacents
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Zone {
   id: string;
@@ -87,6 +84,13 @@ export default function PdfViewer({
   }, [treeData]);
 
   const token = getStoredToken();
+  
+  const pdfOptions = useMemo(() => ({
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+  }), []);
+
   const fileOptions = useMemo(() => {
     if (!pdfUrl) return null;
     return {
@@ -350,6 +354,7 @@ export default function PdfViewer({
              <div className="w-full h-full flex justify-center bg-white absolute inset-0 overflow-auto no-scrollbar">
                 <Document
                   file={fileOptions}
+                  options={pdfOptions}
                   onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                   loading={
                     <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3">

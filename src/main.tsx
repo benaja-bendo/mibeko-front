@@ -12,15 +12,8 @@ import App from './App.tsx';
 bootstrapTheme();
 
 // Configuration du worker PDF.js indispensable pour react-pdf
-// On utilise le worker copié dans le dossier public pour éviter tout problème de chemin ou de CORS
-// pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-// On pointe le worker vers la version CDN demandée
-// pdfjs.GlobalWorkerOptions.workerSrc = 'https://app.unpkg.com/pdfjs-dist@6.0.227/files/build/pdf.worker.min.mjs';
-// AJOUTEZ celle-ci (Vite gérera le chemin et le hashage du fichier de façon transparente) :
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
