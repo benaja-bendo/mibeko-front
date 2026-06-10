@@ -170,7 +170,7 @@ export function ValidationQueue({
                   type="checkbox"
                   checked={allChecked}
                   onChange={onToggleSelectAll}
-                  className="accent-[#c8a86a] cursor-pointer"
+                  className="accent-gold cursor-pointer"
                   title="Tout sélectionner"
                 />
               </th>
@@ -213,7 +213,7 @@ export function ValidationQueue({
                       type="checkbox"
                       checked={selectedIds.has(doc.id)}
                       onChange={() => onToggleSelect(doc.id)}
-                      className="accent-[#c8a86a] cursor-pointer"
+                      className="accent-gold cursor-pointer"
                     />
                   </td>
                   <td className="px-4 py-3 border-b border-b1 max-w-[360px]">

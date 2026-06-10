@@ -73,7 +73,7 @@ export default function LibrarySearchBar({
         <button
           type="button"
           onClick={onSubmit}
-          className="flex h-7 items-center rounded-lg bg-gold px-3 text-xs font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+          className="flex h-7 items-center rounded-lg bg-gold px-3 text-xs font-semibold text-on-gold transition-opacity hover:opacity-90"
         >
           Rechercher
         </button>

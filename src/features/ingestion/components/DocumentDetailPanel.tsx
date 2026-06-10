@@ -290,7 +290,7 @@ export function DocumentDetailPanel({
                 <button
                   disabled={busy || doc.nb_articles === 0}
                   onClick={() => onPublish([doc.id])}
-                  className="flex-1 h-8 text-xs font-mono font-semibold text-[#120e00] bg-green rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="flex-1 h-8 text-xs font-mono font-semibold text-on-gold bg-green rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
                   title={doc.nb_articles === 0 ? 'Aucun article parsé — publication impossible' : 'Publier au catalogue'}
                 >
                   Publier au catalogue

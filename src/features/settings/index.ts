@@ -7,6 +7,7 @@ export * from './hooks/useSettings';
 export { IdentityCard } from './components/IdentityCard';
 export { OrganisationCard } from './components/OrganisationCard';
 export { PreferencesCard } from './components/PreferencesCard';
+export { AppearanceCard } from './components/AppearanceCard';
 export { PasswordCard } from './components/PasswordCard';
 export { TwoFactorCard } from './components/TwoFactorCard';
 export { SessionsCard } from './components/SessionsCard';

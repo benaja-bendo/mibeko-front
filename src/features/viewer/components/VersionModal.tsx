@@ -76,7 +76,7 @@ export default function VersionModal() {
                   onClick={() => setVersionFilter(filter)}
                   className={cn(
                     "h-[24px] px-3 rounded-full border border-b1 bg-transparent text-t3 text-[10px] font-mono uppercase tracking-[0.05em] transition-all hover:border-b2 hover:text-t2",
-                    versionFilter === filter && "bg-gold text-[#120e00] border-gold font-bold"
+                    versionFilter === filter && "bg-gold text-on-gold border-gold font-bold"
                   )}
                 >
                   {filter === 'all' ? 'Tout' : filter === 'creation' ? 'Créations' : filter === 'modification' ? 'Modifs' : 'Projets'}

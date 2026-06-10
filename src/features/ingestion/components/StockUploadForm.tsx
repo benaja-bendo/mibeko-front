@@ -167,7 +167,7 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
       <button
         type="submit"
         disabled={loading || !pdfFile || !titre.trim() || !stockCode.trim()}
-        className="w-full h-9 bg-gold text-[#120e00] font-semibold text-sm rounded-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full h-9 bg-gold text-on-gold font-semibold text-sm rounded-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? (
           <>

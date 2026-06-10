@@ -158,7 +158,7 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
       {/* Tree Content */}
       <div
         className={cn(
-          "flex-1 overflow-y-auto py-1 custom-scrollbar bg-[#0a0a0b] transition-colors",
+          "flex-1 overflow-y-auto py-1 custom-scrollbar bg-bg transition-colors",
           isDragOver && "bg-gold/5"
         )}
         onDragOver={handleDragOver}

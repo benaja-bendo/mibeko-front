@@ -258,15 +258,15 @@ export default function PdfViewer({
       <div
         ref={pdfContainerRef}
         className={cn(
-          "flex-1 overflow-auto bg-[#080809] flex justify-center py-6 px-4 relative custom-scrollbar scroll-smooth",
+          "flex-1 overflow-auto bg-bg flex justify-center py-6 px-4 relative custom-scrollbar scroll-smooth",
           selectionMode && "cursor-crosshair"
         )}
       >
         {selectionMode && selectionTarget && (
-          <div className="fixed top-[100px] left-1/2 -translate-x-1/2 bg-gold text-[#120e00] text-[11px] font-bold py-2 px-4 rounded-full z-[200] flex items-center gap-2 shadow-[0_8px_32px_rgba(200,168,106,0.4)] pointer-events-none animate-in fade-in slide-in-from-top-4">
+          <div className="fixed top-[100px] left-1/2 -translate-x-1/2 bg-gold text-on-gold text-[11px] font-bold py-2 px-4 rounded-full z-[200] flex items-center gap-2 shadow-[0_8px_32px_rgba(200,168,106,0.4)] pointer-events-none animate-in fade-in slide-in-from-top-4">
             <Target className="w-4 h-4" strokeWidth={2.5} />
             <span>Tracez la zone pour l'<b>{selectionTarget.type === 'ARTICLE' ? 'Art. ' : ''}{selectionTarget.numero}</b></span>
-            <div className="w-px h-3 bg-[#120e00]/20 mx-1" />
+            <div className="w-px h-3 bg-on-gold/20 mx-1" />
             <span className="opacity-70 text-[10px]">Échap pour annuler</span>
           </div>
         )}

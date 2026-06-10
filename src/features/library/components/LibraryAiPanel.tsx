@@ -128,7 +128,7 @@ export default function LibraryAiPanel({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md bg-gold px-2.5 py-1 text-[11px] font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+              className="rounded-md bg-gold px-2.5 py-1 text-[11px] font-semibold text-on-gold transition-opacity hover:opacity-90"
             >
               Fermer
             </button>

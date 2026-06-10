@@ -13,7 +13,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       default: "bg-s3 text-t1 hover:bg-s4 border border-b1",
       outline: "bg-transparent border border-b1 text-t2 hover:bg-s2 hover:text-t1",
       ghost: "bg-transparent text-t2 hover:bg-s2 hover:text-t1 border-none",
-      gold: "bg-gold text-[#120e00] hover:bg-gold/90 border-none font-bold",
+      gold: "bg-gold text-on-gold hover:bg-gold/90 border-none font-bold",
       danger: "bg-red-d text-red hover:bg-red/20 border border-red/20",
     }
     

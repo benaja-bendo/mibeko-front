@@ -138,7 +138,7 @@ export default function UnauthorizedPage({ requiredRole = 'user_pro' }: Unauthor
           {info.cta && info.ctaHref && (
             <button
               onClick={() => navigate(info.ctaHref!)}
-              className="w-full h-12 bg-gold text-[#120e00] font-semibold text-sm rounded-xl px-4 hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 transition-all shadow-lg shadow-gold/20"
+              className="w-full h-12 bg-gold text-on-gold font-semibold text-sm rounded-xl px-4 hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 transition-all shadow-lg shadow-gold/20"
             >
               {info.cta}
             </button>

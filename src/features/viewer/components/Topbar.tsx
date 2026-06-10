@@ -176,7 +176,7 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
 
         {isAdminOrEditor && (
           <button
-            className="h-[30px] px-2 sm:px-3 ml-1 sm:ml-2 bg-gold text-[#120e00] text-[10px] sm:text-[11px] font-bold rounded flex items-center gap-2 hover:opacity-90 transition-opacity shadow-[0_4px_12px_rgba(200,168,106,0.2)] whitespace-nowrap"
+            className="h-[30px] px-2 sm:px-3 ml-1 sm:ml-2 bg-gold text-on-gold text-[10px] sm:text-[11px] font-bold rounded flex items-center gap-2 hover:opacity-90 transition-opacity shadow-[0_4px_12px_rgba(200,168,106,0.2)] whitespace-nowrap"
           >
             <span className="hidden sm:inline">Publier les corrections</span>
             <span className="sm:hidden">Publier</span>

@@ -40,7 +40,7 @@ export default function Upgrade() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/app/library"
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-gold px-4 text-sm font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-gold px-4 text-sm font-semibold text-on-gold transition-opacity hover:opacity-90"
               >
                 Voir la bibliotheque
               </Link>

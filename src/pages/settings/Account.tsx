@@ -1,5 +1,6 @@
 import SettingsLayout from './SettingsLayout';
 import {
+  AppearanceCard,
   IdentityCard,
   OrganisationCard,
   PasswordCard,
@@ -50,6 +51,7 @@ export default function Account() {
           <OrganisationCard account={account} />
 
           <GroupTitle>Préférences</GroupTitle>
+          <AppearanceCard settings={account.settings} />
           <PreferencesCard settings={account.settings} />
 
           <GroupTitle>Sécurité</GroupTitle>

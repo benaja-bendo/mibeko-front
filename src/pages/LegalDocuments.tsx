@@ -834,7 +834,7 @@ export default function LegalDocuments() {
             </div>
             <Link
               to="/editor/ingestion"
-              className="self-start sm:self-auto inline-flex items-center gap-2 h-9 px-4 bg-gold text-[#120e00] rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-gold/10 shrink-0"
+              className="self-start sm:self-auto inline-flex items-center gap-2 h-9 px-4 bg-gold text-on-gold rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-gold/10 shrink-0"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -879,7 +879,7 @@ export default function LegalDocuments() {
               </svg>
               Filtres
               {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-gold text-[#120e00] text-[9px] font-bold flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-gold text-on-gold text-[9px] font-bold flex items-center justify-center">
                   {activeFilterCount}
                 </span>
               )}

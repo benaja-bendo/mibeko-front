@@ -35,6 +35,7 @@ export interface AccountConsents {
 
 export interface AccountSettings {
   locale: Locale;
+  theme: string;
   timezone: string;
   date_format: string;
   notification_preferences: NotificationMatrix;
@@ -102,6 +103,7 @@ export interface UpdatePasswordPayload {
 
 export interface UpdatePreferencesPayload {
   locale?: Locale;
+  theme?: string;
   timezone?: string;
   date_format?: string;
 }

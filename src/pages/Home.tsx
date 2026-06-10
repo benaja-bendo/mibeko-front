@@ -49,7 +49,7 @@ export default function Home() {
           <button
             type="submit"
             disabled={!docId.trim()}
-            className="w-full h-10 bg-gold text-[#120e00] font-body font-semibold rounded-md flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-10 bg-gold text-on-gold font-body font-semibold rounded-md flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[2] stroke-linecap-round stroke-linejoin-round">
               <path d="M5 12h14" />

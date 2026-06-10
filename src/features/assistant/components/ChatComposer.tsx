@@ -80,7 +80,7 @@ export default function ChatComposer({
               onClick={submit}
               disabled={!value.trim() || disabled}
               title="Envoyer (Entrée)"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold text-[#120e00] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold text-on-gold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ArrowUp className="h-4 w-4" />
             </button>

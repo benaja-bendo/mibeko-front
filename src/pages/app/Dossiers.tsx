@@ -119,7 +119,7 @@ export default function Dossiers() {
               <button
                 type="button"
                 onClick={() => setNewOpen(true)}
-                className="flex h-9 items-center gap-2 rounded-lg bg-gold px-3 text-sm font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+                className="flex h-9 items-center gap-2 rounded-lg bg-gold px-3 text-sm font-semibold text-on-gold transition-opacity hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Nouveau dossier</span>
@@ -145,7 +145,7 @@ export default function Dossiers() {
               <button
                 type="button"
                 onClick={() => setNewOpen(true)}
-                className="mt-5 flex h-9 items-center gap-2 rounded-lg bg-gold px-4 text-sm font-semibold text-[#120e00] transition-opacity hover:opacity-90"
+                className="mt-5 flex h-9 items-center gap-2 rounded-lg bg-gold px-4 text-sm font-semibold text-on-gold transition-opacity hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 Nouveau dossier

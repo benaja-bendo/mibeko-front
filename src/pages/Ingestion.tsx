@@ -187,7 +187,7 @@ export default function Ingestion() {
             </div>
             <button
               onClick={() => setShowUpload(true)}
-              className="self-start sm:self-auto inline-flex items-center gap-2 h-9 px-4 bg-gold text-[#120e00] rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-gold/10 shrink-0"
+              className="self-start sm:self-auto inline-flex items-center gap-2 h-9 px-4 bg-gold text-on-gold rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-gold/10 shrink-0"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -258,7 +258,7 @@ export default function Ingestion() {
                 <button
                   disabled={busy}
                   onClick={() => publishMutation.mutate([...selectedIds])}
-                  className="h-8 px-3 text-xs font-mono font-semibold text-[#120e00] bg-green rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="h-8 px-3 text-xs font-mono font-semibold text-on-gold bg-green rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
                 >
                   Publier la sélection
                 </button>

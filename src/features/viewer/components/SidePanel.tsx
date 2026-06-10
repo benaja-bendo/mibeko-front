@@ -211,7 +211,7 @@ export default function SidePanel() {
                       {v.contenu_texte?.substring(0, 80)}...
                     </p>
                     {i === 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-gold text-[#120e00] text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
+                      <span className="absolute -top-1.5 -right-1.5 bg-gold text-on-gold text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                         Active
                       </span>
                     )}

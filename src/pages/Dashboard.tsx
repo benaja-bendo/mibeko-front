@@ -184,7 +184,7 @@ export default function Dashboard() {
               {isAdminOrEditor && (
                 <Link
                   to="/ingestion"
-                  className="flex items-center gap-2 h-8 px-3 bg-gold text-[#120e00] rounded-md text-xs font-semibold hover:opacity-90 transition-opacity"
+                  className="flex items-center gap-2 h-8 px-3 bg-gold text-on-gold rounded-md text-xs font-semibold hover:opacity-90 transition-opacity"
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-2">
                     <line x1="12" y1="5" x2="12" y2="19" />
