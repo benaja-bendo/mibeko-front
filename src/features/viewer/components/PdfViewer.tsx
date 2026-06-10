@@ -6,6 +6,7 @@ import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Target, Maximize, MousePoin
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { useParams } from 'react-router-dom';
 import type { TreeNode } from '@/shared/types/database';
+import { getStoredToken } from '@/features/auth/store/authStore';
 
 // 1. Imports nécessaires de react-pdf
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -77,6 +78,16 @@ export default function PdfViewer({
     walk(treeData);
     return extracted;
   }, [treeData]);
+
+  const token = getStoredToken();
+  const fileOptions = useMemo(() => {
+    if (!pdfUrl) return null;
+    return {
+      url: pdfUrl,
+      httpHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+      withCredentials: true
+    };
+  }, [pdfUrl, token]);
 
   // Keyboard Navigation
   useEffect(() => {
@@ -328,10 +339,10 @@ export default function PdfViewer({
           })}
 
           {/* PDF Rendering */}
-          {pdfUrl ? (
+          {fileOptions ? (
              <div className="w-full h-full flex justify-center bg-white absolute inset-0 overflow-auto no-scrollbar">
                 <Document
-                  file={pdfUrl}
+                  file={fileOptions}
                   onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                   loading={
                     <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3">
