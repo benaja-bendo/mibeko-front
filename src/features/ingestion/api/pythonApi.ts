@@ -10,18 +10,26 @@ import { pythonClient, pythonBaseUrl as BASE } from '@/shared/api';
 // Types Python API
 // ---------------------------------------------------------------------------
 
+export type LegalScope = 'national' | 'ohada' | 'communautaire';
+
+/** Étapes du sas de validation (cycle de curation Laravel). */
+export type CurationStatus = 'draft' | 'review' | 'validated' | 'published';
+
 export interface PythonDocumentSummary {
   id: string;
   titre_officiel: string;
   stock_code?: string | null;
   document_role?: string | null;
   type_code?: string | null;
+  legal_scope?: LegalScope | null;
+  official_journal_id?: string | null;
   extraction_status?: string | null;
-  curation_status?: string | null;
+  curation_status?: CurationStatus | string | null;
   has_md: boolean;
   has_json: boolean;
   latest_run_source?: string | null;
   latest_run_status?: string | null;
+  nb_articles?: number;
   created_at?: string | null;
 }
 
@@ -79,6 +87,9 @@ export interface PythonGlobalStats {
   documents_processing: number;
   documents_pending: number;
   documents_failed: number;
+  documents_draft: number;
+  documents_review: number;
+  documents_published: number;
   total_articles: number;
   total_runs: number;
   runs_running: number;
@@ -167,13 +178,24 @@ export const getPythonDocuments = (params?: {
   limit?: number;
   offset?: number;
   status?: string;
+  role?: 'STOCK' | 'FLUX';
+  /** Statut de curation exact, ou 'queue' = file de validation (tout sauf published). */
+  curation?: CurationStatus | 'queue';
+  q?: string;
 }): Promise<PythonDocumentSummary[]> => {
   const q = new URLSearchParams();
   if (params?.limit) q.set('limit', String(params.limit));
   if (params?.offset) q.set('offset', String(params.offset));
   if (params?.status) q.set('status', params.status);
+  if (params?.role) q.set('role', params.role);
+  if (params?.curation) q.set('curation', params.curation);
+  if (params?.q) q.set('q', params.q);
   return pyFetch(`/documents?${q}`);
 };
+
+/** Relance l'extraction MinerU d'un document depuis son PDF source. */
+export const reprocessDocument = (docId: string): Promise<{ message: string; document_id: string }> =>
+  pyFetch(`/documents/${docId}/reprocess`, { method: 'POST' });
 
 /** Statistiques globales (KPIs dashboard). */
 export const getPythonGlobalStats = (): Promise<PythonGlobalStats> =>
@@ -217,6 +239,25 @@ export const deletePythonDocument = (id: string): Promise<void> =>
  */
 export const uploadDocument = async (formData: FormData): Promise<UploadResponse> => {
   const res = await pythonClient.post<UploadResponse>('/documents/upload', formData, {
+    headers: { 'Accept': 'application/json', 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
+
+export interface JournalUploadResponse {
+  message: string;
+  official_journal_id: string;
+  created_documents_count: number;
+  created_document_ids: string[];
+  created: boolean;
+}
+
+/**
+ * Upload d'un Journal Officiel (flux) : le backend découpe le JO en actes
+ * unitaires (lois, décrets, arrêtés…) et les ingère comme documents FLUX.
+ */
+export const uploadOfficialJournal = async (formData: FormData): Promise<JournalUploadResponse> => {
+  const res = await pythonClient.post<JournalUploadResponse>('/official-journals/upload', formData, {
     headers: { 'Accept': 'application/json', 'Content-Type': 'multipart/form-data' },
   });
   return res.data;

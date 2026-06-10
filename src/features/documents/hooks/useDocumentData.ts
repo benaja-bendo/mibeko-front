@@ -21,6 +21,26 @@ function buildTree(flatNodes: any[]): TreeNode[] {
     const id = n.id.toLowerCase();
     const parentId = n.parent_id ? n.parent_id.toLowerCase() : null;
 
+    // Articles orphelins servis à plat par l'API (actes courts sans structure) :
+    // ils portent directement leur contenu et s'affichent à la racine de l'arbre.
+    if (n.type === 'ARTICLE') {
+      nodeMap.set(id, {
+        id,
+        parent_id: parentId,
+        type: 'ARTICLE',
+        numero: n.number || n.numero_article || null,
+        label: n.title || null,
+        sort_order: n.order || 0,
+        vs: n.validation_status === 'validated' ? 'ok' : n.validation_status === 'error' ? 'err' : 'pend',
+        content: n.content || '',
+        source_locator: n.source_locator || null,
+        validity: n.validity || '—',
+        versions: n.versions || [],
+        relations: n.relations || []
+      });
+      return;
+    }
+
     nodeMap.set(id, {
       id: id,
       parent_id: parentId,
