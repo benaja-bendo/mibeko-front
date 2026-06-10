@@ -18,6 +18,7 @@ import type {
   LegalScope,
   LibraryAiCallbacks,
   LibraryFilterState,
+  LibraryHomeData,
   LibrarySearchResult,
   SearchResultItem,
   SearchSort,
@@ -79,6 +80,15 @@ export async function searchLibrary(
     results: Array.isArray(res.data?.data) ? res.data.data : [],
     pagination: res.data?.pagination ?? null,
   };
+}
+
+/**
+ * Accueil de la Bibliothèque : textes fondamentaux, derniers textes publiés,
+ * statistiques du fonds documentaire et suggestions de recherche.
+ */
+export async function getLibraryHome(): Promise<LibraryHomeData> {
+  const res = await laravelClient.get<{ data: LibraryHomeData }>('library/home');
+  return res.data.data;
 }
 
 /** Liste des types de documents (filtre latéral). */

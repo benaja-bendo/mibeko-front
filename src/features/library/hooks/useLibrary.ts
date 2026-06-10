@@ -7,6 +7,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getDocumentTypes,
   getInstitutions,
+  getLibraryHome,
   searchLibrary,
   streamLibraryExplain,
   streamLibrarySynthesis,
@@ -19,10 +20,20 @@ import type {
 
 export const libraryKeys = {
   all: ['library'] as const,
+  home: () => [...libraryKeys.all, 'home'] as const,
   search: (params: SearchParams) => [...libraryKeys.all, 'search', params] as const,
   types: () => [...libraryKeys.all, 'document-types'] as const,
   institutions: () => [...libraryKeys.all, 'institutions'] as const,
 };
+
+/** Accueil de la Bibliothèque (textes fondamentaux, récents, stats). */
+export function useLibraryHome() {
+  return useQuery({
+    queryKey: libraryKeys.home(),
+    queryFn: getLibraryHome,
+    staleTime: 10 * 60_000,
+  });
+}
 
 /**
  * Recherche juridique. Désactivée tant que la requête fait moins de 2 caractères.

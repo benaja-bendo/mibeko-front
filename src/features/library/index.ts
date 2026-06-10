@@ -1,6 +1,8 @@
 export * from './types';
 export * from './hooks/useLibrary';
+export * from './hooks/useRecentSearches';
 export { default as LibrarySearchBar } from './components/LibrarySearchBar';
+export { default as LibraryHomeView } from './components/LibraryHomeView';
 export { default as LibraryFilters } from './components/LibraryFilters';
 export { default as LibraryResultItem } from './components/LibraryResultItem';
 export { default as LibraryAiPanel } from './components/LibraryAiPanel';

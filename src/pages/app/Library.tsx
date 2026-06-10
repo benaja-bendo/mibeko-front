@@ -8,19 +8,26 @@
  *    soit la LECTURE d'un article/document, soit une réponse IA (explication
  *    d'un article ou synthèse d'une recherche), déclenchée volontairement.
  *
- * S'ouvre directement sur un document via `?doc=&article=` (citations Assistant)
- * et passe en mode « ajout au dossier » via `?addTo=<dossierId>`.
+ * Avant toute recherche, la colonne gauche affiche un accueil vivant
+ * (LibraryHomeView) : textes fondamentaux, derniers textes publiés, stats du
+ * fonds et recherches récentes. Une visite guidée (GuidedTour) se lance à la
+ * première visite et reste relançable via le bouton « ? ».
+ *
+ * L'état complet (requête, filtres, page, document lu) est synchronisé dans
+ * l'URL : `?q=&type=&scope=&institution=&from=&to=&sort=&page=&doc=&article=`
+ * — partageable, restauré au rechargement. `?addTo=<dossierId>` active le
+ * mode « ajout au dossier ».
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Library as LibraryIcon,
   SearchX,
   SlidersHorizontal,
   FolderInput,
   ArrowLeft,
   BookOpenText,
+  CircleHelp,
   Sparkles,
 } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
@@ -30,13 +37,17 @@ import {
   ResizablePanelGroup,
 } from '@/shared/components/ui/Resizable';
 import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/Sheet';
+import GuidedTour, { type TourStep } from '@/shared/components/tour/GuidedTour';
+import { useTourState } from '@/shared/components/tour/useTourState';
 import { useIsDesktop } from '@/shared/hooks/useMediaQuery';
 import {
   useLibrarySearch,
   useLibraryAi,
 } from '@/features/library/hooks/useLibrary';
+import { useRecentSearches } from '@/features/library/hooks/useRecentSearches';
 import LibrarySearchBar from '@/features/library/components/LibrarySearchBar';
 import LibraryFilters from '@/features/library/components/LibraryFilters';
+import LibraryHomeView from '@/features/library/components/LibraryHomeView';
 import LibraryResultItem from '@/features/library/components/LibraryResultItem';
 import LibraryPagination from '@/features/library/components/LibraryPagination';
 import DocumentReaderView from '@/features/library/components/DocumentReaderView';
@@ -44,6 +55,7 @@ import LibraryAiPanel from '@/features/library/components/LibraryAiPanel';
 import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
 import type {
   LibraryFilterState,
+  LibraryHomeDocument,
   SearchResultItem,
 } from '@/features/library/types';
 
@@ -58,11 +70,40 @@ const DEFAULT_FILTERS: LibraryFilterState = {
   sort: 'relevance',
 };
 
-const EXAMPLE_QUERIES = [
-  'rupture du contrat de travail',
-  'article 45 code du travail',
-  'constitution d\'une société (OHADA)',
-  'droit de rétractation du consommateur',
+/** Étapes de la visite guidée. Les cibles absentes du DOM sont sautées. */
+const LIBRARY_TOUR_STEPS: TourStep[] = [
+  {
+    target: 'search',
+    title: 'Recherchez le droit',
+    content:
+      'Tapez une notion (« rupture du contrat de travail »), une référence précise (« article 45 code du travail ») ou une question en langage naturel. Le raccourci « / » ramène le curseur ici à tout moment.',
+  },
+  {
+    target: 'filters',
+    title: 'Affinez avec les filtres',
+    content:
+      'Périmètre (droit congolais, OHADA, communautaire), type de texte, institution émettrice, dates de publication et tri : tous appliqués côté serveur sur l\'ensemble du fonds.',
+  },
+  {
+    target: 'home',
+    title: 'Une bibliothèque vivante',
+    content:
+      'Sans rien taper, explorez les textes fondamentaux, les derniers textes publiés et vos recherches récentes. Un clic ouvre le document dans l\'espace de lecture.',
+  },
+  {
+    target: 'synthesis',
+    title: 'Synthèse Mibeko IA',
+    content:
+      'Après une recherche, demandez une synthèse des meilleurs résultats, sources citées à l\'appui. L\'IA n\'intervient que lorsque vous la sollicitez.',
+    placement: 'bottom',
+  },
+  {
+    target: 'reader',
+    title: 'Espace de lecture',
+    content:
+      'Les textes s\'affichent ici : ouvrez un résultat pour lire l\'article dans son contexte, ou cliquez « Expliquer » pour une explication pédagogique par l\'IA.',
+    placement: 'left',
+  },
 ];
 
 /** Compte les filtres actifs (hors requête) pour le badge du bouton Filtres. */
@@ -77,10 +118,27 @@ function countActiveFilters(f: LibraryFilterState): number {
   );
 }
 
+/** Reconstruit l'état des filtres depuis les paramètres d'URL. */
+function filtersFromParams(params: URLSearchParams): LibraryFilterState {
+  const scope = params.get('scope');
+  const sort = params.get('sort');
+  return {
+    typeCode: params.get('type'),
+    legalScope:
+      scope === 'national' || scope === 'ohada' || scope === 'communautaire'
+        ? scope
+        : 'all',
+    institutionId: params.get('institution'),
+    dateFrom: params.get('from'),
+    dateTo: params.get('to'),
+    sort: sort === 'date_desc' || sort === 'date_asc' ? sort : 'relevance',
+  };
+}
+
 export default function Library() {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Mode « ajout à un dossier » (depuis le drawer d'un dossier).
   const addToDossierId = searchParams.get('addTo');
@@ -93,11 +151,20 @@ export default function Library() {
     [targetDossier?.references],
   );
 
-  const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const [filters, setFilters] = useState<LibraryFilterState>(DEFAULT_FILTERS);
-  const [page, setPage] = useState(1);
-  const [filtersOpen, setFiltersOpen] = useState(isDesktop);
+  // État initialisé depuis l'URL (?q, type, scope, …, doc, article).
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
+  const [submittedQuery, setSubmittedQuery] = useState(
+    () => searchParams.get('q') ?? '',
+  );
+  const [filters, setFilters] = useState<LibraryFilterState>(() =>
+    filtersFromParams(searchParams),
+  );
+  const [page, setPage] = useState(() =>
+    Math.max(1, Number(searchParams.get('page')) || 1),
+  );
+
+  // Fermés par défaut : la recherche d'abord, l'affinage ensuite.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileRightOpen, setMobileRightOpen] = useState(false);
 
@@ -105,26 +172,46 @@ export default function Library() {
   const [selected, setSelected] = useState<{
     documentId: string;
     articleId: string | null;
-  } | null>(null);
+  } | null>(() => {
+    const doc = searchParams.get('doc');
+    return doc ? { documentId: doc, articleId: searchParams.get('article') } : null;
+  });
 
   // Surface IA du panneau droit (explication / synthèse, en streaming).
   const ai = useLibraryAi();
 
-  // Initialisation depuis l'URL (?q, ?doc, ?article).
+  // Historique local des recherches (alimente l'accueil).
+  const { recentSearches, addRecentSearch, clearRecentSearches } =
+    useRecentSearches();
+
+  // Visite guidée : auto-démarrage à la première visite, relançable via « ? ».
+  const tour = useTourState('library');
+
+  // Arrivée via citation (?doc=…) sur mobile : ouvre le panneau de lecture.
   useEffect(() => {
-    const q = searchParams.get('q');
-    const doc = searchParams.get('doc');
-    const article = searchParams.get('article');
-    if (q) {
-      setQuery(q);
-      setSubmittedQuery(q);
-    }
-    if (doc) {
-      setSelected({ documentId: doc, articleId: article });
-      if (!isDesktop) setMobileRightOpen(true);
-    }
+    if (selected && !isDesktop) setMobileRightOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // L'URL reflète l'état complet : partageable et restaurée au rechargement.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    const q = submittedQuery.trim();
+    if (q.length >= 2) params.set('q', q);
+    if (filters.typeCode) params.set('type', filters.typeCode);
+    if (filters.legalScope !== 'all') params.set('scope', filters.legalScope);
+    if (filters.institutionId) params.set('institution', filters.institutionId);
+    if (filters.dateFrom) params.set('from', filters.dateFrom);
+    if (filters.dateTo) params.set('to', filters.dateTo);
+    if (filters.sort !== 'relevance') params.set('sort', filters.sort);
+    if (page > 1) params.set('page', String(page));
+    if (selected) {
+      params.set('doc', selected.documentId);
+      if (selected.articleId) params.set('article', selected.articleId);
+    }
+    if (addToDossierId) params.set('addTo', addToDossierId);
+    setSearchParams(params, { replace: true });
+  }, [submittedQuery, filters, page, selected, addToDossierId, setSearchParams]);
 
   const { data, isFetching, isError } = useLibrarySearch({
     q: submittedQuery,
@@ -144,8 +231,11 @@ export default function Library() {
   const activeFilterCount = countActiveFilters(filters);
 
   const runSearch = (q: string) => {
-    setSubmittedQuery(q.trim());
+    const trimmed = q.trim();
+    setQuery(trimmed);
+    setSubmittedQuery(trimmed);
     setPage(1);
+    addRecentSearch(trimmed);
   };
 
   const handleSubmit = () => runSearch(query);
@@ -168,6 +258,13 @@ export default function Library() {
     if (!item.document_id) return;
     setSelected({ documentId: item.document_id, articleId: item.id ?? null });
     ai.close(); // la lecture prend la priorité sur une éventuelle réponse IA
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
+  /** Ouvre un document depuis l'accueil (textes fondamentaux / récents). */
+  const openHomeDocument = (doc: LibraryHomeDocument) => {
+    setSelected({ documentId: doc.id, articleId: null });
+    ai.close();
     if (!isDesktop) setMobileRightOpen(true);
   };
 
@@ -231,21 +328,33 @@ export default function Library() {
     });
   };
 
-  // ── Colonne de gauche (recherche + filtres + résultats) ────────────────────
+  // ── Colonne de gauche (recherche + filtres + accueil/résultats) ────────────
   const leftColumn = (
     <div className="flex h-full flex-col">
-      {/* Recherche + bouton filtres */}
+      {/* Recherche + boutons filtres / aide */}
       <div className="shrink-0 space-y-2.5 border-b border-b1 p-3">
-        <LibrarySearchBar
-          value={query}
-          onChange={setQuery}
-          onSubmit={handleSubmit}
-          isLoading={isFetching && hasSearched}
-        />
+        <div data-tour="search">
+          <LibrarySearchBar
+            value={query}
+            onChange={setQuery}
+            onSubmit={handleSubmit}
+            isLoading={isFetching && hasSearched}
+          />
+        </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-1.5">
           <button
             type="button"
+            onClick={tour.start}
+            title="Revoir la visite guidée"
+            aria-label="Revoir la visite guidée"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-b1 bg-s1 text-t3 transition-colors hover:text-gold"
+          >
+            <CircleHelp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            data-tour="filters"
             onClick={() =>
               isDesktop
                 ? setFiltersOpen((v) => !v)
@@ -279,35 +388,17 @@ export default function Library() {
         </div>
       )}
 
-      {/* Résultats */}
+      {/* Accueil vivant ou résultats */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-3 p-3">
           {!hasSearched ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-gold/20 bg-gold/10">
-                <LibraryIcon className="h-6 w-6 text-gold" />
-              </div>
-              <h2 className="font-display text-base font-semibold text-t1">
-                Droit congolais & OHADA
-              </h2>
-              <p className="mt-1 max-w-xs text-xs text-t3">
-                Recherchez par notion, numéro d'article ou question.
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                {EXAMPLE_QUERIES.map((ex) => (
-                  <button
-                    key={ex}
-                    type="button"
-                    onClick={() => {
-                      setQuery(ex);
-                      runSearch(ex);
-                    }}
-                    className="rounded-full border border-b1 bg-s1 px-2.5 py-1 text-[11px] text-t2 transition-colors hover:border-gold/30 hover:text-t1"
-                  >
-                    {ex}
-                  </button>
-                ))}
-              </div>
+            <div data-tour="home">
+              <LibraryHomeView
+                onSearch={runSearch}
+                onOpenDocument={openHomeDocument}
+                recentSearches={recentSearches}
+                onClearRecentSearches={clearRecentSearches}
+              />
             </div>
           ) : (
             <>
@@ -325,6 +416,7 @@ export default function Library() {
                   {results.length > 0 && (
                     <button
                       type="button"
+                      data-tour="synthesis"
                       onClick={runSynthesis}
                       className="flex items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/10 px-2.5 py-1 text-[11px] font-medium text-gold transition-colors hover:bg-gold/15"
                     >
@@ -467,7 +559,9 @@ export default function Library() {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={54} minSize={30}>
-              {rightSurface}
+              <div className="h-full" data-tour="reader">
+                {rightSurface}
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
@@ -500,6 +594,13 @@ export default function Library() {
           />
         </SheetContent>
       </Sheet>
+
+      {/* Visite guidée de la page */}
+      <GuidedTour
+        steps={LIBRARY_TOUR_STEPS}
+        open={tour.open}
+        onClose={tour.close}
+      />
     </AppLayout>
   );
 }

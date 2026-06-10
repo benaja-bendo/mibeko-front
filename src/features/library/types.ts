@@ -73,6 +73,29 @@ export interface LibraryFilterState {
   sort: SearchSort;
 }
 
+/** Document mis en avant sur l'accueil de la Bibliothèque. */
+export interface LibraryHomeDocument {
+  id: string;
+  title: string;
+  type_code?: string | null;
+  type_name?: string | null;
+  legal_scope?: LegalScope | null;
+  date_publication?: string | null;
+  articles_count?: number;
+}
+
+/** Données de l'accueil de la Bibliothèque (`GET /library/home`). */
+export interface LibraryHomeData {
+  stats: {
+    documents: number;
+    articles: number;
+    institutions: number;
+  };
+  essential_documents: LibraryHomeDocument[];
+  recent_documents: LibraryHomeDocument[];
+  suggestions: string[];
+}
+
 /**
  * Requête vers la couche IA « à la demande » de la Bibliothèque, rendue dans
  * le panneau droit. Deux natures :
