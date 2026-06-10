@@ -14,8 +14,15 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // 2. Configuration du Worker (déjà fait dans main.tsx, mais on le rappelle pour s'assurer que c'est pris en compte)
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 //pdf.worker.min.mjs
+// pdfjs.GlobalWorkerOptions.workerSrc = 'https://app.unpkg.com/pdfjs-dist@6.0.227/files/build/pdf.worker.min.mjs';
+
+// AJOUTEZ celle-ci (Vite gérera le chemin et le hashage du fichier de façon transparente) :
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 interface Zone {
   id: string;
