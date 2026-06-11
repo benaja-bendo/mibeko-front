@@ -28,3 +28,8 @@ class ResizeObserverMock {
   disconnect() {}
 }
 window.ResizeObserver = window.ResizeObserver ?? ResizeObserverMock;
+
+// jsdom n'implémente pas non plus le défilement programmatique (auto-scroll du chat).
+Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => {});
+Element.prototype.scrollIntoView =
+  Element.prototype.scrollIntoView ?? (() => {});

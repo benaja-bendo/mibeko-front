@@ -10,6 +10,8 @@
 import { laravelClient, laravelBaseUrl } from '@/shared/api';
 import { getStoredToken } from '@/features/auth/store/authStore';
 import type {
+  AssistantMode,
+  AssistantReference,
   ConversationDetail,
   ConversationSummary,
   Paginated,
@@ -71,6 +73,24 @@ export async function deleteConversation(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Références épinglables (sélecteur « @ » du composer)
+// ---------------------------------------------------------------------------
+
+/**
+ * Recherche des documents publiés épinglables comme périmètre de recherche
+ * (codes, lois, constitution…). Sans `q`, renvoie les textes principaux.
+ */
+export async function searchReferences(
+  q: string,
+): Promise<AssistantReference[]> {
+  const res = await laravelClient.get<{ data: AssistantReference[] }>(
+    'assistant/references',
+    { params: { q: q || undefined } },
+  );
+  return res.data?.data ?? [];
+}
+
+// ---------------------------------------------------------------------------
 // Chat — Streaming SSE
 // ---------------------------------------------------------------------------
 
@@ -78,6 +98,10 @@ export interface StreamChatParams {
   message: string;
   /** Conversation existante à poursuivre ; absent => création d'une nouvelle. */
   conversationId?: string | null;
+  /** Mode de réponse (`concise` par défaut côté backend). */
+  mode?: AssistantMode;
+  /** Documents épinglés restreignant la recherche de l'IA. */
+  references?: AssistantReference[];
   /** Permet d'annuler la requête (bouton "Stop"). */
   signal?: AbortSignal;
 }
@@ -116,7 +140,7 @@ function parseSseFrame(frame: string): { event: string; data: string } | null {
  * @returns une promesse résolue à la fin du flux.
  */
 export async function streamChat(
-  { message, conversationId, signal }: StreamChatParams,
+  { message, conversationId, mode, references, signal }: StreamChatParams,
   callbacks: StreamCallbacks,
 ): Promise<void> {
   const token = getStoredToken();
@@ -133,7 +157,19 @@ export async function streamChat(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     credentials: 'include',
-    body: JSON.stringify({ message, stream: true }),
+    body: JSON.stringify({
+      message,
+      stream: true,
+      ...(mode && mode !== 'concise' ? { mode } : {}),
+      ...(references && references.length > 0
+        ? {
+            references: references.map((ref) => ({
+              id: ref.id,
+              type: 'document',
+            })),
+          }
+        : {}),
+    }),
     signal,
   });
 

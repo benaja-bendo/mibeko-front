@@ -3,6 +3,7 @@
  *
  * Permet de démarrer une nouvelle conversation, rechercher dans l'historique,
  * sélectionner, renommer (édition en ligne) et supprimer une conversation.
+ * Le survol d'un item précharge son détail : l'ouverture est instantanée.
  */
 
 import { useState } from 'react';
@@ -15,6 +16,7 @@ import {
   Trash2,
   Check,
   X,
+  Loader2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -25,18 +27,22 @@ import {
 import {
   useConversations,
   useDeleteConversation,
+  usePrefetchConversation,
   useRenameConversation,
 } from '@/features/assistant/hooks/useConversations';
 import type { ConversationSummary } from '@/features/assistant/types';
 
 interface ConversationSidebarProps {
   activeId: string | null;
+  /** Conversation dont le détail est en cours de chargement (spinner). */
+  loadingId?: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
 }
 
 export default function ConversationSidebar({
   activeId,
+  loadingId,
   onSelect,
   onNew,
 }: ConversationSidebarProps) {
@@ -47,6 +53,7 @@ export default function ConversationSidebar({
   const { data, isLoading } = useConversations({ title: search || undefined });
   const renameMutation = useRenameConversation();
   const deleteMutation = useDeleteConversation();
+  const prefetchConversation = usePrefetchConversation();
 
   const conversations = data?.data ?? [];
 
@@ -154,6 +161,8 @@ export default function ConversationSidebar({
             );
           }
 
+          const isLoadingDetail = conv.id === loadingId;
+
           return (
             <div
               key={conv.id}
@@ -164,11 +173,17 @@ export default function ConversationSidebar({
               <button
                 type="button"
                 onClick={() => onSelect(conv.id)}
+                onMouseEnter={() => prefetchConversation(conv.id)}
+                onFocus={() => prefetchConversation(conv.id)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <MessageSquare
-                  className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-gold' : 'text-t3'}`}
-                />
+                {isLoadingDetail ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-gold" />
+                ) : (
+                  <MessageSquare
+                    className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-gold' : 'text-t3'}`}
+                  />
+                )}
                 <span
                   className={`truncate text-xs ${isActive ? 'text-t1' : 'text-t2'}`}
                 >

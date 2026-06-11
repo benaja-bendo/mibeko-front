@@ -7,7 +7,14 @@
  */
 
 import { useRef } from 'react';
-import { Sparkles, User, Loader2, AlertTriangle } from 'lucide-react';
+import {
+  Sparkles,
+  User,
+  Loader2,
+  AlertTriangle,
+  BookMarked,
+  Layers,
+} from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/features/assistant/types';
 import MarkdownLite from './MarkdownLite';
 import SourceCitations, {
@@ -25,10 +32,35 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
   if (isUser) {
+    const hasContext =
+      (message.references?.length ?? 0) > 0 || message.mode === 'analysis';
+
     return (
       <div className="flex justify-end gap-3">
-        <div className="max-w-[80%] rounded-2xl rounded-tr-sm border border-b1 bg-s2 px-4 py-2.5 text-sm leading-relaxed text-t1 whitespace-pre-wrap">
-          {message.content}
+        <div className="flex max-w-[80%] flex-col items-end gap-1">
+          {/* Contexte de la demande : périmètre ciblé et/ou mode analyse */}
+          {hasContext && (
+            <div className="flex flex-wrap justify-end gap-1">
+              {message.mode === 'analysis' && (
+                <span className="flex items-center gap-1 rounded-full border border-b1 bg-s1 px-2 py-0.5 text-[10px] text-t3">
+                  <Layers className="h-2.5 w-2.5 text-gold" />
+                  Analyse approfondie
+                </span>
+              )}
+              {message.references?.map((ref) => (
+                <span
+                  key={ref.id}
+                  className="flex max-w-[220px] items-center gap-1 rounded-full border border-gold/25 bg-gold/10 px-2 py-0.5 text-[10px] text-t2"
+                >
+                  <BookMarked className="h-2.5 w-2.5 shrink-0 text-gold" />
+                  <span className="truncate">{ref.title}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="rounded-2xl rounded-tr-sm border border-b1 bg-s2 px-4 py-2.5 text-sm leading-relaxed text-t1 whitespace-pre-wrap">
+            {message.content}
+          </div>
         </div>
         <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-s3 text-t2">
           <User className="h-3.5 w-3.5" />

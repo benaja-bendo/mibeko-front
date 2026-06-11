@@ -7,8 +7,12 @@
  *   3. application incrémentale des fragments SSE (effet machine à écrire) ;
  *   4. rattachement des citations puis finalisation.
  *
- * L'état serveur (historique) reste géré par TanStack Query (useConversations) ;
- * ce hook ne porte que l'état UI volatile de la conversation active.
+ * Ce hook ne porte QUE la conversation « vivante » (celle où l'on écrit).
+ * Une conversation d'historique est affichée directement depuis le cache
+ * TanStack Query par la page — sans copie dans cet état — et n'est adoptée
+ * ici (via `seedMessages`) qu'au moment où l'utilisateur y envoie un message.
+ * Une seule source de vérité par conversation : aucune course possible entre
+ * un refetch d'historique et un échange en cours.
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -17,6 +21,7 @@ import type {
   AssistantSource,
   ChatMessage,
   PersistedMessage,
+  SendMessageOptions,
 } from '@/features/assistant/types';
 
 /** Génère un identifiant local de message (fallback si crypto indisponible). */
@@ -27,13 +32,34 @@ function localId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+/** Convertit les messages persistés côté Laravel en messages affichables. */
+export function persistedToChatMessages(
+  persisted: PersistedMessage[],
+): ChatMessage[] {
+  return persisted.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    sources: m.meta?.sources ?? undefined,
+    references: m.meta?.references ?? undefined,
+    mode: m.meta?.mode ?? undefined,
+    createdAt: m.created_at,
+  }));
+}
+
 interface UseAssistantChatOptions {
   /** Appelé quand une nouvelle conversation est créée côté serveur. */
   onConversationCreated?: (id: string) => void;
+  /**
+   * Appelé à la fin de chaque échange (succès, erreur ou interruption) avec
+   * l'identifiant de la conversation : permet d'invalider l'historique
+   * (ordre/titres) et le détail en cache, désormais périmés.
+   */
+  onExchangeFinished?: (conversationId: string | null) => void;
 }
 
 export function useAssistantChat(options: UseAssistantChatOptions = {}) {
-  const { onConversationCreated } = options;
+  const { onConversationCreated, onExchangeFinished } = options;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -50,24 +76,6 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
       prev.map((m) => (m.id === id ? { ...m, ...patch } : m)),
     );
   }, []);
-
-  /** Charge une conversation persistée dans le fil (depuis l'historique). */
-  const loadMessages = useCallback(
-    (id: string, persisted: PersistedMessage[]) => {
-      setConversationId(id);
-      setStatus(null);
-      setMessages(
-        persisted.map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          sources: m.meta?.sources ?? undefined,
-          createdAt: m.created_at,
-        })),
-      );
-    },
-    [],
-  );
 
   /** Démarre une nouvelle conversation vierge. */
   const reset = useCallback(() => {
@@ -92,14 +100,34 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
 
   /** Envoie un message et consomme la réponse en streaming. */
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, options: SendMessageOptions = {}) => {
       const trimmed = text.trim();
       if (!trimmed || isStreaming) return;
+
+      const { mode, references } = options;
+
+      // Conversation cible explicite : écrire depuis une conversation
+      // d'historique l'« adopte » (le fil repart de ses messages persistés).
+      const targetConversationId =
+        options.conversationId !== undefined
+          ? options.conversationId
+          : conversationId;
+      const seedMessages =
+        targetConversationId !== conversationId
+          ? (options.seedMessages ?? [])
+          : null;
+
+      if (targetConversationId !== conversationId) {
+        setConversationId(targetConversationId);
+      }
 
       const userMessage: ChatMessage = {
         id: localId(),
         role: 'user',
         content: trimmed,
+        mode: mode && mode !== 'concise' ? mode : undefined,
+        references:
+          references && references.length > 0 ? references : undefined,
         createdAt: new Date().toISOString(),
       };
 
@@ -112,7 +140,11 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
       };
       activeAssistantIdRef.current = assistantId;
 
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      setMessages((prev) => [
+        ...(seedMessages ?? prev),
+        userMessage,
+        assistantMessage,
+      ]);
       setIsStreaming(true);
       setStatus(null);
 
@@ -121,21 +153,35 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
 
       let sources: AssistantSource[] | undefined;
       let buffer = '';
+      // Suit l'id réel de l'échange (créé en cours de route pour une nouvelle
+      // conversation) afin de le transmettre à onExchangeFinished.
+      let exchangeConversationId = targetConversationId;
 
       try {
         await streamChat(
-          { message: trimmed, conversationId, signal: controller.signal },
+          {
+            message: trimmed,
+            conversationId: targetConversationId,
+            mode,
+            references,
+            signal: controller.signal,
+          },
           {
             onConversationId: (id) => {
-              if (!conversationId) {
+              exchangeConversationId = id;
+              if (!targetConversationId) {
                 setConversationId(id);
                 onConversationCreated?.(id);
               }
             },
             onStatus: (msg) => setStatus(msg),
-            onSources: (s) => {
-              sources = s;
-              patchMessage(assistantId, { sources: s });
+            onSources: (batch) => {
+              // L'IA peut chercher plusieurs fois : on cumule les lots dans
+              // l'ordre, sans toucher aux positions — l'index 1-based doit
+              // rester aligné avec les marqueurs [n] (déduplication backend).
+              const merged = [...(sources ?? []), ...batch];
+              sources = merged;
+              patchMessage(assistantId, { sources: merged });
             },
             onDelta: (delta) => {
               buffer += delta;
@@ -176,9 +222,16 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
         setStatus(null);
         activeAssistantIdRef.current = null;
         abortRef.current = null;
+        onExchangeFinished?.(exchangeConversationId);
       }
     },
-    [conversationId, isStreaming, onConversationCreated, patchMessage],
+    [
+      conversationId,
+      isStreaming,
+      onConversationCreated,
+      onExchangeFinished,
+      patchMessage,
+    ],
   );
 
   return {
@@ -189,6 +242,5 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
     sendMessage,
     stop,
     reset,
-    loadMessages,
   };
 }

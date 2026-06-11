@@ -6,3 +6,6 @@ export { default as ChatComposer } from './components/ChatComposer';
 export { default as ConversationSidebar } from './components/ConversationSidebar';
 export { default as MarkdownLite } from './components/MarkdownLite';
 export { default as SourceCitations } from './components/SourceCitations';
+export { default as AssistantHomeView } from './components/AssistantHomeView';
+export { default as ReferencePicker } from './components/ReferencePicker';
+export { default as ConversationSkeleton } from './components/ConversationSkeleton';

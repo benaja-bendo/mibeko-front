@@ -5,19 +5,35 @@
  *  - streaming SSE avec effet machine à écrire ;
  *  - citations cliquables renvoyant vers la Bibliothèque ;
  *  - historique des conversations dans un panneau latéral redimensionnable.
+ *
+ * Architecture d'affichage — une seule source de vérité par conversation :
+ *  - la conversation « vivante » (où l'on écrit/streame) vit dans useAssistantChat ;
+ *  - une conversation d'historique est rendue DIRECTEMENT depuis le cache
+ *    TanStack Query (aucune copie, aucun effet de synchronisation) ; elle n'est
+ *    adoptée par le chat qu'au moment où l'utilisateur y envoie un message.
+ *  Sélectionner A puis B ne peut donc jamais afficher un état mélangé : le fil
+ *  rendu est une fonction pure de `selectedId` et du cache.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react';
+import {
+  AlertTriangle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RotateCcw,
+} from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/shared/components/ui/Resizable';
-import { useAssistantChat } from '@/features/assistant/hooks/useAssistantChat';
+import {
+  persistedToChatMessages,
+  useAssistantChat,
+} from '@/features/assistant/hooks/useAssistantChat';
 import {
   assistantKeys,
   useConversation,
@@ -25,6 +41,10 @@ import {
 import ChatMessage from '@/features/assistant/components/ChatMessage';
 import ChatComposer from '@/features/assistant/components/ChatComposer';
 import ConversationSidebar from '@/features/assistant/components/ConversationSidebar';
+import ConversationSkeleton from '@/features/assistant/components/ConversationSkeleton';
+import AssistantHomeView from '@/features/assistant/components/AssistantHomeView';
+import { useLibraryHome } from '@/features/library/hooks/useLibrary';
+import type { SendMessageOptions } from '@/features/assistant/types';
 
 /** Suggestions affichées sur l'écran d'accueil (vide). */
 const SUGGESTIONS = [
@@ -38,7 +58,12 @@ export default function AssistantPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Conversation d'historique sélectionnée (null = conversation vivante).
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Statistiques du fonds documentaire (mêmes données que l'accueil Bibliothèque).
+  const { data: libraryHome, isLoading: isLoadingHome } = useLibraryHome();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -49,16 +74,45 @@ export default function AssistantPage() {
         queryKey: [...assistantKeys.all, 'conversations'],
       });
     },
+    onExchangeFinished: (conversationId) => {
+      // L'échange a modifié la conversation : l'ordre/le titre de l'historique
+      // et le détail en cache sont périmés.
+      queryClient.invalidateQueries({
+        queryKey: [...assistantKeys.all, 'conversations'],
+      });
+      if (conversationId) {
+        queryClient.invalidateQueries({
+          queryKey: assistantKeys.detail(conversationId),
+        });
+      }
+    },
   });
 
-  // Chargement d'une conversation sélectionnée dans l'historique.
-  const { data: conversationDetail } = useConversation(selectedId);
-  useEffect(() => {
-    if (conversationDetail && selectedId) {
-      chat.loadMessages(selectedId, conversationDetail.messages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationDetail, selectedId]);
+  // Détail de la conversation d'historique sélectionnée (cache + refetch).
+  const detailQuery = useConversation(selectedId);
+
+  // La conversation sélectionnée est-elle celle que le chat porte déjà ?
+  // (soit parce qu'on y a écrit — adoption —, soit aucune sélection : fil vivant)
+  const isLiveSelected =
+    selectedId === null || selectedId === chat.conversationId;
+
+  // Messages d'historique prêts à afficher (et à servir de base à l'adoption).
+  const historyMessages = useMemo(
+    () =>
+      detailQuery.data && detailQuery.data.id === selectedId
+        ? persistedToChatMessages(detailQuery.data.messages)
+        : [],
+    [detailQuery.data, selectedId],
+  );
+
+  // Fil affiché : fonction pure de la sélection et du cache — jamais de copie.
+  const displayedMessages = isLiveSelected ? chat.messages : historyMessages;
+  const displayedId = selectedId ?? chat.conversationId;
+
+  // États transitoires de la sélection (skeleton / erreur de chargement).
+  const isLoadingSelection =
+    !isLiveSelected && detailQuery.isPending && !detailQuery.isError;
+  const showLoadError = !isLiveSelected && detailQuery.isError;
 
   // Pré-remplissage depuis ?q= (lien "Demander à l'IA" depuis la Bibliothèque).
   useEffect(() => {
@@ -71,11 +125,19 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-scroll vers le bas à chaque nouveau fragment.
+  // Auto-scroll : saut instantané quand on change de conversation (pas
+  // d'animation à travers deux contenus différents), fluide pendant le stream.
+  const lastDisplayedIdRef = useRef<string | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [chat.messages]);
+    if (!el) return;
+    const conversationChanged = lastDisplayedIdRef.current !== displayedId;
+    lastDisplayedIdRef.current = displayedId;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: conversationChanged ? 'auto' : 'smooth',
+    });
+  }, [displayedMessages, displayedId]);
 
   const handleNew = () => {
     setSelectedId(null);
@@ -83,11 +145,36 @@ export default function AssistantPage() {
   };
 
   const handleSelect = (id: string) => {
-    if (id === selectedId) return;
+    // Déjà affichée : rien à faire, sauf relancer un chargement en échec.
+    if (id === displayedId) {
+      if (detailQuery.isError) void detailQuery.refetch();
+      return;
+    }
+
+    // Changer de conversation interrompt la génération en cours.
+    if (chat.isStreaming) chat.stop();
+
     setSelectedId(id);
   };
 
-  const isEmpty = chat.messages.length === 0;
+  /**
+   * Envoi d'un message. Depuis une conversation d'historique affichée en
+   * lecture, le chat adopte d'abord ce fil (id + messages persistés) — la
+   * cible est explicite, aucune fermeture périmée possible.
+   */
+  const handleSend = (text: string, options: SendMessageOptions = {}) => {
+    if (!isLiveSelected && selectedId) {
+      chat.sendMessage(text, {
+        ...options,
+        conversationId: selectedId,
+        seedMessages: historyMessages,
+      });
+      return;
+    }
+    chat.sendMessage(text, options);
+  };
+
+  const isEmpty = displayedMessages.length === 0;
 
   return (
     <AppLayout space="app">
@@ -103,7 +190,8 @@ export default function AssistantPage() {
                 className="hidden md:block"
               >
                 <ConversationSidebar
-                  activeId={chat.conversationId}
+                  activeId={displayedId}
+                  loadingId={isLoadingSelection ? selectedId : null}
                   onSelect={handleSelect}
                   onNew={handleNew}
                 />
@@ -141,36 +229,45 @@ export default function AssistantPage() {
 
               {/* Fil de discussion */}
               <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-                {isEmpty ? (
-                  <div className="flex h-full flex-col items-center justify-center px-6">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/10">
-                      <Sparkles className="h-7 w-7 text-gold" />
+                {isLoadingSelection ? (
+                  <ConversationSkeleton />
+                ) : showLoadError ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                    <AlertTriangle className="h-7 w-7 text-red" />
+                    <div>
+                      <p className="text-sm font-medium text-t1">
+                        Impossible de charger cette conversation.
+                      </p>
+                      <p className="mt-1 text-xs text-t3">
+                        Vérifiez votre connexion puis réessayez.
+                      </p>
                     </div>
-                    <h2 className="font-display text-xl font-semibold text-t1">
-                      Comment puis-je vous aider ?
-                    </h2>
-                    <p className="mt-1.5 max-w-md text-center text-sm text-t3">
-                      Interrogez la base juridique Mibeko. Chaque réponse cite ses
-                      sources officielles.
-                    </p>
-
-                    <div className="mt-6 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-                      {SUGGESTIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => chat.sendMessage(s)}
-                          className="rounded-xl border border-b1 bg-s1 p-3 text-left text-xs leading-relaxed text-t2 transition-colors hover:border-gold/30 hover:bg-s2 hover:text-t1"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => detailQuery.refetch()}
+                      className="flex items-center gap-1.5 rounded-lg border border-b1 bg-s1 px-3 py-1.5 text-xs font-medium text-t1 transition-colors hover:bg-s2"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Réessayer
+                    </button>
                   </div>
+                ) : isEmpty ? (
+                  <AssistantHomeView
+                    onAsk={(question) => handleSend(question)}
+                    suggestions={SUGGESTIONS}
+                    stats={libraryHome?.stats}
+                    isLoadingStats={isLoadingHome}
+                  />
                 ) : (
-                  <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-                    {chat.messages.map((message, i) => {
-                      const isLast = i === chat.messages.length - 1;
+                  /* key = conversation affichée : remonte le fil avec une
+                     courte apparition à chaque changement (transition lisible
+                     même quand le cache rend le contenu instantané). */
+                  <div
+                    key={displayedId ?? 'live'}
+                    className="mx-auto max-w-3xl animate-thread-in space-y-6 px-4 py-6"
+                  >
+                    {displayedMessages.map((message, i) => {
+                      const isLast = i === displayedMessages.length - 1;
                       return (
                         <ChatMessage
                           key={message.id}
@@ -183,11 +280,12 @@ export default function AssistantPage() {
                 )}
               </div>
 
-              {/* Composer */}
+              {/* Composer (inactif le temps de charger la conversation cliquée) */}
               <ChatComposer
-                onSend={chat.sendMessage}
+                onSend={handleSend}
                 onStop={chat.stop}
                 isStreaming={chat.isStreaming}
+                disabled={isLoadingSelection || showLoadError}
               />
             </div>
           </ResizablePanel>

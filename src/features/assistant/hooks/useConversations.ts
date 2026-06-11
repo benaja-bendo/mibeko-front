@@ -4,6 +4,7 @@
  * Sépare l'état serveur (liste, détail) de l'état UI du chat (cf. useAssistantChat).
  */
 
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   deleteConversation,
@@ -20,6 +21,13 @@ export const assistantKeys = {
   detail: (id: string) => [...assistantKeys.all, 'conversation', id] as const,
 };
 
+/**
+ * Fraîcheur du détail d'une conversation : rouvrir une conversation consultée
+ * à l'instant ne refait pas d'appel réseau. Jamais durablement périmé car le
+ * détail est invalidé explicitement après chaque échange (cf. Assistant.tsx).
+ */
+const CONVERSATION_STALE_TIME = 30_000;
+
 /** Liste paginée des conversations, filtrable par titre. */
 export function useConversations(params: ListConversationsParams = {}) {
   return useQuery({
@@ -35,7 +43,28 @@ export function useConversation(id: string | null) {
     queryKey: assistantKeys.detail(id ?? ''),
     queryFn: () => getConversation(id as string),
     enabled: !!id,
+    staleTime: CONVERSATION_STALE_TIME,
   });
+}
+
+/**
+ * Préchargement du détail d'une conversation (au survol d'un item de
+ * l'historique) : à l'ouverture effective, les messages sont déjà en cache et
+ * l'affichage est instantané.
+ */
+export function usePrefetchConversation() {
+  const qc = useQueryClient();
+
+  return useCallback(
+    (id: string) => {
+      void qc.prefetchQuery({
+        queryKey: assistantKeys.detail(id),
+        queryFn: () => getConversation(id),
+        staleTime: CONVERSATION_STALE_TIME,
+      });
+    },
+    [qc],
+  );
 }
 
 /** Renommage d'une conversation avec invalidation de la liste. */

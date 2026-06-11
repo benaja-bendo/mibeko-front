@@ -30,6 +30,35 @@ export interface AssistantSource {
 
 export type ChatRole = 'user' | 'assistant';
 
+/**
+ * Mode de réponse de l'IA :
+ *  - `concise`  : réponse directe en quelques phrases (défaut) ;
+ *  - `analysis` : analyse structurée (fondements, exceptions, vigilance).
+ */
+export type AssistantMode = 'concise' | 'analysis';
+
+/** Document épinglé dans le composer pour restreindre la recherche de l'IA. */
+export interface AssistantReference {
+  id: string;
+  title: string;
+  type_code?: string | null;
+  type_name?: string | null;
+}
+
+/** Options d'envoi d'un message (mode + références épinglées). */
+export interface SendMessageOptions {
+  mode?: AssistantMode;
+  references?: AssistantReference[];
+  /**
+   * Conversation cible explicite. Passé par la page quand l'utilisateur écrit
+   * depuis une conversation d'historique affichée en lecture (le fil est alors
+   * « adopté » par le chat avec `seedMessages` comme base).
+   */
+  conversationId?: string | null;
+  /** Messages persistés servant de base au fil adopté. */
+  seedMessages?: ChatMessage[];
+}
+
 /** Message affiché dans le fil de discussion (état UI, pas la persistance brute). */
 export interface ChatMessage {
   id: string;
@@ -37,6 +66,10 @@ export interface ChatMessage {
   content: string;
   /** Citations rattachées à une réponse de l'assistant. */
   sources?: AssistantSource[];
+  /** Références épinglées avec un message utilisateur. */
+  references?: AssistantReference[];
+  /** Mode demandé pour ce message (affiché si ≠ concise). */
+  mode?: AssistantMode;
   createdAt?: string;
   /** `true` pendant que la réponse est en cours de streaming. */
   pending?: boolean;
@@ -57,7 +90,14 @@ export interface PersistedMessage {
   id: string;
   role: ChatRole;
   content: string;
-  meta?: { sources?: AssistantSource[]; cached?: boolean } | null;
+  meta?: {
+    sources?: AssistantSource[];
+    cached?: boolean;
+    /** Références épinglées au moment de l'envoi (messages utilisateur). */
+    references?: AssistantReference[];
+    /** Mode demandé (absent si concise). */
+    mode?: AssistantMode;
+  } | null;
   created_at?: string;
 }
 
