@@ -2,12 +2,13 @@
  * useLibrary.ts — Hooks TanStack Query pour la Bibliothèque Juridique.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getDocumentTypes,
   getInstitutions,
   getLibraryHome,
+  getLibrarySuggestions,
   searchLibrary,
   streamLibraryExplain,
   streamLibrarySynthesis,
@@ -22,6 +23,7 @@ export const libraryKeys = {
   all: ['library'] as const,
   home: () => [...libraryKeys.all, 'home'] as const,
   search: (params: SearchParams) => [...libraryKeys.all, 'search', params] as const,
+  suggest: (q: string) => [...libraryKeys.all, 'suggest', q] as const,
   types: () => [...libraryKeys.all, 'document-types'] as const,
   institutions: () => [...libraryKeys.all, 'institutions'] as const,
 };
@@ -45,6 +47,31 @@ export function useLibrarySearch(params: SearchParams) {
     queryKey: libraryKeys.search(params),
     queryFn: () => searchLibrary(params),
     enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Autocomplétion temps réel de la barre de recherche.
+ *
+ * Le debounce (250 ms) est intégré : passer la frappe brute suffit. Les
+ * suggestions précédentes restent affichées pendant le rechargement pour
+ * éviter tout clignotement du panneau.
+ */
+export function useLibrarySuggestions(q: string) {
+  const trimmed = q.trim();
+  const [debouncedQ, setDebouncedQ] = useState(trimmed);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQ(trimmed), 250);
+    return () => window.clearTimeout(timer);
+  }, [trimmed]);
+
+  return useQuery({
+    queryKey: libraryKeys.suggest(debouncedQ),
+    queryFn: () => getLibrarySuggestions(debouncedQ),
+    enabled: debouncedQ.length >= 2,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });

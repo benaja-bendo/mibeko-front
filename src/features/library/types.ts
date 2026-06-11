@@ -84,6 +84,43 @@ export interface LibraryHomeDocument {
   articles_count?: number;
 }
 
+/** Suggestion « texte » de l'autocomplétion (titre de document). */
+export interface SuggestDocument {
+  id: string;
+  title: string;
+  type_code?: string | null;
+  type_name?: string | null;
+}
+
+/** Suggestion « article » de l'autocomplétion (numéro + document parent). */
+export interface SuggestArticle {
+  id: string;
+  number: string;
+  document_id: string;
+  document_title: string;
+  type_code?: string | null;
+}
+
+/**
+ * Suggestion « passage » : extrait du contenu d'un article correspondant à la
+ * frappe. Les correspondances sont balisées [[…]] (transformées en <mark>
+ * côté React, sans HTML injecté).
+ */
+export interface SuggestPassage {
+  id: string;
+  number: string;
+  document_id: string;
+  document_title: string;
+  snippet: string;
+}
+
+/** Réponse de `GET /library/suggest` (autocomplétion temps réel). */
+export interface LibrarySuggestions {
+  documents: SuggestDocument[];
+  articles: SuggestArticle[];
+  passages: SuggestPassage[];
+}
+
 /** Données de l'accueil de la Bibliothèque (`GET /library/home`). */
 export interface LibraryHomeData {
   stats: {

@@ -268,6 +268,13 @@ export default function Library() {
     if (!isDesktop) setMobileRightOpen(true);
   };
 
+  /** Ouvre une suggestion d'autocomplétion dans l'espace de lecture. */
+  const openSuggestion = (documentId: string, articleId: string | null) => {
+    setSelected({ documentId, articleId });
+    ai.close();
+    if (!isDesktop) setMobileRightOpen(true);
+  };
+
   /** Expliquer un article via l'IA (et garder l'article comme lecture de repli). */
   const explainResult = (item: SearchResultItem) => {
     if (item.document_id) {
@@ -338,6 +345,7 @@ export default function Library() {
             value={query}
             onChange={setQuery}
             onSubmit={handleSubmit}
+            onOpenSuggestion={openSuggestion}
             isLoading={isFetching && hasSearched}
           />
         </div>

@@ -20,6 +20,7 @@ import type {
   LibraryFilterState,
   LibraryHomeData,
   LibrarySearchResult,
+  LibrarySuggestions,
   SearchResultItem,
   SearchSort,
 } from '@/features/library/types';
@@ -80,6 +81,22 @@ export async function searchLibrary(
     results: Array.isArray(res.data?.data) ? res.data.data : [],
     pagination: res.data?.pagination ?? null,
   };
+}
+
+/**
+ * Autocomplétion temps réel de la barre de recherche : titres de textes,
+ * articles par numéro et passages du contenu correspondant à la frappe.
+ */
+export async function getLibrarySuggestions(
+  q: string,
+): Promise<LibrarySuggestions> {
+  const res = await laravelClient.get<{ data: LibrarySuggestions }>(
+    'library/suggest',
+    { params: { q } },
+  );
+  return (
+    res.data?.data ?? { documents: [], articles: [], passages: [] }
+  );
 }
 
 /**

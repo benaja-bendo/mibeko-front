@@ -12,6 +12,15 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/components/ui/DropdownMenu';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/shared/components/ui/Sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/Dialog';
+import { Button } from '@/shared/components/ui/Button';
 import { Settings, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -157,6 +166,10 @@ export default function Sidebar({ space }: SidebarProps) {
   const { user, clearAuth } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Confirmation avant déconnexion (évite les clics accidentels).
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   // Fermer le menu mobile lors d'un changement de route
   useEffect(() => {
     setMobileOpen(false);
@@ -168,6 +181,7 @@ export default function Sidebar({ space }: SidebarProps) {
   const navItems = space === 'app' ? APP_NAV : space === 'admin' ? ADMIN_NAV : EDITOR_NAV;
 
   async function handleLogout() {
+    setLoggingOut(true);
     try {
       await logout();
     } finally {
@@ -296,7 +310,10 @@ export default function Sidebar({ space }: SidebarProps) {
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-500 focus:bg-red-400/10">
+              <DropdownMenuItem
+                onClick={() => setLogoutConfirmOpen(true)}
+                className="gap-2 text-red-400 focus:text-red-500 focus:bg-red-400/10"
+              >
                 <LogOut className="w-4 h-4" />
                 <span>Déconnexion</span>
               </DropdownMenuItem>
@@ -335,6 +352,40 @@ export default function Sidebar({ space }: SidebarProps) {
       <aside className="hidden md:flex md:relative md:w-[240px] md:shrink-0 md:flex-col md:h-full md:border-r border-b1 z-50">
         {SidebarContent}
       </aside>
+
+      {/* Confirmation de déconnexion — rendue une seule fois (le contenu de
+          la sidebar, lui, est monté deux fois : desktop + Sheet mobile). */}
+      <Dialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Se déconnecter&nbsp;?</DialogTitle>
+            <DialogDescription>
+              Votre session sur cet appareil sera fermée. Vous pourrez vous
+              reconnecter à tout moment.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loggingOut}
+              onClick={() => setLogoutConfirmOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={loggingOut}
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
