@@ -28,6 +28,7 @@ import {
   ChevronRight,
   List,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -54,6 +55,10 @@ interface DocumentReaderViewProps {
     documentTitle: string;
     articleNumber?: string | null;
   }) => void;
+  /** Ferme (replie) le panneau de lecture. Affiche un bouton X dans l'en-tête. */
+  onClose?: () => void;
+  /** Active le raccourci Échap pour fermer (desktop ; mobile = Sheet Radix). */
+  closeOnEscape?: boolean;
   /** Ajout de tout le document comme référence à un dossier (mode dossier). */
   onAddToDossier?: () => void;
   addedToDossier?: boolean;
@@ -153,6 +158,8 @@ export default function DocumentReaderView({
   documentId,
   articleId,
   onExplainArticle,
+  onClose,
+  closeOnEscape,
   onAddToDossier,
   addedToDossier,
 }: DocumentReaderViewProps) {
@@ -179,6 +186,31 @@ export default function DocumentReaderView({
     setView(articleId ? 'article' : 'document');
     setCurrentId(articleId?.toLowerCase() ?? null);
   }, [articleId, documentId]);
+
+  // Échap ferme la lecture (desktop). Ignoré quand le focus est dans un champ
+  // de saisie pour ne pas entrer en conflit avec la barre de recherche.
+  useEffect(() => {
+    if (!closeOnEscape || !onClose) {
+      return;
+    }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') {
+        return;
+      }
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [closeOnEscape, onClose]);
 
   const doc = data?.document;
   const title = doc?.titre_officiel || doc?.title || 'Document';
@@ -268,6 +300,18 @@ export default function DocumentReaderView({
               </button>
             )}
           </div>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Fermer la lecture (Échap)"
+              aria-label="Fermer la lecture"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-t3 transition-colors hover:bg-s2 hover:text-t1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">

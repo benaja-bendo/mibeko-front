@@ -7,7 +7,7 @@
  * l'utilisateur garde la main et ne perd pas une synthèse par inadvertance.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -31,6 +31,8 @@ interface LibraryAiPanelProps {
   onOpenSource: (item: SearchResultItem) => void;
   /** Relance la requête courante. */
   onRetry: () => void;
+  /** Active le raccourci Échap pour fermer (desktop ; mobile = Sheet Radix). */
+  closeOnEscape?: boolean;
 }
 
 /** Extrait court pour l'aperçu d'une source. */
@@ -45,6 +47,7 @@ export default function LibraryAiPanel({
   onClose,
   onOpenSource,
   onRetry,
+  closeOnEscape,
 }: LibraryAiPanelProps) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
@@ -60,14 +63,48 @@ export default function LibraryAiPanel({
         ? `« ${request.q} »`
         : '';
 
+  // Un texte généré non sauvegardé : la fermeture demande confirmation.
+  const hasUnsavedText = text.trim().length > 0 && !error;
+
   // Fermeture : confirmer seulement si un texte a été généré (et non en erreur).
   const requestClose = () => {
-    if (text.trim().length > 0 && !error) {
+    if (hasUnsavedText) {
       setConfirming(true);
     } else {
       onClose();
     }
   };
+
+  // Échap ferme le panneau (desktop). Respecte la confirmation tant qu'un texte
+  // généré n'est pas sauvegardé ; une 2ᵉ pression annule la confirmation.
+  useEffect(() => {
+    if (!closeOnEscape) {
+      return;
+    }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') {
+        return;
+      }
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (confirming) {
+        setConfirming(false);
+      } else if (hasUnsavedText) {
+        setConfirming(true);
+      } else {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [closeOnEscape, confirming, hasUnsavedText, onClose]);
 
   const deepenInAssistant = () => {
     const q =

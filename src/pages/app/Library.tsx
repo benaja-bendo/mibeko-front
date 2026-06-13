@@ -29,6 +29,7 @@ import {
   BookOpenText,
   CircleHelp,
   Sparkles,
+  ChevronLeft,
 } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import {
@@ -168,6 +169,11 @@ export default function Library() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileRightOpen, setMobileRightOpen] = useState(false);
 
+  // Desktop : panneau droit (lecture/IA) déplié ou replié. Replié, les
+  // résultats occupent toute la largeur ; un rail latéral permet de rouvrir
+  // la dernière lecture sans la perdre.
+  const [rightOpen, setRightOpen] = useState(true);
+
   // Document/article affiché dans le panneau de lecture.
   const [selected, setSelected] = useState<{
     documentId: string;
@@ -253,26 +259,38 @@ export default function Library() {
 
   // ── Actions du panneau droit ───────────────────────────────────────────────
 
+  /** Ouvre/déplie le panneau droit (desktop : déplié ; mobile : Sheet). */
+  const openRightPanel = () => {
+    if (isDesktop) setRightOpen(true);
+    else setMobileRightOpen(true);
+  };
+
+  /** Replie le panneau droit. La sélection est conservée pour réouverture. */
+  const closeRightPanel = () => {
+    if (isDesktop) setRightOpen(false);
+    else setMobileRightOpen(false);
+  };
+
   /** Lire un article : bascule la surface droite en mode lecture. */
   const selectResult = (item: SearchResultItem) => {
     if (!item.document_id) return;
     setSelected({ documentId: item.document_id, articleId: item.id ?? null });
     ai.close(); // la lecture prend la priorité sur une éventuelle réponse IA
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Ouvre un document depuis l'accueil (textes fondamentaux / récents). */
   const openHomeDocument = (doc: LibraryHomeDocument) => {
     setSelected({ documentId: doc.id, articleId: null });
     ai.close();
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Ouvre une suggestion d'autocomplétion dans l'espace de lecture. */
   const openSuggestion = (documentId: string, articleId: string | null) => {
     setSelected({ documentId, articleId });
     ai.close();
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Expliquer un article via l'IA (et garder l'article comme lecture de repli). */
@@ -286,14 +304,14 @@ export default function Library() {
       documentTitle: item.document_title || 'Document',
       articleNumber: item.number,
     });
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Synthèse Mibeko IA du top-K de la recherche courante. */
   const runSynthesis = () => {
     if (!hasSearched) return;
     ai.start({ kind: 'synthesis', q: submittedQuery, filters });
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Explication déclenchée depuis le lecteur (article en cours de lecture). */
@@ -303,13 +321,14 @@ export default function Library() {
     articleNumber?: string | null;
   }) => {
     ai.start({ kind: 'explain', ...payload });
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   /** Ferme la surface IA (le lecteur reprend la main s'il y en a un). */
   const closeAi = () => {
     ai.close();
-    if (!isDesktop && !selected) setMobileRightOpen(false);
+    // Plus rien à lire en dessous : on replie complètement le panneau droit.
+    if (!selected) closeRightPanel();
   };
 
   /** Ouvre une source de la réponse IA dans le lecteur. */
@@ -317,7 +336,7 @@ export default function Library() {
     if (!item.document_id) return;
     setSelected({ documentId: item.document_id, articleId: item.id ?? null });
     ai.close();
-    if (!isDesktop) setMobileRightOpen(true);
+    openRightPanel();
   };
 
   const retryAi = () => {
@@ -502,12 +521,16 @@ export default function Library() {
       onClose={closeAi}
       onOpenSource={openSourceInReader}
       onRetry={retryAi}
+      closeOnEscape={isDesktop}
     />
   ) : selected ? (
     <DocumentReaderView
       documentId={selected.documentId}
       articleId={selected.articleId}
       onExplainArticle={explainFromReader}
+      // Desktop : bouton X + Échap. Mobile : la fermeture passe par le Sheet.
+      onClose={isDesktop ? closeRightPanel : undefined}
+      closeOnEscape={isDesktop}
       onAddToDossier={
         addToDossierId
           ? () =>
@@ -559,19 +582,42 @@ export default function Library() {
           </div>
         )}
 
-        {/* Double panneau (desktop) */}
+        {/* Desktop : double panneau (déplié) ou résultats pleine largeur +
+            rail de réouverture (replié). */}
         <div className="hidden min-h-0 flex-1 lg:flex">
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={46} minSize={34}>
-              {leftColumn}
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={54} minSize={30}>
-              <div className="h-full" data-tour="reader">
-                {rightSurface}
+          {rightOpen ? (
+            <ResizablePanelGroup direction="horizontal">
+              <ResizablePanel defaultSize={46} minSize={34}>
+                {leftColumn}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={54} minSize={30}>
+                <div className="h-full" data-tour="reader">
+                  {rightSurface}
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1" data-tour="reader">
+                {leftColumn}
               </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+              {(selected || ai.active) && (
+                <button
+                  type="button"
+                  onClick={openRightPanel}
+                  title="Rouvrir le panneau de lecture"
+                  aria-label="Rouvrir le panneau de lecture"
+                  className="flex w-10 shrink-0 flex-col items-center justify-center gap-2 border-l border-b1 bg-s1 text-t3 transition-colors hover:bg-s2 hover:text-gold"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="rotate-180 text-[11px] font-medium tracking-wide [writing-mode:vertical-rl]">
+                    {ai.active ? 'Réponse IA' : 'Lecture'}
+                  </span>
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {/* Colonne unique (mobile / tablette) */}
