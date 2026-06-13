@@ -7,6 +7,7 @@
  */
 
 import { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   User,
@@ -15,8 +16,12 @@ import {
   BookMarked,
   Layers,
 } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@/features/assistant/types';
+import type {
+  AssistantSource,
+  ChatMessage as ChatMessageType,
+} from '@/features/assistant/types';
 import MarkdownLite from './MarkdownLite';
+import CitationPreview from './CitationPreview';
 import SourceCitations, {
   type SourceCitationsHandle,
 } from './SourceCitations';
@@ -29,6 +34,7 @@ interface ChatMessageProps {
 
 export default function ChatMessage({ message, status }: ChatMessageProps) {
   const sourcesRef = useRef<SourceCitationsHandle>(null);
+  const navigate = useNavigate();
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -69,9 +75,45 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
     );
   }
 
-  /** Amène à l'écran la source [n] cliquée dans la réponse, et la surligne. */
+  const sourceAt = (index: number): AssistantSource | undefined =>
+    message.sources?.[index - 1];
+
+  /** Ouvre l'article cité dans le reader de la Bibliothèque. */
+  const openSourceInLibrary = (source: AssistantSource) => {
+    const params = new URLSearchParams();
+    if (source.document_id) params.set('doc', source.document_id);
+    if (source.id) params.set('article', source.id);
+    navigate(`/app/library?${params.toString()}`);
+  };
+
+  /**
+   * Clic sur un marqueur [n] : ouvre directement la lecture (l'aperçu au
+   * survol couvre le besoin de contexte rapide) ; repli sur le défilement
+   * vers la carte source si la source n'est pas résolue.
+   */
   const handleCitationClick = (index: number) => {
-    sourcesRef.current?.scrollToSource(index);
+    const source = sourceAt(index);
+    if (source?.document_id) {
+      openSourceInLibrary(source);
+    } else {
+      sourcesRef.current?.scrollToSource(index);
+    }
+  };
+
+  /** Aperçu au survol du marqueur [n] (desktop). */
+  const renderCitation = (index: number, marker: React.ReactElement) => {
+    const source = sourceAt(index);
+    if (!source) return marker;
+    return (
+      <CitationPreview
+        index={index}
+        source={source}
+        onRead={() => handleCitationClick(index)}
+        onLocate={() => sourcesRef.current?.scrollToSource(index)}
+      >
+        {marker}
+      </CitationPreview>
+    );
   };
 
   const showStatus = !!status && !message.content;
@@ -110,6 +152,7 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
             <MarkdownLite
               content={message.content}
               onCitationClick={handleCitationClick}
+              renderCitation={renderCitation}
             />
             {showTypingCursor && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-gold align-text-bottom" />

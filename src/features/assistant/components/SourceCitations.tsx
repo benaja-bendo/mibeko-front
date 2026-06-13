@@ -29,6 +29,11 @@ import {
   ChevronRight,
   Library,
 } from 'lucide-react';
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from '@/shared/components/ui/HoverCard';
 import type { AssistantSource } from '@/features/assistant/types';
 
 /** Poignée impérative : permet à un marqueur [n] de cibler une carte précise. */
@@ -151,8 +156,9 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
             className="flex gap-2.5 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {sources.map((source, i) => (
+              <HoverCard key={source.id || i} openDelay={400} closeDelay={80}>
+              <HoverCardTrigger asChild>
               <button
-                key={source.id || i}
                 ref={(el) => {
                   cardRefs.current[i] = el;
                 }}
@@ -210,6 +216,20 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
                   <ArrowUpRight className="h-3 w-3" />
                 </span>
               </button>
+              </HoverCardTrigger>
+
+              {/* Aperçu étendu : l'extrait complet, que la carte tronque à 3 lignes */}
+              {source.content && (
+                <HoverCardContent side="top" align="center" className="w-96 px-3.5 py-3">
+                  <p className="mb-1.5 truncate font-mono text-[10px] text-t3">
+                    {source.breadcrumb || source.document_title}
+                  </p>
+                  <p className="custom-scrollbar max-h-52 overflow-y-auto border-l-2 border-gold/30 pl-2.5 font-serif text-[11.5px] leading-relaxed text-t2">
+                    {snippet(source.content, 700)}
+                  </p>
+                </HoverCardContent>
+              )}
+              </HoverCard>
             ))}
           </div>
 
