@@ -34,11 +34,15 @@ export function LegacyViewerRedirectPage() {
 const LoginPage = lazy(() => import('@/features/auth/components/LoginPage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
+const Journals = lazy(() => import('@/pages/Journals'));
+const JournalDetail = lazy(() => import('@/pages/JournalDetail'));
 const Ingestion = lazy(() => import('@/pages/Ingestion'));
 const Viewer = lazy(() => import('@/pages/Viewer'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const AppDashboard = lazy(() => import('@/pages/app/Dashboard'));
 const Library = lazy(() => import('@/pages/app/Library'));
+const ProJournals = lazy(() => import('@/pages/app/Journals'));
+const ProJournalView = lazy(() => import('@/pages/app/JournalView'));
 const AssistantPage = lazy(() => import('@/pages/app/Assistant'));
 const Dossiers = lazy(() => import('@/pages/app/Dossiers'));
 const Upgrade = lazy(() => import('@/pages/app/Upgrade'));
@@ -67,6 +71,20 @@ export function DashboardRoutePage() {
  */
 export function LegalDocumentsRoutePage() {
   return <LazyPage Component={LegalDocuments} />;
+}
+
+/**
+ * Rend la liste des journaux officiels en lazy loading.
+ */
+export function JournalsRoutePage() {
+  return <LazyPage Component={Journals} />;
+}
+
+/**
+ * Rend le détail d'un journal officiel en lazy loading.
+ */
+export function JournalDetailRoutePage() {
+  return <LazyPage Component={JournalDetail} />;
 }
 
 /**
@@ -102,6 +120,20 @@ export function AppDashboardRoutePage() {
  */
 export function LibraryRoutePage() {
   return <LazyPage Component={Library} />;
+}
+
+/**
+ * Rend le kiosque Journal Officiel de l'espace Pro en lazy loading.
+ */
+export function ProJournalsRoutePage() {
+  return <LazyPage Component={ProJournals} />;
+}
+
+/**
+ * Rend le sommaire d'un numéro du Journal Officiel (Pro) en lazy loading.
+ */
+export function ProJournalViewRoutePage() {
+  return <LazyPage Component={ProJournalView} />;
 }
 
 /**

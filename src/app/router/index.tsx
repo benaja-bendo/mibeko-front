@@ -7,10 +7,14 @@ import {
   DashboardRoutePage,
   DossiersRoutePage,
   IngestionRoutePage,
+  JournalDetailRoutePage,
+  JournalsRoutePage,
   LegalDocumentsRoutePage,
   LegacyViewerRedirectPage,
   LibraryRoutePage,
   LoginRoutePage,
+  ProJournalsRoutePage,
+  ProJournalViewRoutePage,
   SettingsRoutePage,
   SettingsAccountRoutePage,
   SettingsBillingRoutePage,
@@ -59,6 +63,22 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/editor/journals',
+    element: (
+      <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
+        <JournalsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/editor/journals/:id',
+    element: (
+      <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
+        <JournalDetailRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
     path: '/editor/ingestion',
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
@@ -89,6 +109,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
         <AppDashboardRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/app/journals',
+    element: (
+      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+        <ProJournalsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/app/journals/:id',
+    element: (
+      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+        <ProJournalViewRoutePage />
       </RequireAuth>
     ),
   },

@@ -23,6 +23,7 @@ import {
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getCatalog } from '@/features/documents/api/laravelApi';
+import { useJournalsList } from '@/features/journals/hooks/useJournals';
 import { useConversations } from '@/features/assistant/hooks/useConversations';
 import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
 import StatusBadge from '@/features/dossiers/components/StatusBadge';
@@ -99,6 +100,10 @@ export default function AppDashboard() {
   });
 
   const { data: conversations } = useConversations({});
+
+  // Derniers numéros du Journal Officiel publiés (kiosque).
+  const { data: journalsData } = useJournalsList({ per_page: 3 });
+  const recentJournals = journalsData?.data ?? [];
 
   // Tri des textes par date de publication décroissante.
   const recentDocs = useMemo(() => {
@@ -220,6 +225,50 @@ export default function AppDashboard() {
                 )}
               </PanelCard>
             </div>
+
+            {/* Derniers numéros du Journal Officiel */}
+            <PanelCard
+              icon={<Newspaper className="h-4 w-4" />}
+              title="Derniers JO parus"
+              action={
+                <Link
+                  to="/app/journals"
+                  className="text-[11px] font-medium text-gold hover:underline"
+                >
+                  Ouvrir le kiosque
+                </Link>
+              }
+            >
+              {recentJournals.length === 0 ? (
+                <p className="px-3 py-6 text-center text-xs text-t3">
+                  Aucun journal publié pour le moment.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {recentJournals.map((journal) => (
+                    <li key={journal.id}>
+                      <Link
+                        to={`/app/journals/${journal.id}`}
+                        className="flex items-start gap-2.5 rounded-lg p-2.5 transition-colors hover:bg-s2"
+                      >
+                        <Newspaper className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-t1">
+                            {journal.title}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-t3">
+                            <Clock className="h-2.5 w-2.5" />
+                            {fmtDate(journal.publication_date)}
+                            <span>·</span>
+                            {journal.legal_documents_count ?? 0} texte{(journal.legal_documents_count ?? 0) > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PanelCard>
 
             {/* Dossiers récents */}
             <PanelCard
