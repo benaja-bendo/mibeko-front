@@ -11,8 +11,12 @@ import App from './App.tsx';
 // variables avant le premier paint ; ici on branche fonts + data-theme.
 bootstrapTheme();
 
-// Configuration du worker PDF.js indispensable pour react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Worker PDF.js auto-hébergé : Vite l'émet comme asset du bundle, ce qui
+// garantit la même version que l'API pdfjs et supprime la dépendance CDN.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 
 createRoot(document.getElementById('root')!).render(
