@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
+import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import Topbar from '@/features/viewer/components/Topbar';
 import TreeView from '@/features/viewer/components/TreeView';
 import PdfViewer from '@/features/viewer/components/PdfViewer';
@@ -9,12 +10,16 @@ import AddElementModal from '@/features/viewer/components/AddElementModal';
 import RenameNodeModal from '@/features/viewer/components/RenameNodeModal';
 import DeleteConfirmModal from '@/features/viewer/components/DeleteConfirmModal';
 import DocumentInfoModal from '@/features/viewer/components/DocumentInfoModal';
+import EditDocumentModal from '@/features/viewer/components/EditDocumentModal';
+import PublishModal from '@/features/viewer/components/PublishModal';
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/shared/components/ui/Resizable';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/shared/components/ui/Sheet';
 
 export default function Viewer() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useDocumentData(id || '');
+  const { structureDrawerOpen, setStructureDrawerOpen } = useViewerStore();
 
   if (isLoading) {
     return (
@@ -56,11 +61,24 @@ export default function Viewer() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+      {/* Drawer structure pour mobile (le panneau gauche est masqué sous md) */}
+      <Sheet open={structureDrawerOpen} onOpenChange={setStructureDrawerOpen}>
+        <SheetContent side="left" className="p-0 w-[300px] sm:w-[340px] border-r border-b1 md:hidden">
+          <SheetTitle className="sr-only">Structure du document</SheetTitle>
+          <SheetDescription className="sr-only">Arborescence des titres, sections et articles</SheetDescription>
+          <div className="h-full pt-2">
+            <TreeView treeData={data.tree} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <VersionModal />
       <AddElementModal />
       <RenameNodeModal />
       <DeleteConfirmModal />
       <DocumentInfoModal document={data.document} />
+      <EditDocumentModal document={data.document} />
+      <PublishModal document={data.document} />
     </div>
   );
 }

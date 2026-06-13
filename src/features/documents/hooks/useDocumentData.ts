@@ -123,6 +123,30 @@ export function useDocumentData(id: string) {
 export function useDocumentMutations(documentId: string) {
   const queryClient = useQueryClient();
 
+  const updateDocument = useMutation({
+    mutationFn: async (data: {
+      titre_officiel?: string,
+      reference_nor?: string | null,
+      date_signature?: string | null,
+      date_publication?: string | null,
+      date_entree_vigueur?: string | null,
+      statut?: 'vigueur' | 'abroge' | 'projet',
+      legal_scope?: 'national' | 'ohada' | 'communautaire',
+      type_code?: string,
+      curation_status?: 'draft' | 'review' | 'validated' | 'published',
+    }) => {
+      return apiFetch<unknown>(`/legal-documents/${documentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document', documentId] });
+      // La liste du catalogue éditeur affiche titre + statuts : on la rafraîchit aussi.
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+
   const createNode = useMutation({
     mutationFn: async (data: { type_unite: string, numero?: string, titre?: string, parent_id?: string, sort_order?: number }) => {
       return apiFetch<unknown>('/structure-nodes', {
@@ -237,6 +261,7 @@ export function useDocumentMutations(documentId: string) {
   });
 
   return {
+    updateDocument,
     createNode,
     updateNode,
     deleteNode,

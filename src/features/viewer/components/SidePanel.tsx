@@ -12,7 +12,7 @@ import type { ArticleVersionUI } from '@/shared/types/database';
 
 export default function SidePanel() {
   const { id: documentId } = useParams<{ id: string }>();
-  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, startSelection, setDeleteModal } = useViewerStore();
+  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, startSelection, setDeleteModal, setRenameModal } = useViewerStore();
   const { updateArticle } = useDocumentMutations(documentId || '');
 
   const [content, setContent] = React.useState('');
@@ -160,25 +160,33 @@ export default function SidePanel() {
                   Actions rapides
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRenameModal(true, selectedNode)}
+                    className="text-[11px] h-8 col-span-2"
+                  >
+                    <Edit2 className="w-3 h-3 mr-1.5" /> Modifier l'article (numéro, contenu, statut)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => startSelection(selectedNode)}
                     className="text-[11px] h-8"
                   >
                     <Target className="w-3 h-3 mr-1.5" /> Localiser PDF
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setRelationModalOpen(true)}
                     className="text-[11px] h-8"
                   >
                     <GitGraph className="w-3 h-3 mr-1.5" /> Relations
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleDelete}
                     className="text-[11px] h-8 text-red hover:bg-red/10 hover:border-red/20 col-span-2"
                   >
@@ -265,7 +273,7 @@ export default function SidePanel() {
                       return (
                         <button
                           key={status.id}
-                          onClick={() => handleStatusChange(status.id === 'validated' ? 'ok' : status.id === 'error' ? 'err' : status.id === 'pending' ? 'pend' : 'draft')}
+                          onClick={() => handleStatusChange(status.id)}
                           className={cn(
                             "h-[28px] px-2 rounded border border-b1 flex items-center gap-1.5 transition-all",
                             currentStatus === status.id 

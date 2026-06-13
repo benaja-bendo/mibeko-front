@@ -30,6 +30,7 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
   const {
     collapsedNodes, toggleNode,
     selectedId, selectNode,
+    openSidePanel,
     startSelection,
     setVersionModalOpen,
     setAddElementModal,
@@ -282,10 +283,36 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
           )}
         </span>
 
-        {/* Validation Status */}
-        {node.vs === 'ok' && <span className="text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] bg-green-d text-green border border-[rgba(86,160,122,.2)]">✓</span>}
-        {node.vs === 'err' && <span className="text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] bg-red-d text-red border border-[rgba(196,97,78,.2)]">✗</span>}
-        {node.vs === 'pend' && <span className="text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] bg-amber-d text-amber border border-[rgba(196,144,58,.2)]">~</span>}
+        {/* Validation Status — pour un article, ce badge ouvre le panneau de détails */}
+        {(() => {
+          const vsClass = node.vs === 'ok'
+            ? "bg-green-d text-green border-[rgba(86,160,122,.2)]"
+            : node.vs === 'err'
+              ? "bg-red-d text-red border-[rgba(196,97,78,.2)]"
+              : "bg-amber-d text-amber border-[rgba(196,144,58,.2)]";
+          const vsSymbol = node.vs === 'ok' ? '✓' : node.vs === 'err' ? '✗' : '~';
+
+          if (node.type !== 'ARTICLE') {
+            return <span className={cn("text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] border", vsClass)}>{vsSymbol}</span>;
+          }
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openSidePanel(node); }}
+                  className={cn(
+                    "text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] border cursor-pointer transition-all hover:scale-110 hover:ring-1 hover:ring-gold/50",
+                    vsClass
+                  )}
+                >
+                  {vsSymbol}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Ouvrir le panneau de l'article</TooltipContent>
+            </Tooltip>
+          );
+        })()}
 
         {/* Actions (visible on hover) */}
         <div className="hidden group-hover:flex items-center gap-0 ml-[1px]">

@@ -37,7 +37,7 @@ describe('useViewerStore', () => {
     expect(useViewerStore.getState().collapsedNodes.has('n1')).toBe(false);
   });
 
-  it('selectNode ouvre le side panel pour un article', () => {
+  it('selectNode sélectionne sans ouvrir le side panel (ouverture explicite via le badge)', () => {
     useViewerStore.getState().selectNode('a1', {
       id: 'a1',
       type: 'ARTICLE',
@@ -48,20 +48,24 @@ describe('useViewerStore', () => {
     });
 
     expect(useViewerStore.getState().selectedId).toBe('a1');
-    expect(useViewerStore.getState().sidePanelOpen).toBe(true);
+    expect(useViewerStore.getState().sidePanelOpen).toBe(false);
     expect(useViewerStore.getState().activeTab).toBe('content');
   });
 
-  it('selectNode ne force pas l’ouverture du side panel pour une division', () => {
-    useViewerStore.getState().selectNode('t1', {
-      id: 't1',
-      type: 'TITRE',
-      numero: 'I',
-      label: 'Titre I',
-      sort_order: 1,
-      vs: 'ok',
-    });
+  it('openSidePanel ouvre le panneau et synchronise la sélection', () => {
+    const node = {
+      id: 'a2',
+      type: 'ARTICLE',
+      numero: '2',
+      label: 'Article 2',
+      sort_order: 2,
+      vs: 'pend',
+    } as const;
 
-    expect(useViewerStore.getState().sidePanelOpen).toBe(false);
+    useViewerStore.getState().openSidePanel(node);
+
+    expect(useViewerStore.getState().sidePanelOpen).toBe(true);
+    expect(useViewerStore.getState().selectedId).toBe('a2');
+    expect(useViewerStore.getState().selectedNode?.id).toBe('a2');
   });
 });

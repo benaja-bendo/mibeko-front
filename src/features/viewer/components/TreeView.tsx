@@ -82,7 +82,9 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
   const totalElements = countNodes(treeData);
 
   return (
-    <div className="hidden md:flex flex-col h-full shrink-0 w-full">
+    // Le masquage mobile est géré par le conteneur (ResizablePanel hidden md:block) ;
+    // ce composant doit rester visible dans le drawer structure mobile.
+    <div className="flex flex-col h-full shrink-0 w-full">
       {/* Header */}
       <div className="h-[38px] bg-s1 border-b border-b1 flex items-center px-3 gap-1.5 shrink-0">
         <FolderTree className="w-[13px] h-[13px] text-t3" strokeWidth={2} />

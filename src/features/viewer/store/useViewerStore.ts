@@ -66,6 +66,18 @@ interface ViewerState {
   // Info Modal
   infoModalOpen: boolean;
   setInfoModalOpen: (open: boolean) => void;
+
+  // Edit Document Modal (métadonnées : titre, NOR, dates, statuts…)
+  editDocModalOpen: boolean;
+  setEditDocModalOpen: (open: boolean) => void;
+
+  // Publish Modal (workflow curation_status)
+  publishModalOpen: boolean;
+  setPublishModalOpen: (open: boolean) => void;
+
+  // Drawer structure (arborescence) sur mobile
+  structureDrawerOpen: boolean;
+  setStructureDrawerOpen: (open: boolean) => void;
 }
 
 export const useViewerStore = create<ViewerState>((set) => ({
@@ -94,11 +106,14 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   selectedId: null,
   selectedNode: null,
+  // Sélectionne sans ouvrir le panneau latéral : l'ouverture est un geste
+  // explicite (badge de statut dans l'arbre ou openSidePanel). Referme le
+  // drawer structure mobile pour révéler le PDF localisé.
   selectNode: (id, node) => set({
     selectedId: id,
     selectedNode: node,
-    sidePanelOpen: node.type === 'ARTICLE' ? true : false,
-    activeTab: 'content'
+    activeTab: 'content',
+    structureDrawerOpen: false
   }),
 
   searchQuery: '',
@@ -121,7 +136,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   sidePanelOpen: false,
   activeTab: 'content',
-  openSidePanel: (node) => set({ sidePanelOpen: true, selectedNode: node }),
+  openSidePanel: (node) => set({ sidePanelOpen: true, selectedId: node.id, selectedNode: node, structureDrawerOpen: false }),
   closeSidePanel: () => set({ sidePanelOpen: false }),
   setActiveTab: (activeTab) => set({ activeTab }),
 
@@ -157,4 +172,13 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   infoModalOpen: false,
   setInfoModalOpen: (open) => set({ infoModalOpen: open }),
+
+  editDocModalOpen: false,
+  setEditDocModalOpen: (open) => set({ editDocModalOpen: open }),
+
+  publishModalOpen: false,
+  setPublishModalOpen: (open) => set({ publishModalOpen: open }),
+
+  structureDrawerOpen: false,
+  setStructureDrawerOpen: (open) => set({ structureDrawerOpen: open }),
 }));

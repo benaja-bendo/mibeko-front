@@ -1,5 +1,8 @@
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
-import { Download, PanelRight, ArrowLeft, MoreHorizontal, FileJson, FileText, Trash2, Info } from 'lucide-react';
+import {
+  Download, PanelRight, ArrowLeft, MoreHorizontal, FileJson, FileText,
+  Trash2, Info, FilePen, ListTree, CheckCircle2,
+} from 'lucide-react';
 import type { LegalDocument } from '@/shared/types/database';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/Tooltip';
@@ -8,24 +11,30 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/DropdownMenu';
 import { getDocumentExportUrl, getDocumentJsonUrl, getDocumentPdfUrl, downloadFile } from '@/features/documents/api/laravelApi';
 
 export default function Topbar({ document }: { document?: LegalDocument }) {
-  const { sidePanelOpen, closeSidePanel, setInfoModalOpen, setDeleteModal } = useViewerStore();
+  const {
+    sidePanelOpen, closeSidePanel, openSidePanel, selectedNode,
+    setInfoModalOpen, setDeleteModal, setEditDocModalOpen,
+    setPublishModalOpen, setStructureDrawerOpen,
+  } = useViewerStore();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  
+
   const isAdminOrEditor = user?.roles?.includes('admin') || user?.roles?.includes('editor');
   const isAdmin = user?.roles?.includes('admin');
+  const isPublished = document?.curation_status === 'published';
 
   const handleDownload = async (type: 'consolidated' | 'original' | 'json') => {
     if (!document) return;
-    
+
     const safeTitle = (document.titre_officiel || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    
+
     try {
       if (type === 'consolidated') {
         await downloadFile(getDocumentExportUrl(document.id), `${safeTitle}.pdf`);
@@ -39,13 +48,23 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
     }
   };
 
+  const handleTogglePanel = () => {
+    if (sidePanelOpen) {
+      closeSidePanel();
+    } else if (selectedNode) {
+      openSidePanel(selectedNode);
+    }
+  };
+
+  const iconButtonClass = "w-[30px] h-[30px] rounded border border-b1 bg-transparent text-t2 items-center justify-center transition-all hover:bg-s3 hover:border-b2 hover:text-t1";
+
   return (
-    <div className="h-[50px] bg-s1 border-b border-b1 flex items-center px-2 sm:px-4 gap-2 sm:gap-3 shrink-0 z-50 overflow-hidden">
+    <div className="h-[50px] bg-s1 border-b border-b1 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-3 shrink-0 z-50 overflow-hidden">
       <Tooltip>
         <TooltipTrigger asChild>
-          <button 
+          <button
             onClick={() => navigate(-1)}
-            className="w-[30px] h-[30px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center transition-all hover:bg-s3 hover:border-b2 hover:text-t1 shrink-0"
+            className={`flex shrink-0 ${iconButtonClass}`}
           >
             <ArrowLeft className="w-[15px] h-[15px]" strokeWidth={1.8} />
           </button>
@@ -53,8 +72,21 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
         <TooltipContent>Retour</TooltipContent>
       </Tooltip>
 
-      <div className="hidden sm:flex font-display text-[15px] sm:text-[17px] font-medium text-gold tracking-tight items-center gap-[7px] shrink-0">
-        <svg viewBox="0 0 24 24" className="w-[16px] h-[16px] sm:w-[18px] sm:h-[18px] stroke-current fill-none stroke-[1.7] stroke-linecap-round stroke-linejoin-round">
+      {/* Structure (arborescence) — uniquement sur mobile où le panneau gauche est masqué */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setStructureDrawerOpen(true)}
+            className={`flex md:hidden shrink-0 ${iconButtonClass}`}
+          >
+            <ListTree className="w-[15px] h-[15px]" strokeWidth={1.8} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Structure du document</TooltipContent>
+      </Tooltip>
+
+      <div className="hidden lg:flex font-display text-[17px] font-medium text-gold tracking-tight items-center gap-[7px] shrink-0">
+        <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] stroke-current fill-none stroke-[1.7] stroke-linecap-round stroke-linejoin-round">
           <path d="M12 2L2 7l10 5 10-5-10-5z" />
           <path d="M2 17l10 5 10-5" />
           <path d="M2 12l10 5 10-5" />
@@ -63,14 +95,19 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
       </div>
 
       {document && (
-        <div className="flex flex-col ml-1 sm:ml-2 min-w-0">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <span className="hidden sm:inline-block bg-gold-d border border-[rgba(200,168,106,0.2)] text-gold text-[9px] font-semibold tracking-[0.08em] uppercase px-1.5 py-[1px] rounded font-mono shrink-0">
+        <div className="flex flex-col ml-0.5 sm:ml-2 min-w-0">
+          <div className="hidden sm:flex items-center gap-2 overflow-hidden">
+            <span className="bg-gold-d border border-[rgba(200,168,106,0.2)] text-gold text-[9px] font-semibold tracking-[0.08em] uppercase px-1.5 py-[1px] rounded font-mono shrink-0">
               {document.type?.code || document.type_code || 'DOC'} {document.dates?.signature || document.date_signature ? `· ${(document.dates?.signature || document.date_signature)?.split('-')[0]}` : ''}
             </span>
-            <span className="hidden sm:inline-block text-[10px] text-t3 font-mono uppercase tracking-wider shrink-0">
+            <span className="hidden md:inline-block text-[10px] text-t3 font-mono uppercase tracking-wider truncate">
               {document.id}
             </span>
+            {isPublished && (
+              <span className="inline-flex items-center gap-1 bg-green-d border border-[rgba(86,160,122,.25)] text-green text-[9px] font-semibold tracking-[0.08em] uppercase px-1.5 py-[1px] rounded font-mono shrink-0">
+                <CheckCircle2 className="w-2.5 h-2.5" /> Publié
+              </span>
+            )}
           </div>
           <h1 className="text-[12px] sm:text-[14px] font-semibold text-t1 font-display truncate leading-tight mt-0.5 sm:-mt-0.5">
             {document.title || document.titre_officiel || 'Document sans titre'}
@@ -83,11 +120,26 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
       <div className="hidden sm:block w-px h-[18px] bg-b2 mx-1 shrink-0" />
 
       <div className="flex items-center gap-1 shrink-0">
+        {/* Modifier le document — éditeurs/admins, masqué sur mobile (présent dans le menu ⋯) */}
+        {isAdminOrEditor && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setEditDocModalOpen(true)}
+                className={`hidden sm:flex ${iconButtonClass}`}
+              >
+                <FilePen className="w-[15px] h-[15px]" strokeWidth={1.8} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Modifier le document</TooltipContent>
+          </Tooltip>
+        )}
+
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={() => setInfoModalOpen(true)}
-              className="hidden sm:flex w-[30px] h-[30px] rounded border border-b1 bg-transparent text-t2 items-center justify-center transition-all hover:bg-s3 hover:border-b2 hover:text-t1"
+              className={`hidden sm:flex ${iconButtonClass}`}
             >
               <Info className="w-[15px] h-[15px]" strokeWidth={1.8} />
             </button>
@@ -100,7 +152,7 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <button className="hidden sm:flex w-[30px] h-[30px] rounded border border-b1 bg-transparent text-t2 items-center justify-center transition-all hover:bg-s3 hover:border-b2 hover:text-t1">
+                <button className={`hidden sm:flex ${iconButtonClass}`}>
                   <Download className="w-[15px] h-[15px]" strokeWidth={1.8} />
                 </button>
               </DropdownMenuTrigger>
@@ -133,53 +185,103 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Dropdown Actions Globales */}
-        {isAdminOrEditor && (
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button className="w-[30px] h-[30px] rounded border bg-transparent flex items-center justify-center transition-all border-b1 text-t2 hover:bg-s3 hover:border-b2 hover:text-t1">
-                    <MoreHorizontal className="w-[15px] h-[15px]" strokeWidth={1.8} />
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Options du document</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-[180px]">
-              <DropdownMenuItem 
-                className="gap-2 cursor-pointer"
-                onClick={() => sidePanelOpen ? closeSidePanel() : null}
-              >
-                <PanelRight className="w-4 h-4" />
-                <span>Ouvrir le panneau article</span>
+        {/* Menu ⋯ — accessible à tous : reprend sur mobile les actions
+            masquées (infos, téléchargements) + actions d'édition selon rôle */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button className={`flex ${iconButtonClass}`}>
+                  <MoreHorizontal className="w-[15px] h-[15px]" strokeWidth={1.8} />
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Options du document</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-[220px]">
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer"
+              onClick={handleTogglePanel}
+              disabled={!sidePanelOpen && !selectedNode}
+            >
+              <PanelRight className="w-4 h-4" />
+              <span>{sidePanelOpen ? 'Fermer le panneau article' : 'Ouvrir le panneau article'}</span>
+            </DropdownMenuItem>
+
+            {/* Actions repliées ici sur mobile uniquement */}
+            <div className="sm:hidden">
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setInfoModalOpen(true)}>
+                <Info className="w-4 h-4" />
+                <span>Informations du document</span>
               </DropdownMenuItem>
-              {isAdmin && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    className="gap-2 text-red-400 focus:text-red-500 focus:bg-red-400/10 cursor-pointer"
-                    onClick={() => {
-                      if (document) {
-                        setDeleteModal(true, { id: document.id, type: 'DOCUMENT', content: document.titre_officiel });
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Supprimer le document</span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[10px] font-mono uppercase tracking-wider text-t3">
+                Télécharger
+              </DropdownMenuLabel>
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleDownload('consolidated')}>
+                <FileText className="w-4 h-4 text-gold" />
+                <span>Version consolidée</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleDownload('original')}>
+                <FileText className="w-4 h-4 text-t3" />
+                <span>PDF Original</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleDownload('json')}>
+                <FileJson className="w-4 h-4 text-t3" />
+                <span>Format JSON</span>
+              </DropdownMenuItem>
+            </div>
+
+            {isAdminOrEditor && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setEditDocModalOpen(true)}>
+                  <FilePen className="w-4 h-4" />
+                  <span>Modifier le document</span>
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="gap-2 text-red-400 focus:text-red-500 focus:bg-red-400/10 cursor-pointer"
+                  onClick={() => {
+                    if (document) {
+                      setDeleteModal(true, { id: document.id, type: 'DOCUMENT', content: document.titre_officiel });
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Supprimer le document</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {isAdminOrEditor && (
           <button
-            className="h-[30px] px-2 sm:px-3 ml-1 sm:ml-2 bg-gold text-on-gold text-[10px] sm:text-[11px] font-bold rounded flex items-center gap-2 hover:opacity-90 transition-opacity shadow-[0_4px_12px_rgba(200,168,106,0.2)] whitespace-nowrap"
+            onClick={() => setPublishModalOpen(true)}
+            className={
+              isPublished
+                ? "h-[30px] px-2 sm:px-3 ml-1 sm:ml-2 bg-transparent border border-green/30 text-green text-[10px] sm:text-[11px] font-bold rounded flex items-center gap-1.5 hover:bg-green-d transition-colors whitespace-nowrap"
+                : "h-[30px] px-2 sm:px-3 ml-1 sm:ml-2 bg-gold text-on-gold text-[10px] sm:text-[11px] font-bold rounded flex items-center gap-2 hover:opacity-90 transition-opacity shadow-[0_4px_12px_rgba(200,168,106,0.2)] whitespace-nowrap"
+            }
           >
-            <span className="hidden sm:inline">Publier les corrections</span>
-            <span className="sm:hidden">Publier</span>
+            {isPublished ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Publié</span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Publier les corrections</span>
+                <span className="sm:hidden">Publier</span>
+              </>
+            )}
           </button>
         )}
       </div>

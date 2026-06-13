@@ -13,6 +13,12 @@ export interface LegalDocument {
   status?: string;
   curation_status?: string | null;
   legal_scope?: 'national' | 'ohada' | 'communautaire' | null;
+  official_journal_id?: string | null;
+  official_journal?: {
+    id: string;
+    title?: string | null;
+    publication_date?: string | null;
+  } | null;
 }
 
 export interface StructureNode {
