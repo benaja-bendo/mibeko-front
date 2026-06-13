@@ -40,6 +40,7 @@ import {
   sourcePdfUrl,
   mibekoPdfUrl,
   jsonExportUrl,
+  journalPdfUrl,
 } from '@/features/library/api/libraryApi';
 import { SCOPE_LABELS, type LegalScope } from '@/features/library/types';
 import type { TreeNode } from '@/shared/types/database';
@@ -250,6 +251,22 @@ export default function DocumentReaderView({
             <h2 className="truncate font-display text-base font-semibold text-t1">
               {title}
             </h2>
+            {doc?.official_journal && (
+              <button
+                type="button"
+                onClick={() => window.open(journalPdfUrl(doc.official_journal!.id), '_blank')}
+                title="Ouvrir le PDF du journal officiel"
+                className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-[10px] text-t3 transition-colors hover:text-gold"
+              >
+                <BookOpenText className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  Paru au {doc.official_journal.title || 'Journal Officiel'}
+                  {doc.official_journal.publication_date
+                    ? ` du ${doc.official_journal.publication_date.slice(0, 10)}`
+                    : ''}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 

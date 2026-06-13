@@ -280,6 +280,10 @@ export function streamLibrarySynthesis(
 export const sourcePdfUrl = (id: string): string =>
   `${laravelBaseUrl}/legal-documents/${id}/pdf`;
 
+/** URL du PDF original du journal officiel dans lequel un texte est paru. */
+export const journalPdfUrl = (journalId: string): string =>
+  `${laravelBaseUrl}/legal-documents/${journalId}/pdf?type=journal`;
+
 /** URL du PDF Mibeko (consolidé / enrichi). */
 export const mibekoPdfUrl = (id: string): string =>
   `${laravelBaseUrl}/legal-documents/${id}/export`;
