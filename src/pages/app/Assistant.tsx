@@ -62,6 +62,11 @@ export default function AssistantPage() {
   // Conversation d'historique sélectionnée (null = conversation vivante).
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Incrémenté à chaque NAVIGATION (nouvelle conversation / changement de
+  // conversation) pour réinitialiser le composer : ni les références épinglées
+  // « @ » ni le mode ne doivent fuiter d'une conversation vers la suivante.
+  const [composerResetSignal, setComposerResetSignal] = useState(0);
+
   // Statistiques du fonds documentaire (mêmes données que l'accueil Bibliothèque).
   const { data: libraryHome, isLoading: isLoadingHome } = useLibraryHome();
 
@@ -141,6 +146,7 @@ export default function AssistantPage() {
 
   const handleNew = () => {
     setSelectedId(null);
+    setComposerResetSignal((s) => s + 1);
     chat.reset();
   };
 
@@ -155,6 +161,9 @@ export default function AssistantPage() {
     if (chat.isStreaming) chat.stop();
 
     setSelectedId(id);
+    // Nouvelle conversation à l'écran : le composer repart à zéro (références
+    // épinglées + mode), sans contexte hérité de la précédente.
+    setComposerResetSignal((s) => s + 1);
   };
 
   /**
@@ -259,11 +268,13 @@ export default function AssistantPage() {
                     isLoadingStats={isLoadingHome}
                   />
                 ) : (
-                  /* key = conversation affichée : remonte le fil avec une
-                     courte apparition à chaque changement (transition lisible
-                     même quand le cache rend le contenu instantané). */
+                  /* key = identité du fil affiché. Stable ('live') tant qu'on
+                     écrit/streame — même quand une nouvelle conversation reçoit
+                     son id en cours de route, pas de remontage qui ferait
+                     clignoter la réponse. On ne remonte (et ré-anime) que sur
+                     une vraie navigation vers une conversation d'historique. */
                   <div
-                    key={displayedId ?? 'live'}
+                    key={isLiveSelected ? 'live' : selectedId}
                     className="mx-auto max-w-3xl animate-thread-in space-y-6 px-4 py-6"
                   >
                     {displayedMessages.map((message, i) => {
@@ -272,7 +283,7 @@ export default function AssistantPage() {
                         <ChatMessage
                           key={message.id}
                           message={message}
-                          status={isLast ? chat.status : null}
+                          status={isLast && isLiveSelected ? chat.status : null}
                         />
                       );
                     })}
@@ -286,6 +297,7 @@ export default function AssistantPage() {
                 onStop={chat.stop}
                 isStreaming={chat.isStreaming}
                 disabled={isLoadingSelection || showLoadError}
+                resetSignal={composerResetSignal}
               />
             </div>
           </ResizablePanel>

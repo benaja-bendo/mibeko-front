@@ -7,7 +7,9 @@
  *  - bascule Envoyer / Stop selon l'état du streaming ;
  *  - mode de réponse : « Directe » (courte, par défaut) ou « Analyse » ;
  *  - références « @ » : épingler des textes (codes, lois…) pour restreindre
- *    la recherche de l'IA — les épingles restent actives entre les messages.
+ *    la recherche de l'IA — les épingles restent actives entre les messages
+ *    d'une MÊME conversation, mais sont réinitialisées (avec le mode et le
+ *    brouillon) dès qu'on change de conversation (cf. `resetSignal`).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -24,6 +26,12 @@ interface ChatComposerProps {
   onStop: () => void;
   isStreaming: boolean;
   disabled?: boolean;
+  /**
+   * Change de valeur à chaque navigation (nouvelle conversation / sélection
+   * d'une autre conversation) : remet le composer à zéro pour éviter qu'un
+   * périmètre épinglé ou un mode hérité ne fuite d'une conversation à l'autre.
+   */
+  resetSignal?: number;
 }
 
 const MAX_HEIGHT = 200;
@@ -53,6 +61,7 @@ export default function ChatComposer({
   onStop,
   isStreaming,
   disabled,
+  resetSignal,
 }: ChatComposerProps) {
   const [value, setValue] = useState('');
   const [mode, setMode] = useState<AssistantMode>('concise');
@@ -67,6 +76,15 @@ export default function ChatComposer({
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
   }, [value]);
+
+  // Navigation signalée par la page : brouillon, mode et périmètre épinglé
+  // repartent de zéro — aucun contexte de la conversation précédente conservé.
+  useEffect(() => {
+    setValue('');
+    setMode('concise');
+    setReferences([]);
+    setPickerOpen(false);
+  }, [resetSignal]);
 
   const submit = () => {
     const text = value.trim();

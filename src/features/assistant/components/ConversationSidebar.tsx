@@ -3,7 +3,9 @@
  *
  * Permet de démarrer une nouvelle conversation, rechercher dans l'historique,
  * sélectionner, renommer (édition en ligne) et supprimer une conversation.
- * Le survol d'un item précharge son détail : l'ouverture est instantanée.
+ * Le détail d'une conversation se charge au CLIC (skeleton côté zone de
+ * conversation), jamais au survol — l'expérience reste prévisible et sans
+ * trafic réseau intempestif quand l'utilisateur parcourt la liste.
  */
 
 import { useState } from 'react';
@@ -27,7 +29,6 @@ import {
 import {
   useConversations,
   useDeleteConversation,
-  usePrefetchConversation,
   useRenameConversation,
 } from '@/features/assistant/hooks/useConversations';
 import type { ConversationSummary } from '@/features/assistant/types';
@@ -53,7 +54,6 @@ export default function ConversationSidebar({
   const { data, isLoading } = useConversations({ title: search || undefined });
   const renameMutation = useRenameConversation();
   const deleteMutation = useDeleteConversation();
-  const prefetchConversation = usePrefetchConversation();
 
   const conversations = data?.data ?? [];
 
@@ -173,8 +173,6 @@ export default function ConversationSidebar({
               <button
                 type="button"
                 onClick={() => onSelect(conv.id)}
-                onMouseEnter={() => prefetchConversation(conv.id)}
-                onFocus={() => prefetchConversation(conv.id)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 {isLoadingDetail ? (

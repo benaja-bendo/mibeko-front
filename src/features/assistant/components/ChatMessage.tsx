@@ -6,7 +6,7 @@
  *   curseur clignotant pendant le streaming, puis cartes de citations.
  */
 
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -25,6 +25,7 @@ import CitationPreview from './CitationPreview';
 import SourceCitations, {
   type SourceCitationsHandle,
 } from './SourceCitations';
+import { buildMentionMatcher } from '../lib/sourceMentions';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -35,6 +36,16 @@ interface ChatMessageProps {
 export default function ChatMessage({ message, status }: ChatMessageProps) {
   const sourcesRef = useRef<SourceCitationsHandle>(null);
   const navigate = useNavigate();
+
+  // Détecteur de mentions de sources (titres de documents, « article N »).
+  // Appelé inconditionnellement — avant tout retour anticipé — pour respecter
+  // les règles des hooks ; renvoie null pour un message utilisateur ou une
+  // réponse sans sources.
+  const mentionMatcher = useMemo(
+    () => buildMentionMatcher(message.sources),
+    [message.sources],
+  );
+
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -116,6 +127,53 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
     );
   };
 
+  /**
+   * Enrobe les mentions de sources d'un aperçu au survol (même hovercard que
+   * les marqueurs [n]). `seenMentions` est recréé à chaque rendu : on n'enrobe
+   * que la PREMIÈRE occurrence de chaque source sur l'ensemble du message.
+   */
+  const seenMentions = new Set<number>();
+  const linkifyText = mentionMatcher
+    ? (text: string, keyPrefix: string): React.ReactNode => {
+        const matches = mentionMatcher.findMatches(text).filter((match) => {
+          if (seenMentions.has(match.index)) return false;
+          seenMentions.add(match.index);
+          return true;
+        });
+        if (matches.length === 0) return text;
+
+        const nodes: React.ReactNode[] = [];
+        let cursor = 0;
+        matches.forEach((match, i) => {
+          if (match.start > cursor) {
+            nodes.push(text.slice(cursor, match.start));
+          }
+          nodes.push(
+            <CitationPreview
+              key={`${keyPrefix}-mention-${i}`}
+              index={match.index}
+              source={match.source}
+              onRead={() => handleCitationClick(match.index)}
+              onLocate={() => sourcesRef.current?.scrollToSource(match.index)}
+            >
+              <button
+                type="button"
+                onClick={() => handleCitationClick(match.index)}
+                className="border-b border-dotted border-gold/40 text-t1 transition-colors hover:border-gold hover:text-gold"
+              >
+                {match.text}
+              </button>
+            </CitationPreview>,
+          );
+          cursor = match.end;
+        });
+        if (cursor < text.length) {
+          nodes.push(text.slice(cursor));
+        }
+        return nodes;
+      }
+    : undefined;
+
   const showStatus = !!status && !message.content;
   const showTypingCursor = message.pending && !!message.content;
 
@@ -153,6 +211,7 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
               content={message.content}
               onCitationClick={handleCitationClick}
               renderCitation={renderCitation}
+              linkifyText={linkifyText}
             />
             {showTypingCursor && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-gold align-text-bottom" />

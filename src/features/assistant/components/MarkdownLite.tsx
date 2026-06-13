@@ -21,6 +21,13 @@ interface MarkdownLiteProps {
    * numéro et le bouton par défaut, retourne le nœud à rendre.
    */
   renderCitation?: (index: number, marker: React.ReactElement) => React.ReactNode;
+  /**
+   * Transforme un fragment de texte brut (hors gras, italique, code et
+   * marqueurs [n]) en nœuds : permet d'enrober les mentions de sources
+   * (titres de documents, « article N ») d'un aperçu au survol. Reçoit le
+   * texte et un préfixe de clé.
+   */
+  linkifyText?: (text: string, keyPrefix: string) => React.ReactNode;
   className?: string;
 }
 
@@ -30,6 +37,7 @@ function renderInline(
   keyPrefix: string,
   onCitationClick?: (index: number) => void,
   renderCitation?: MarkdownLiteProps['renderCitation'],
+  linkifyText?: MarkdownLiteProps['linkifyText'],
 ): React.ReactNode[] {
   // On capture, dans l'ordre : **gras**, *italique*, `code`, [n] citation.
   const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[\d+\])/g;
@@ -83,7 +91,11 @@ function renderInline(
       );
     }
 
-    return <React.Fragment key={key}>{part}</React.Fragment>;
+    return (
+      <React.Fragment key={key}>
+        {linkifyText ? linkifyText(part, key) : part}
+      </React.Fragment>
+    );
   });
 }
 
@@ -91,6 +103,7 @@ export default function MarkdownLite({
   content,
   onCitationClick,
   renderCitation,
+  linkifyText,
   className = '',
 }: MarkdownLiteProps) {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
@@ -110,7 +123,7 @@ export default function MarkdownLite({
       >
         {items.map((item, i) => (
           <li key={i} className="leading-relaxed text-t2">
-            {renderInline(item, `li-${blocks.length}-${i}`, onCitationClick, renderCitation)}
+            {renderInline(item, `li-${blocks.length}-${i}`, onCitationClick, renderCitation, linkifyText)}
           </li>
         ))}
       </ListTag>,
@@ -148,7 +161,7 @@ export default function MarkdownLite({
           key={`h-${idx}`}
           className={`mt-3 mb-1 font-display font-semibold text-t1 ${sizes[level - 1]}`}
         >
-          {renderInline(text, `h-${idx}`, onCitationClick, renderCitation)}
+          {renderInline(text, `h-${idx}`, onCitationClick, renderCitation, linkifyText)}
         </p>,
       );
       return;
@@ -160,7 +173,7 @@ export default function MarkdownLite({
     // Paragraphe standard
     blocks.push(
       <p key={`p-${idx}`} className="my-1.5 leading-relaxed text-t2">
-        {renderInline(line, `p-${idx}`, onCitationClick, renderCitation)}
+        {renderInline(line, `p-${idx}`, onCitationClick, renderCitation, linkifyText)}
       </p>,
     );
   });
