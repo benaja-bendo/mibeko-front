@@ -166,7 +166,8 @@ export default function Ingestion() {
   return (
     <AppLayout>
       <div className="h-full overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 py-4 md:px-6 md:py-6 space-y-4">
+        {/* Conteneur standard (aligné sur PageContainer) pour éviter tout décalage entre pages */}
+        <div className="max-w-screen-2xl mx-auto w-full px-4 md:px-6 py-6 space-y-4">
           {/* ── En-tête ──────────────────────────────────────────────────── */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">

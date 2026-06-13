@@ -10,6 +10,7 @@ import { getPythonGlobalStats, getPythonDocuments } from '@/features/ingestion/a
 import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
 import { useAuthStore } from "@/features/auth/store/authStore";
 import AppLayout from '@/shared/components/layout/AppLayout';
+import PageContainer from '@/shared/components/layout/PageContainer';
 
 // ---------------------------------------------------------------------------
 // KPI Card
@@ -172,7 +173,7 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="h-full overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <PageContainer className="space-y-6">
 
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -359,7 +360,7 @@ export default function Dashboard() {
               </div>
             </section>
           )}
-        </div>
+        </PageContainer>
       </div>
 
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />

@@ -3,6 +3,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import { getPythonHealth } from '@/features/ingestion/api/pythonApi';
 import { laravelClient } from '@/shared/api/laravelClient';
 import AppLayout from '@/shared/components/layout/AppLayout';
+import PageContainer from '@/shared/components/layout/PageContainer';
 
 type BackendStatus = 'checking' | 'ok' | 'error';
 
@@ -68,7 +69,7 @@ export default function Settings() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 h-full overflow-y-auto">
+      <PageContainer className="space-y-8 h-full overflow-y-auto">
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-semibold text-t1">Paramètres</h1>
           <p className="text-sm text-t3 mt-1">Gérez votre compte et vérifiez l'état du système.</p>
@@ -107,7 +108,7 @@ export default function Settings() {
             />
           </div>
         </section>
-      </div>
+      </PageContainer>
     </AppLayout>
   );
 }
