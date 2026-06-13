@@ -107,8 +107,8 @@ export default function DossierTable({ dossiers, onOpen }: DossierTableProps) {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-b1">
-      <table className="w-full border-collapse text-sm">
+    <div className="overflow-x-auto rounded-xl border border-b1">
+      <table className="w-full border-collapse text-sm min-w-[560px]">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="border-b border-b1 bg-s1">
