@@ -6,14 +6,14 @@
  */
 import React, { useState } from 'react';
 import { uploadDocument } from '../api/pythonApi';
-import { PdfDropzone, ArtifactPicker } from './FilePicker';
+import { PdfDropzone, ArtifactMultiPicker } from './FilePicker';
 import { Field, TextInput, DateInput, Select, ErrorNote } from './fields';
 import { Spinner } from './badges';
 
 export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [mdFile, setMdFile] = useState<File | null>(null);
-  const [jsonFile, setJsonFile] = useState<File | null>(null);
+  const [mdFiles, setMdFiles] = useState<File[]>([]);
+  const [jsonFiles, setJsonFiles] = useState<File[]>([]);
   const [titre, setTitre] = useState('');
   const [stockCode, setStockCode] = useState('');
   const [legalScope, setLegalScope] = useState('');
@@ -26,7 +26,7 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
-    setPdfFile(null); setMdFile(null); setJsonFile(null);
+    setPdfFile(null); setMdFiles([]); setJsonFiles([]);
     setTitre(''); setStockCode(''); setLegalScope('');
     setTypeCode(''); setReferenceNor(''); setDateSignature(''); setDatePublication('');
   };
@@ -50,8 +50,11 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
       if (referenceNor.trim()) fd.append('reference_nor', referenceNor.trim());
       if (dateSignature) fd.append('date_signature', dateSignature);
       if (datePublication) fd.append('date_publication', datePublication);
-      if (mdFile) fd.append('md_file', mdFile);
-      if (jsonFile) fd.append('json_file', jsonFile);
+      // Plusieurs morceaux (PDF découpé avant MinerU) → le backend les fusionne.
+      // On les envoie tous sous le même nom de champ ; nommez-les
+      // « chunk_1_a_200.json » pour garantir l'ordre et la pagination globale.
+      mdFiles.forEach((f) => fd.append('md_file', f));
+      jsonFiles.forEach((f) => fd.append('json_file', f));
 
       const res = await uploadDocument(fd);
       onSuccess(`« ${titre.trim()} » déposé (ID ${res.document_id.slice(0, 8)}…)`);
@@ -99,25 +102,32 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
           Artefacts pré-traités <span className="text-t4 normal-case tracking-normal">(recommandé — évite l'OCR)</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <ArtifactPicker
+          <ArtifactMultiPicker
             id="stock-md-input"
-            label="Joindre le .md"
+            label="Joindre le(s) .md"
             accept=".md,text/markdown"
-            file={mdFile}
-            onChange={setMdFile}
+            files={mdFiles}
+            onChange={setMdFiles}
           />
-          <ArtifactPicker
+          <ArtifactMultiPicker
             id="stock-json-input"
-            label="Joindre le .json"
+            label="Joindre le(s) .json"
             accept=".json,application/json"
-            file={jsonFile}
-            onChange={setJsonFile}
+            files={jsonFiles}
+            onChange={setJsonFiles}
           />
         </div>
-        {!mdFile && !jsonFile && (
+        {mdFiles.length === 0 && jsonFiles.length === 0 ? (
           <p className="text-t4 text-[11px] font-mono mt-1.5">
             Sans artefact, l'extraction OCR (MinerU) sera lancée automatiquement.
           </p>
+        ) : (
+          (mdFiles.length > 1 || jsonFiles.length > 1) && (
+            <p className="text-t4 text-[11px] font-mono mt-1.5">
+              Plusieurs morceaux détectés : ils seront fusionnés côté serveur. Nommez-les
+              {' '}<span className="text-t3">chunk_1_a_200.json</span> pour garantir l'ordre et les numéros de page.
+            </p>
+          )
         )}
       </div>
 
@@ -141,7 +151,7 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
             <TextInput
               value={typeCode}
               onChange={(e) => setTypeCode(e.target.value)}
-              placeholder="CODE, LOI, CONST…"
+              placeholder="CODE, CONV, AU, LOI… (auto si vide)"
               className="font-mono uppercase"
             />
           </Field>

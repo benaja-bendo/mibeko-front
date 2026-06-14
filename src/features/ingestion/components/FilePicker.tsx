@@ -142,3 +142,80 @@ export function ArtifactPicker({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Sélecteur compact MULTI-fichiers (morceaux MD / JSON d'un PDF découpé)
+// ---------------------------------------------------------------------------
+
+export function ArtifactMultiPicker({
+  id,
+  label,
+  accept,
+  files,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  accept: string;
+  files: File[];
+  onChange: (f: File[]) => void;
+}) {
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      // Dédoublonnage par nom + taille (évite les ajouts en double)
+      if (!next.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    }
+    onChange(next);
+  };
+  const removeAt = (index: number) => onChange(files.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5">
+      <div
+        onClick={() => document.getElementById(id)?.click()}
+        className="flex items-center gap-2 h-9 px-3 rounded-md border border-b1 border-dashed bg-s2 text-t3 hover:border-b3 hover:text-t2 cursor-pointer text-xs font-mono transition-colors"
+      >
+        <input
+          id={id}
+          type="file"
+          accept={accept}
+          multiple
+          className="hidden"
+          onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ''; }}
+        />
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-[1.5] shrink-0">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>{label}</span>
+        {files.length > 0 && <span className="ml-auto text-green">{files.length}</span>}
+      </div>
+
+      {files.length > 0 && (
+        <ul className="space-y-1">
+          {files.map((f, i) => (
+            <li
+              key={`${f.name}-${f.size}`}
+              className="flex items-center gap-2 h-7 px-2.5 rounded border border-green/25 bg-green/8 text-green text-[11px] font-mono"
+            >
+              <svg viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none stroke-2 shrink-0">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span className="truncate flex-1">{f.name}</span>
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                className="opacity-60 hover:opacity-100 shrink-0"
+                title="Retirer"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

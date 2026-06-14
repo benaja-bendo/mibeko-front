@@ -13,6 +13,11 @@ Frontend SPA de Mibeko (LegalTech).
 npm install
 ```
 
+## Fonctionnalités
+
+- **Upload de documents** : Prise en charge du téléversement de PDF avec option de multi-fichiers pour les extractions pré-traitées (Markdown, JSON).
+- **Gestion des erreurs** : Affichage clair et formaté des erreurs de validation (FastAPI).
+
 ## Développement
 
 Le serveur Vite proxifie :
