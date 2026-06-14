@@ -1,6 +1,61 @@
+import { Link } from 'react-router-dom';
 import AppLayout from '@/shared/components/layout/AppLayout';
+import { useAdminOverview } from '@/features/admin/hooks/useAdmin';
+import { BookText, ChevronRight, AlertTriangle } from 'lucide-react';
+
+function Metric({ label, value, loading }: { label: string; value?: number; loading: boolean }) {
+  return (
+    <div className="bg-s1 border border-b1 rounded-xl px-4 py-3.5">
+      <div className="text-t3 text-[11px] font-mono uppercase tracking-wide">{label}</div>
+      <div className="text-t1 font-display text-2xl font-semibold mt-1">
+        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+      </div>
+    </div>
+  );
+}
+
+function AttentionMetric({
+  label,
+  value,
+  loading,
+  to,
+}: {
+  label: string;
+  value?: number;
+  loading: boolean;
+  to?: string;
+}) {
+  const warn = !loading && (value ?? 0) > 0;
+  const className = [
+    'block border rounded-xl px-4 py-3.5 transition-colors',
+    warn ? 'bg-red-500/5 border-red-500/20' : 'bg-s1 border-b1',
+    to ? 'hover:bg-s2' : '',
+  ].join(' ');
+
+  const content = (
+    <>
+      <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wide text-t3">
+        {warn && <AlertTriangle className="w-3 h-3 text-red-400" />}
+        {label}
+      </div>
+      <div className={`font-display text-2xl font-semibold mt-1 ${warn ? 'text-red-400' : 'text-t1'}`}>
+        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+      </div>
+    </>
+  );
+
+  return to ? (
+    <Link to={to} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
+  );
+}
 
 export default function AdminDashboard() {
+  const { data, isLoading } = useAdminOverview();
+
   return (
     <AppLayout space="admin">
       <div className="flex flex-col h-full">
@@ -18,61 +73,56 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start">
-          {[
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none stroke-[1.5]">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              ),
-              label: 'Gestion des utilisateurs',
-              desc: 'Comptes, rôles, accès',
-              comingSoon: true,
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none stroke-[1.5]">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                </svg>
-              ),
-              label: 'Monitoring pipeline',
-              desc: 'Jobs, erreurs, throughput',
-              comingSoon: true,
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none stroke-[1.5]">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              ),
-              label: 'Configuration globale',
-              desc: 'Prompts IA, paramètres RAG',
-              comingSoon: true,
-            },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className="bg-s1 border border-b1 rounded-xl p-5 space-y-3 opacity-60"
-            >
-              <div className="w-9 h-9 rounded-lg bg-s2 border border-b1 flex items-center justify-center text-t2">
-                {card.icon}
-              </div>
-              <div>
-                <div className="text-t1 text-sm font-medium">{card.label}</div>
-                <div className="text-t3 text-xs mt-0.5">{card.desc}</div>
-              </div>
-              {card.comingSoon && (
-                <span className="inline-block text-[10px] font-mono uppercase tracking-widest text-t4 bg-s2 border border-b1 rounded px-2 py-0.5">
-                  Bientôt
-                </span>
-              )}
+        <div className="flex-1 overflow-auto p-6 space-y-6">
+          {/* Fonds juridique */}
+          <section className="space-y-2">
+            <h2 className="text-t4 text-[10px] font-mono uppercase tracking-widest">Fonds juridique</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Metric label="Documents" value={data?.content.documents} loading={isLoading} />
+              <Metric label="Articles" value={data?.content.articles} loading={isLoading} />
+              <Metric label="Journaux officiels" value={data?.content.official_journals} loading={isLoading} />
             </div>
-          ))}
+          </section>
+
+          {/* Référentiels */}
+          <section className="space-y-2">
+            <h2 className="text-t4 text-[10px] font-mono uppercase tracking-widest">Référentiels</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Metric label="Types de loi" value={data?.referentiels.document_types} loading={isLoading} />
+              <Metric label="Institutions" value={data?.referentiels.institutions} loading={isLoading} />
+              <Metric label="Tags" value={data?.referentiels.tags} loading={isLoading} />
+            </div>
+            <Link
+              to="/admin/referentiels"
+              className="flex items-center justify-between bg-s1 border border-b1 rounded-xl px-4 py-3 hover:bg-s2 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center text-gold">
+                  <BookText className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-t1 text-sm font-medium">Gérer les référentiels</div>
+                  <div className="text-t3 text-xs">Types de loi, institutions, tags</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-t3 group-hover:text-t1 transition-colors" />
+            </Link>
+          </section>
+
+          {/* Pilotage */}
+          <section className="space-y-2">
+            <h2 className="text-t4 text-[10px] font-mono uppercase tracking-widest">Pilotage</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Metric label="Utilisateurs" value={data?.people.users} loading={isLoading} />
+              <AttentionMetric
+                label="Signalements ouverts"
+                value={data?.attention.open_flags}
+                loading={isLoading}
+                to="/admin/signalements"
+              />
+              <AttentionMetric label="Extractions en échec" value={data?.attention.failed_extractions} loading={isLoading} />
+            </div>
+          </section>
         </div>
       </div>
     </AppLayout>

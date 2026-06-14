@@ -1,7 +1,9 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
+import { TreeMutationsContext } from '@/features/viewer/context/treeMutations';
 import { cn } from '@/shared/lib/utils';
 import type { TreeNode as TreeNodeType } from '@/shared/types/database';
 import { FolderTree, Search, FoldVertical, UnfoldVertical, Plus } from 'lucide-react';
@@ -13,11 +15,62 @@ import {
 } from '@/shared/components/ui/Tooltip';
 import TreeNode from './TreeNode.tsx';
 
+/** Hauteur fixe d'une ligne d'arbre (doit rester synchro avec `h-[28px]` dans TreeNode). */
+const ROW_HEIGHT = 28;
+
+interface FlatRow {
+  node: TreeNodeType;
+  depth: number;
+}
+
+/**
+ * Aplatit l'arbre en la seule liste des lignes *visibles* (on n'entre pas dans
+ * un nœud replié), avec leur profondeur. C'est cette liste plate que la
+ * virtualisation parcourt : on ne monte dans le DOM que les ~30 lignes à
+ * l'écran au lieu des milliers de nœuds du document.
+ */
+function flattenVisible(nodes: TreeNodeType[], collapsed: Set<string>, depth = 0, acc: FlatRow[] = []): FlatRow[] {
+  for (const node of nodes) {
+    acc.push({ node, depth });
+    if (node.children && node.children.length > 0 && !collapsed.has(node.id)) {
+      flattenVisible(node.children, collapsed, depth + 1, acc);
+    }
+  }
+  return acc;
+}
+
 export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
   const { id: documentId } = useParams<{ id: string }>();
-  const { searchQuery, setSearchQuery, collapseAll, expandAll, setAddElementModal } = useViewerStore();
-  const { moveNode } = useDocumentMutations(documentId || '');
+  const searchQuery = useViewerStore((s) => s.searchQuery);
+  const setSearchQuery = useViewerStore((s) => s.setSearchQuery);
+  const collapseAll = useViewerStore((s) => s.collapseAll);
+  const expandAll = useViewerStore((s) => s.expandAll);
+  const setAddElementModal = useViewerStore((s) => s.setAddElementModal);
+  const collapsedNodes = useViewerStore((s) => s.collapsedNodes);
+  const { moveNode, updateArticle } = useDocumentMutations(documentId || '');
   const [isDragOver, setIsDragOver] = React.useState(false);
+
+  // Contexte de mutations partagé avec les TreeNode : on n'expose que les
+  // fonctions `mutate` (stables) pour garder une valeur de contexte constante.
+  const treeMutations = React.useMemo(
+    () => ({ moveNode: moveNode.mutate, updateArticle: updateArticle.mutate }),
+    [moveNode.mutate, updateArticle.mutate],
+  );
+
+  // Liste plate des lignes visibles, recalculée seulement quand l'arbre ou
+  // l'état replié/déplié change.
+  const flatRows = React.useMemo(
+    () => flattenVisible(treeData, collapsedNodes),
+    [treeData, collapsedNodes],
+  );
+
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+  });
 
   const handleCollapseAll = () => collapseAll(treeData);
 
@@ -157,8 +210,9 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
         </div>
       </div>
 
-      {/* Tree Content */}
+      {/* Tree Content — virtualisé : seules les lignes visibles sont montées */}
       <div
+        ref={scrollRef}
         className={cn(
           "flex-1 overflow-y-auto py-1 custom-scrollbar bg-bg transition-colors",
           isDragOver && "bg-gold/5"
@@ -167,9 +221,28 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {treeData.map((node) => (
-          <TreeNode key={node.id} node={node} depth={0} />
-        ))}
+        <TreeMutationsContext.Provider value={treeMutations}>
+          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const { node, depth } = flatRows[virtualRow.index];
+              return (
+                <div
+                  key={node.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <TreeNode node={node} depth={depth} />
+                </div>
+              );
+            })}
+          </div>
+        </TreeMutationsContext.Provider>
       </div>
     </div>
   );

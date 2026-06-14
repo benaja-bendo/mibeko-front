@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RequireAuth, RedirectIfAuthenticated } from './guards';
 import {
   AdminDashboardRoutePage,
+  AdminReferentielsRoutePage,
+  AdminSignalementsRoutePage,
   AppDashboardRoutePage,
   AssistantRoutePage,
   DashboardRoutePage,
@@ -41,6 +43,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin']} requiredRole="admin">
         <AdminDashboardRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/referentiels',
+    element: (
+      <RequireAuth roles={['admin']} requiredRole="admin">
+        <AdminReferentielsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/signalements',
+    element: (
+      <RequireAuth roles={['admin']} requiredRole="admin">
+        <AdminSignalementsRoutePage />
       </RequireAuth>
     ),
   },

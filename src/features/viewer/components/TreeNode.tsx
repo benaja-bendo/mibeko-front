@@ -1,7 +1,6 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
-import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
+import { useTreeMutations } from '@/features/viewer/context/treeMutations';
 import type { TreeNode as TreeNodeType } from '@/shared/types/database';
 import { cn } from '@/shared/lib/utils';
 import { Target, History, Edit2, Plus, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
@@ -25,20 +24,22 @@ function getConfig(type: string) {
   return TC[type] || TC.ARTICLE;
 }
 
-export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: number }) {
-  const { id: documentId } = useParams<{ id: string }>();
-  const {
-    collapsedNodes, toggleNode,
-    selectedId, selectNode,
-    openSidePanel,
-    startSelection,
-    setVersionModalOpen,
-    setAddElementModal,
-    setRenameModal,
-    setDeleteModal
-  } = useViewerStore();
+function TreeNode({ node, depth }: { node: TreeNodeType; depth: number }) {
+  // Sélecteurs ciblés : un nœud ne se re-rend que lorsque SON propre état
+  // (replié / sélectionné) change — et non à chaque mutation du store, ce qui
+  // re-rendait inutilement les milliers de nœuds de l'arbre à chaque clic.
+  const isCollapsed = useViewerStore((s) => s.collapsedNodes.has(node.id));
+  const isSelected = useViewerStore((s) => s.selectedId === node.id);
+  const toggleNode = useViewerStore((s) => s.toggleNode);
+  const selectNode = useViewerStore((s) => s.selectNode);
+  const openSidePanel = useViewerStore((s) => s.openSidePanel);
+  const startSelection = useViewerStore((s) => s.startSelection);
+  const setVersionModalOpen = useViewerStore((s) => s.setVersionModalOpen);
+  const setAddElementModal = useViewerStore((s) => s.setAddElementModal);
+  const setRenameModal = useViewerStore((s) => s.setRenameModal);
+  const setDeleteModal = useViewerStore((s) => s.setDeleteModal);
 
-  const { moveNode, updateArticle } = useDocumentMutations(documentId || '');
+  const { moveNode, updateArticle } = useTreeMutations();
 
   const [isDragging, setIsDragging] = React.useState(false);
   const [dropPosition, setDropPosition] = React.useState<'before' | 'inside' | 'after' | null>(null);
@@ -55,16 +56,12 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
 
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
-
-    // Set a drag image if needed, but default is usually fine
-    console.log('Drag Start:', dragData);
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
     e.stopPropagation();
     setIsDragging(false);
     setDropPosition(null);
-    console.log('Drag End');
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -138,19 +135,17 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
       }
 
       if (draggedId && draggedId !== node.id) {
-        console.log(`Drop Action: Dragged ${draggedId} (${draggedType}) -> ${currentDropPos} ${node.id} (${node.type})`);
-
         // Inside a node (reparenting)
         if (currentDropPos === 'inside' && node.type !== 'ARTICLE') {
           const nextOrder = (node.children?.length || 0);
           if (draggedType === 'ARTICLE') {
-            updateArticle.mutate({
+            updateArticle({
               id: draggedId,
               parent_node_id: node.id,
               ordre_affichage: nextOrder
             });
           } else {
-            moveNode.mutate({
+            moveNode({
               id: draggedId,
               parent_id: node.id,
               sort_order: nextOrder
@@ -164,7 +159,7 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
 
           if (draggedType === 'ARTICLE') {
             if (targetParentId) {
-              updateArticle.mutate({
+              updateArticle({
                 id: draggedId,
                 parent_node_id: targetParentId,
                 ordre_affichage: newOrder
@@ -173,7 +168,7 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
               console.warn('Cannot drop article at root level');
             }
           } else {
-            moveNode.mutate({
+            moveNode({
               id: draggedId,
               parent_id: targetParentId,
               sort_order: newOrder
@@ -208,19 +203,11 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
     setVersionModalOpen(true);
   };
 
-  const isCollapsed = collapsedNodes.has(node.id);
-  const isSelected = selectedId === node.id;
   const hasChildren = node.children && node.children.length > 0;
   const cfg = getConfig(node.type);
 
   return (
     <div
-      className={cn(
-        "flex flex-col relative transition-all duration-200",
-        isDragging && "opacity-40 grayscale scale-[0.98]"
-      )}
-    >
-      <div
         onClick={() => selectNode(node.id, node)}
         draggable
         onDragStart={handleDragStart}
@@ -231,7 +218,8 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
         className={cn(
           "flex items-center h-[28px] pr-1.5 cursor-pointer transition-all gap-[1px] border-l-2 border-transparent group relative",
           isSelected ? "bg-gold-d border-l-gold" : "hover:bg-s2",
-          dropPosition === 'inside' && "bg-gold/20 ring-1 ring-gold/50 rounded-sm"
+          dropPosition === 'inside' && "bg-gold/20 ring-1 ring-gold/50 rounded-sm",
+          isDragging && "opacity-40 grayscale"
         )}
         style={{ paddingLeft: `${depth * 20 + 4}px` }}
       >
@@ -381,14 +369,9 @@ export default function TreeNode({ node, depth }: { node: TreeNodeType; depth: n
           </Tooltip>
         </div>
       </div>
-
-      {hasChildren && !isCollapsed && (
-        <div className="block">
-          {node.children!.map(child => (
-            <TreeNode key={child.id} node={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
+
+// Memoïsé : combiné aux sélecteurs ciblés du store, un nœud ne se re-rend que
+// si son `node` change, ce qui coupe l'effet de cascade sur tout l'arbre.
+export default React.memo(TreeNode);

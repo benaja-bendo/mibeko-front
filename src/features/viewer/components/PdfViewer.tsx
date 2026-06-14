@@ -36,12 +36,18 @@ export default function PdfViewer({
   treeData?: TreeNode[];
 }) {
   const { id: documentId } = useParams<{ id: string }>();
-  const {
-    pdfZoom, setPdfZoom,
-    pdfPage, setPdfPage,
-    selectionMode, selectionTarget, stopSelection,
-    selectedNode, selectNode
-  } = useViewerStore();
+  // Sélecteurs ciblés : le PDF ne se re-rend plus pour des changements d'état
+  // sans rapport (ouverture de modales, frappe dans la recherche, repli de
+  // l'arbre…), seulement pour ce qu'il consomme réellement.
+  const pdfZoom = useViewerStore((s) => s.pdfZoom);
+  const setPdfZoom = useViewerStore((s) => s.setPdfZoom);
+  const pdfPage = useViewerStore((s) => s.pdfPage);
+  const setPdfPage = useViewerStore((s) => s.setPdfPage);
+  const selectionMode = useViewerStore((s) => s.selectionMode);
+  const selectionTarget = useViewerStore((s) => s.selectionTarget);
+  const stopSelection = useViewerStore((s) => s.stopSelection);
+  const selectedNode = useViewerStore((s) => s.selectedNode);
+  const selectNode = useViewerStore((s) => s.selectNode);
 
   const { updateArticle } = useDocumentMutations(documentId || '');
 

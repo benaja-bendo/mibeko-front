@@ -156,7 +156,30 @@ const ADMIN_NAV = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
-    label: 'Administration',
+    label: "Vue d'ensemble",
+  },
+  {
+    to: '/admin/referentiels',
+    exact: false,
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[1.5]">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        <path d="M9 7h7M9 11h5" />
+      </svg>
+    ),
+    label: 'Référentiels',
+  },
+  {
+    to: '/admin/signalements',
+    exact: false,
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[1.5]">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
+      </svg>
+    ),
+    label: 'Signalements',
   },
 ];
 

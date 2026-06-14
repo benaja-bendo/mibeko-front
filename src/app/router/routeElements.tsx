@@ -47,6 +47,8 @@ const AssistantPage = lazy(() => import('@/pages/app/Assistant'));
 const Dossiers = lazy(() => import('@/pages/app/Dossiers'));
 const Upgrade = lazy(() => import('@/pages/app/Upgrade'));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminReferentiels = lazy(() => import('@/pages/admin/Referentiels'));
+const AdminSignalements = lazy(() => import('@/pages/admin/Signalements'));
 const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
 const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
 const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
@@ -162,6 +164,20 @@ export function UpgradeRoutePage() {
  */
 export function AdminDashboardRoutePage() {
   return <LazyPage Component={AdminDashboard} />;
+}
+
+/**
+ * Rend la gestion des référentiels (admin) en lazy loading.
+ */
+export function AdminReferentielsRoutePage() {
+  return <LazyPage Component={AdminReferentiels} />;
+}
+
+/**
+ * Rend le triage des signalements (admin) en lazy loading.
+ */
+export function AdminSignalementsRoutePage() {
+  return <LazyPage Component={AdminSignalements} />;
 }
 
 /**

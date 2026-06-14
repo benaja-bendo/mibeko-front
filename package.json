@@ -25,6 +25,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/react-query": "^5.100.10",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.2",
     "@types/react-pdf": "^6.2.0",
     "axios": "^1.16.1",
     "class-variance-authority": "^0.7.1",
