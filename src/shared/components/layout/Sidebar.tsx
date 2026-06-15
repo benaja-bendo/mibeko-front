@@ -193,6 +193,16 @@ const ADMIN_NAV = [
     ),
     label: 'Signalements',
   },
+  {
+    to: '/admin/audit',
+    exact: false,
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-[1.5]">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    ),
+    label: "Journal d'activité",
+  },
 ];
 
 // ---------------------------------------------------------------------------

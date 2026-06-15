@@ -6,6 +6,7 @@ import {
   AdminReferentielsRoutePage,
   AdminSignalementsRoutePage,
   AdminUtilisateursRoutePage,
+  AdminAuditRoutePage,
   AppDashboardRoutePage,
   AssistantRoutePage,
   DashboardRoutePage,
@@ -57,6 +58,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin']} requiredRole="admin">
         <AdminUtilisateursRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/audit',
+    element: (
+      <RequireAuth roles={['admin']} requiredRole="admin">
+        <AdminAuditRoutePage />
       </RequireAuth>
     ),
   },

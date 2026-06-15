@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
@@ -12,6 +13,7 @@ import UserDetailDrawer from '@/features/admin/components/UserDetailDrawer';
 import UserFormModal from '@/features/admin/components/UserFormModal';
 import {
   Users, UserPlus, Search, Wifi, Mail, RotateCcw, X, ChevronLeft, ChevronRight,
+  Loader2, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 
 type Tab = 'all' | 'team' | 'client' | 'invitations';
@@ -69,11 +71,19 @@ export default function Utilisateurs() {
   const [page, setPage] = React.useState(1);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
+  const [searchParams] = useSearchParams();
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Ouverture directe d'une fiche via un lien profond (?focus=<id>),
+  // utilisé notamment depuis le journal d'activité.
+  React.useEffect(() => {
+    const focus = searchParams.get('focus');
+    if (focus) setSelectedId(focus);
+  }, [searchParams]);
 
   const filters: UserFilters = {
     search: debounced || undefined,
@@ -312,77 +322,119 @@ function UserRow({ user, onClick }: { user: AdminUserRow; onClick: () => void })
 function InvitationsPanel({ query }: { query: ReturnType<typeof useInvitations> }) {
   const { resend, remove } = useInvitationMutations();
   const invitations = query.data ?? [];
+  const [feedback, setFeedback] = React.useState<{ kind: 'success' | 'error'; message: string } | null>(null);
 
-  if (query.isLoading) {
-    return <p className="text-t4 text-[12px] py-10 text-center">Chargement…</p>;
-  }
-  if (invitations.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Mail className="w-8 h-8 text-t4 mx-auto mb-2" />
-        <p className="text-t3 text-[13px]">Aucune invitation</p>
-        <p className="text-t4 text-[11px] mt-1">Invitez un membre via le bouton « Ajouter ».</p>
-      </div>
-    );
-  }
+  // Le bandeau de confirmation s'efface tout seul après quelques secondes.
+  React.useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 4000);
+    return () => clearTimeout(t);
+  }, [feedback]);
+
+  const handleResend = (inv: InvitationRef) => {
+    resend.mutate(inv.id, {
+      onSuccess: () => setFeedback({ kind: 'success', message: `Invitation renvoyée à ${inv.email}.` }),
+      onError: (e) => setFeedback({ kind: 'error', message: (e as Error).message }),
+    });
+  };
+
+  const handleCancel = (inv: InvitationRef) => {
+    remove.mutate(inv.id, {
+      onSuccess: () => setFeedback({ kind: 'success', message: `Invitation de ${inv.email} annulée.` }),
+      onError: (e) => setFeedback({ kind: 'error', message: (e as Error).message }),
+    });
+  };
 
   return (
-    <div className="border border-b1 rounded-xl overflow-hidden">
-      <table className="w-full text-left">
-        <thead className="bg-s2 text-t4 text-[10px] font-mono uppercase tracking-wide">
-          <tr>
-            <th className="px-4 py-2.5 font-medium">Email</th>
-            <th className="px-4 py-2.5 font-medium hidden md:table-cell">Rôles</th>
-            <th className="px-4 py-2.5 font-medium">Statut</th>
-            <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Expire</th>
-            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-b1">
-          {invitations.map((inv: InvitationRef) => (
-            <tr key={inv.id} className="hover:bg-s2/60 transition-colors">
-              <td className="px-4 py-3 text-t1 text-[13px]">{inv.email}</td>
-              <td className="px-4 py-3 hidden md:table-cell">
-                <div className="flex flex-wrap gap-1">
-                  {inv.roles.map((r) => (
-                    <span key={r} className="rounded border border-b1 bg-s2 px-1.5 py-0.5 text-[10px] font-mono text-t3">
-                      {ROLE_LABELS[r] ?? r}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className={['rounded-md border px-2 py-0.5 text-[10px] font-mono', INVITE_BADGE[inv.status]].join(' ')}>
-                  {INVITE_LABEL[inv.status]}
-                </span>
-              </td>
-              <td className="px-4 py-3 hidden sm:table-cell text-[11px] text-t3">{fmtDate(inv.expires_at)}</td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-end gap-1.5">
-                  {inv.status !== 'accepted' && (
-                    <button
-                      onClick={() => resend.mutate(inv.id)}
-                      disabled={resend.isPending}
-                      className="flex items-center gap-1 text-[11px] text-t3 hover:text-gold px-2 py-1 rounded-md hover:bg-s2"
-                      title="Renvoyer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" /> Renvoyer
-                    </button>
-                  )}
-                  <button
-                    onClick={() => remove.mutate(inv.id)}
-                    disabled={remove.isPending}
-                    className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2"
-                    title="Annuler"
-                  >
-                    <X className="w-3.5 h-3.5" /> Annuler
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {feedback && (
+        <div
+          role={feedback.kind === 'error' ? 'alert' : 'status'}
+          className={[
+            'flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px]',
+            feedback.kind === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              : 'bg-red-500/10 border-red-500/20 text-red-400',
+          ].join(' ')}
+        >
+          {feedback.kind === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+          {feedback.message}
+        </div>
+      )}
+
+      {query.isLoading ? (
+        <p className="text-t4 text-[12px] py-10 text-center">Chargement…</p>
+      ) : invitations.length === 0 ? (
+        <div className="text-center py-12">
+          <Mail className="w-8 h-8 text-t4 mx-auto mb-2" />
+          <p className="text-t3 text-[13px]">Aucune invitation</p>
+          <p className="text-t4 text-[11px] mt-1">Invitez un membre via le bouton « Ajouter ».</p>
+        </div>
+      ) : (
+        <div className="border border-b1 rounded-xl overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-s2 text-t4 text-[10px] font-mono uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Email</th>
+                <th className="px-4 py-2.5 font-medium hidden md:table-cell">Rôles</th>
+                <th className="px-4 py-2.5 font-medium">Statut</th>
+                <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Expire</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-b1">
+              {invitations.map((inv: InvitationRef) => {
+                const resending = resend.isPending && resend.variables === inv.id;
+                const cancelling = remove.isPending && remove.variables === inv.id;
+                return (
+                  <tr key={inv.id} className="hover:bg-s2/60 transition-colors">
+                    <td className="px-4 py-3 text-t1 text-[13px]">{inv.email}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <div className="flex flex-wrap gap-1">
+                        {inv.roles.map((r) => (
+                          <span key={r} className="rounded border border-b1 bg-s2 px-1.5 py-0.5 text-[10px] font-mono text-t3">
+                            {ROLE_LABELS[r] ?? r}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={['rounded-md border px-2 py-0.5 text-[10px] font-mono', INVITE_BADGE[inv.status]].join(' ')}>
+                        {INVITE_LABEL[inv.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-[11px] text-t3">{fmtDate(inv.expires_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {inv.status !== 'accepted' && (
+                          <button
+                            onClick={() => handleResend(inv)}
+                            disabled={resending}
+                            className="flex items-center gap-1 text-[11px] text-t3 hover:text-gold px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
+                            title="Renvoyer"
+                          >
+                            {resending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                            {resending ? 'Envoi…' : 'Renvoyer'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleCancel(inv)}
+                          disabled={cancelling}
+                          className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
+                          title="Annuler"
+                        >
+                          {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                          {cancelling ? 'Annulation…' : 'Annuler'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
