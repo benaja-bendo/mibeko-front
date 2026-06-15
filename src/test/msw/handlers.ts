@@ -20,4 +20,9 @@ export const handlers = [
       pagination: { current_page: 1, last_page: 1, per_page: 20, total: 0 },
     })
   ),
+  // Dossiers : liste vide par défaut (la page Bibliothèque et le Dashboard la
+  // chargent ; les tests dédiés la surchargent avec server.use()).
+  http.get('*/api/v1/dossiers', () =>
+    HttpResponse.json({ success: true, data: [] })
+  ),
 ];

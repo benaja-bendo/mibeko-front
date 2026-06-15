@@ -7,9 +7,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, LayoutGrid, Table2, FolderOpen } from 'lucide-react';
+import { Loader2, Plus, Search, LayoutGrid, Table2, FolderOpen } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import { useDossiers, useUpdateDossier } from '@/features/dossiers/hooks/useDossiers';
+import type { DossierStatus } from '@/features/dossiers/types';
 import DossierTable from '@/features/dossiers/components/DossierTable';
 import DossierKanban from '@/features/dossiers/components/DossierKanban';
 import DossierDrawer from '@/features/dossiers/components/DossierDrawer';
@@ -19,8 +20,8 @@ type ViewMode = 'table' | 'kanban';
 
 export default function Dossiers() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const dossiers = useDossiersStore((s) => s.dossiers);
-  const ensureSeeded = useDossiersStore((s) => s.ensureSeeded);
+  const { data: dossiers = [], isLoading, isError } = useDossiers();
+  const updateDossier = useUpdateDossier();
 
   const [view, setView] = useState<ViewMode>('table');
   const [search, setSearch] = useState('');
@@ -28,10 +29,8 @@ export default function Dossiers() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Données d'exemple au premier lancement uniquement.
-  useEffect(() => {
-    ensureSeeded();
-  }, [ensureSeeded]);
+  const changeStatus = (id: string, status: DossierStatus) =>
+    updateDossier.mutate({ id, patch: { status } });
 
   // Ouverture directe d'un dossier via ?open=<id>.
   useEffect(() => {
@@ -130,7 +129,15 @@ export default function Dossiers() {
 
         {/* Corps */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-          {dossiers.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-24 text-t3">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : isError ? (
+            <p className="py-16 text-center text-sm text-red">
+              Impossible de charger vos dossiers. Réessayez plus tard.
+            </p>
+          ) : dossiers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gold/20 bg-gold/10">
                 <FolderOpen className="h-7 w-7 text-gold" />
@@ -158,7 +165,11 @@ export default function Dossiers() {
           ) : view === 'table' ? (
             <DossierTable dossiers={filtered} onOpen={openDossier} />
           ) : (
-            <DossierKanban dossiers={filtered} onOpen={openDossier} />
+            <DossierKanban
+              dossiers={filtered}
+              onOpen={openDossier}
+              onStatusChange={changeStatus}
+            />
           )}
         </div>
       </div>

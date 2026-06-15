@@ -18,7 +18,7 @@ import {
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Label } from '@/shared/components/ui/Label';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
 import {
   DOC_PRINT_STYLES,
   TEMPLATES,
@@ -59,7 +59,7 @@ export default function DocumentGeneratorModal({
   open,
   onOpenChange,
 }: DocumentGeneratorModalProps) {
-  const addDocument = useDossiersStore((s) => s.addDocument);
+  const addDocument = useDossierAnnexes((s) => s.addDocument);
   const [template, setTemplate] = useState<DocumentTemplate | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
 

@@ -1,9 +1,11 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RequireAuth, RedirectIfAuthenticated } from './guards';
 import {
+  AcceptInvitationRoutePage,
   AdminDashboardRoutePage,
   AdminReferentielsRoutePage,
   AdminSignalementsRoutePage,
+  AdminUtilisateursRoutePage,
   AppDashboardRoutePage,
   AssistantRoutePage,
   DashboardRoutePage,
@@ -36,6 +38,10 @@ export const router = createBrowserRouter([
       </RedirectIfAuthenticated>
     ),
   },
+  {
+    path: '/auth/accept-invitation',
+    element: <AcceptInvitationRoutePage />,
+  },
 
   // ─── Admin space (/admin/*) — admin uniquement ────────────────────────────
   {
@@ -43,6 +49,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin']} requiredRole="admin">
         <AdminDashboardRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/utilisateurs',
+    element: (
+      <RequireAuth roles={['admin']} requiredRole="admin">
+        <AdminUtilisateursRoutePage />
       </RequireAuth>
     ),
   },

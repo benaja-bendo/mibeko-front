@@ -32,6 +32,7 @@ export function LegacyViewerRedirectPage() {
 }
 
 const LoginPage = lazy(() => import('@/features/auth/components/LoginPage'));
+const AcceptInvitationPage = lazy(() => import('@/features/auth/components/AcceptInvitationPage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
 const Journals = lazy(() => import('@/pages/Journals'));
@@ -49,6 +50,7 @@ const Upgrade = lazy(() => import('@/pages/app/Upgrade'));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
 const AdminReferentiels = lazy(() => import('@/pages/admin/Referentiels'));
 const AdminSignalements = lazy(() => import('@/pages/admin/Signalements'));
+const AdminUtilisateurs = lazy(() => import('@/pages/admin/Utilisateurs'));
 const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
 const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
 const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
@@ -178,6 +180,20 @@ export function AdminReferentielsRoutePage() {
  */
 export function AdminSignalementsRoutePage() {
   return <LazyPage Component={AdminSignalements} />;
+}
+
+/**
+ * Rend la gestion des utilisateurs (admin) en lazy loading.
+ */
+export function AdminUtilisateursRoutePage() {
+  return <LazyPage Component={AdminUtilisateurs} />;
+}
+
+/**
+ * Rend la page publique d'acceptation d'invitation en lazy loading.
+ */
+export function AcceptInvitationRoutePage() {
+  return <LazyPage Component={AcceptInvitationPage} />;
 }
 
 /**

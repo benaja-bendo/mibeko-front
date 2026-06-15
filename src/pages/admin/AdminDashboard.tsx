@@ -113,7 +113,9 @@ export default function AdminDashboard() {
           <section className="space-y-2">
             <h2 className="text-t4 text-[10px] font-mono uppercase tracking-widest">Pilotage</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Metric label="Utilisateurs" value={data?.people.users} loading={isLoading} />
+              <Link to="/admin/utilisateurs" className="block hover:bg-s2 rounded-xl transition-colors">
+                <Metric label="Utilisateurs" value={data?.people.users} loading={isLoading} />
+              </Link>
               <AttentionMetric
                 label="Signalements ouverts"
                 value={data?.attention.open_flags}

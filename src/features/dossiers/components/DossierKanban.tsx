@@ -7,7 +7,6 @@
 
 import { useState } from 'react';
 import { BookOpen, Paperclip } from 'lucide-react';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
 import {
   STATUS_META,
   STATUS_ORDER,
@@ -18,15 +17,20 @@ import {
 interface DossierKanbanProps {
   dossiers: Dossier[];
   onOpen: (id: string) => void;
+  /** Déplacement d'un dossier dans une autre colonne (changement de statut). */
+  onStatusChange: (id: string, status: DossierStatus) => void;
 }
 
-export default function DossierKanban({ dossiers, onOpen }: DossierKanbanProps) {
-  const setStatus = useDossiersStore((s) => s.setStatus);
+export default function DossierKanban({
+  dossiers,
+  onOpen,
+  onStatusChange,
+}: DossierKanbanProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<DossierStatus | null>(null);
 
   const drop = (status: DossierStatus) => {
-    if (dragId) setStatus(dragId, status);
+    if (dragId) onStatusChange(dragId, status);
     setDragId(null);
     setOverColumn(null);
   };

@@ -19,8 +19,10 @@ import {
   BookOpen,
   Upload,
   X,
+  CalendarClock,
+  Check,
+  Pencil,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/Sheet';
 import {
   Select,
@@ -30,11 +32,21 @@ import {
   SelectValue,
 } from '@/shared/components/ui/Select';
 import { Button } from '@/shared/components/ui/Button';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import {
+  useDossier,
+  useDeleteDossier,
+  useDeleteEcheance,
+  useUpdateDossier,
+  useUpdateEcheance,
+} from '@/features/dossiers/hooks/useDossiers';
+import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
 import {
   STATUS_META,
   STATUS_ORDER,
+  ECHEANCE_STATUS_META,
+  ECHEANCE_TYPE_META,
   type DossierStatus,
+  type Echeance,
 } from '@/features/dossiers/types';
 import {
   exportDossierPdf,
@@ -44,11 +56,22 @@ import {
   DOC_PRINT_STYLES,
 } from '@/features/dossiers/templates/templates';
 import DocumentGeneratorModal from './DocumentGeneratorModal';
+import EcheanceModal from './EcheanceModal';
+import AddReferenceModal from './AddReferenceModal';
 
 interface DossierDrawerProps {
   dossierId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+/** Formate une date d'échéance (YYYY-MM-DD) en jj/mm/aaaa. */
+function formatDueDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 /** Formate une taille de fichier en Ko/Mo. */
@@ -105,23 +128,45 @@ export default function DossierDrawer({
   open,
   onOpenChange,
 }: DossierDrawerProps) {
-  const navigate = useNavigate();
-  const dossier = useDossiersStore((s) =>
-    s.dossiers.find((d) => d.id === dossierId),
-  );
-  const setStatus = useDossiersStore((s) => s.setStatus);
-  const removeReference = useDossiersStore((s) => s.removeReference);
-  const addPiece = useDossiersStore((s) => s.addPiece);
-  const removePiece = useDossiersStore((s) => s.removePiece);
-  const removeDocument = useDossiersStore((s) => s.removeDocument);
-  const deleteDossier = useDossiersStore((s) => s.deleteDossier);
+  const dossier = useDossier(dossierId);
+  const updateDossier = useUpdateDossier();
+  const deleteDossier = useDeleteDossier();
+  const updateEcheance = useUpdateEcheance();
+  const deleteEcheance = useDeleteEcheance();
+  const removeReference = useDossierAnnexes((s) => s.removeReference);
+  const addPiece = useDossierAnnexes((s) => s.addPiece);
+  const removePiece = useDossierAnnexes((s) => s.removePiece);
+  const removeDocument = useDossierAnnexes((s) => s.removeDocument);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [addRefOpen, setAddRefOpen] = useState(false);
+  const [echeanceModalOpen, setEcheanceModalOpen] = useState(false);
+  const [editingEcheance, setEditingEcheance] = useState<Echeance | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   if (!dossier) return null;
+
+  const openNewEcheance = () => {
+    setEditingEcheance(null);
+    setEcheanceModalOpen(true);
+  };
+
+  const openEditEcheance = (echeance: Echeance) => {
+    setEditingEcheance(echeance);
+    setEcheanceModalOpen(true);
+  };
+
+  const toggleEcheanceDone = (echeance: Echeance) =>
+    updateEcheance.mutate({
+      id: echeance.id,
+      patch: {
+        type: echeance.type,
+        title: echeance.title,
+        status: echeance.status === 'fait' ? 'a_venir' : 'fait',
+      },
+    });
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -164,7 +209,7 @@ export default function DossierDrawer({
   };
 
   const handleDelete = () => {
-    deleteDossier(dossier.id);
+    deleteDossier.mutate(dossier.id);
     onOpenChange(false);
   };
 
@@ -187,7 +232,12 @@ export default function DossierDrawer({
               )}
               <Select
                 value={dossier.status}
-                onValueChange={(v) => setStatus(dossier.id, v as DossierStatus)}
+                onValueChange={(v) =>
+                  updateDossier.mutate({
+                    id: dossier.id,
+                    patch: { status: v as DossierStatus },
+                  })
+                }
               >
                 <SelectTrigger className="h-7 w-auto gap-2 border-b1 bg-s2 px-2 text-xs">
                   <SelectValue />
@@ -236,6 +286,91 @@ export default function DossierDrawer({
               </div>
             )}
 
+            {/* Échéances */}
+            <section>
+              <SectionTitle
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                title="Échéances"
+                count={dossier.echeances.length}
+                action={
+                  <button
+                    type="button"
+                    onClick={openNewEcheance}
+                    className="flex items-center gap-1 rounded text-[11px] font-medium text-gold hover:underline"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Ajouter
+                  </button>
+                }
+              />
+              {dossier.echeances.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-b2 px-3 py-4 text-center text-[11px] text-t3">
+                  Aucune échéance. Ajoutez une audience, un délai, une prescription…
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {dossier.echeances.map((echeance) => {
+                    const done = echeance.status === 'fait';
+                    return (
+                      <li
+                        key={echeance.id}
+                        className="group flex items-center gap-2 rounded-lg border border-b1 bg-s1 p-2.5"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleEcheanceDone(echeance)}
+                          title={done ? 'Rouvrir' : 'Marquer comme fait'}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                            done
+                              ? 'border-green bg-green/20 text-green'
+                              : 'border-b2 text-t3 hover:border-gold hover:text-gold'
+                          }`}
+                        >
+                          {done ? (
+                            <Check className="h-3 w-3" />
+                          ) : (
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${ECHEANCE_STATUS_META[echeance.status].dot}`}
+                            />
+                          )}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`truncate text-xs font-medium ${
+                              done ? 'text-t3 line-through' : 'text-t1'
+                            }`}
+                          >
+                            {echeance.title}
+                          </p>
+                          <p className="truncate text-[10px] text-t3">
+                            {ECHEANCE_TYPE_META[echeance.type].label}
+                            {' · '}
+                            {echeance.dueDate ? formatDueDate(echeance.dueDate) : 'à dater'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openEditEcheance(echeance)}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-t3 opacity-0 transition-opacity hover:bg-s3 hover:text-t1 group-hover:opacity-100"
+                          title="Modifier"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteEcheance.mutate(echeance.id)}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-t3 opacity-0 transition-opacity hover:bg-s3 hover:text-red group-hover:opacity-100"
+                          title="Supprimer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
             {/* Références juridiques */}
             <section>
               <SectionTitle
@@ -245,18 +380,22 @@ export default function DossierDrawer({
                 action={
                   <button
                     type="button"
-                    onClick={() => navigate(`/app/library?addTo=${dossier.id}`)}
+                    onClick={() => setAddRefOpen(true)}
                     className="flex items-center gap-1 rounded text-[11px] font-medium text-gold hover:underline"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Bibliothèque
+                    Ajouter
                   </button>
                 }
               />
               {dossier.references.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-b2 px-3 py-4 text-center text-[11px] text-t3">
-                  Aucune référence. Ajoutez des articles depuis la Bibliothèque.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setAddRefOpen(true)}
+                  className="w-full rounded-lg border border-dashed border-b2 px-3 py-4 text-center text-[11px] text-t3 transition-colors hover:border-gold/40 hover:text-t2"
+                >
+                  Aucune référence. Rattachez un article ou un code à ce dossier.
+                </button>
               ) : (
                 <ul className="space-y-1.5">
                   {dossier.references.map((ref) => (
@@ -444,6 +583,19 @@ export default function DossierDrawer({
         dossierId={dossier.id}
         open={generatorOpen}
         onOpenChange={setGeneratorOpen}
+      />
+
+      <EcheanceModal
+        dossierId={dossier.id}
+        echeance={editingEcheance}
+        open={echeanceModalOpen}
+        onOpenChange={setEcheanceModalOpen}
+      />
+
+      <AddReferenceModal
+        dossierId={dossier.id}
+        open={addRefOpen}
+        onOpenChange={setAddRefOpen}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import ImpersonationBanner from '@/features/admin/components/ImpersonationBanner';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -8,9 +9,12 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, space = 'editor' }: AppLayoutProps) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg">
-      <Sidebar space={space} />
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-bg">
+      <ImpersonationBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar space={space} />
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
+      </div>
     </div>
   );
 }

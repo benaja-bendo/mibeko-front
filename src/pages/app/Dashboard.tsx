@@ -25,7 +25,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getCatalog } from '@/features/documents/api/laravelApi';
 import { useJournalsList } from '@/features/journals/hooks/useJournals';
 import { useConversations } from '@/features/assistant/hooks/useConversations';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import { useDossiers } from '@/features/dossiers/hooks/useDossiers';
 import StatusBadge from '@/features/dossiers/components/StatusBadge';
 
 /** Formate une date ISO en jj/mm/aaaa (ou tiret si absente). */
@@ -90,7 +90,7 @@ function PanelCard({
 
 export default function AppDashboard() {
   const user = useAuthStore((s) => s.user);
-  const dossiers = useDossiersStore((s) => s.dossiers);
+  const { data: dossiers = [] } = useDossiers();
 
   // Veille juridique : derniers textes intégrés à la base.
   const { data: catalog, isLoading: loadingCatalog } = useQuery({

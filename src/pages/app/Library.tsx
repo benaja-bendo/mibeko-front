@@ -53,7 +53,8 @@ import LibraryResultItem from '@/features/library/components/LibraryResultItem';
 import LibraryPagination from '@/features/library/components/LibraryPagination';
 import DocumentReaderView from '@/features/library/components/DocumentReaderView';
 import LibraryAiPanel from '@/features/library/components/LibraryAiPanel';
-import { useDossiersStore } from '@/features/dossiers/store/useDossiersStore';
+import { useDossier } from '@/features/dossiers/hooks/useDossiers';
+import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
 import type {
   LibraryFilterState,
   LibraryHomeDocument,
@@ -143,10 +144,8 @@ export default function Library() {
 
   // Mode « ajout à un dossier » (depuis le drawer d'un dossier).
   const addToDossierId = searchParams.get('addTo');
-  const targetDossier = useDossiersStore((s) =>
-    addToDossierId ? s.dossiers.find((d) => d.id === addToDossierId) : undefined,
-  );
-  const addReference = useDossiersStore((s) => s.addReference);
+  const targetDossier = useDossier(addToDossierId);
+  const addReference = useDossierAnnexes((s) => s.addReference);
   const addedIds = useMemo(
     () => new Set(targetDossier?.references.map((r) => r.id) ?? []),
     [targetDossier?.references],

@@ -1,8 +1,12 @@
 export * from './types';
-export * from './store/useDossiersStore';
+export * from './presets';
+export * from './store/useDossierAnnexes';
+export * from './hooks/useDossiers';
 export { default as DossierTable } from './components/DossierTable';
 export { default as DossierKanban } from './components/DossierKanban';
 export { default as DossierDrawer } from './components/DossierDrawer';
 export { default as NewDossierModal } from './components/NewDossierModal';
 export { default as DocumentGeneratorModal } from './components/DocumentGeneratorModal';
+export { default as EcheanceModal } from './components/EcheanceModal';
+export { default as AddReferenceModal } from './components/AddReferenceModal';
 export { default as StatusBadge } from './components/StatusBadge';
