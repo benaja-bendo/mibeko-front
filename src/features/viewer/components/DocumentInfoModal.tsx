@@ -7,12 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
+import { themeIcon } from '@/features/library/components/themeIcon';
 
 export default function DocumentInfoModal({ document }: { document?: LegalDocument }) {
   const { infoModalOpen, setInfoModalOpen } = useViewerStore();
-  const legalStatus = document?.statut || document?.status || 'vigueur';
 
   if (!document) return null;
+
+  const legalStatus = document.statut || document.status || 'vigueur';
+  const themes = document.themes ?? [];
 
   return (
     <Dialog open={infoModalOpen} onOpenChange={(open) => setInfoModalOpen(open)}>
@@ -28,14 +31,12 @@ export default function DocumentInfoModal({ document }: { document?: LegalDocume
           </div>
         </DialogHeader>
 
-        <div className="p-6 space-y-6 bg-s1">
+        <div className="p-6 space-y-6 bg-s1 max-h-[70vh] overflow-y-auto">
           <div>
             <h3 className="text-[14px] font-display font-semibold text-t1 mb-1">
               {document.title || document.titre_officiel || 'Document sans titre'}
             </h3>
-            <p className="text-[12px] text-t3 font-mono">
-              ID: {document.id}
-            </p>
+            <p className="text-[12px] text-t3 font-mono">ID: {document.id}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -74,9 +75,23 @@ export default function DocumentInfoModal({ document }: { document?: LegalDocume
                 <Activity className="w-4 h-4" />
                 <span className="text-[10px] font-mono uppercase tracking-wider">Statut Juridique</span>
               </div>
-              <p className="text-[13px] text-t1 font-medium">
-                {legalStatus.toUpperCase()}
-              </p>
+              <p className="text-[13px] text-t1 font-medium">{legalStatus.toUpperCase()}</p>
+            </div>
+          </div>
+
+          {/* Thèmes (lecture seule — l'édition est dans « Modifier le document ») */}
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-t3">Thèmes</span>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {themes.length === 0 ? (
+                <span className="text-[12px] text-t4">Aucun thème</span>
+              ) : (
+                themes.map((t) => (
+                  <span key={t.id} className="flex items-center gap-1.5 rounded-md border border-b1 bg-s2 px-2 py-1 text-[12px] text-t2">
+                    {themeIcon(t.icon, 'w-3.5 h-3.5')} {t.name}
+                  </span>
+                ))
+              )}
             </div>
           </div>
         </div>

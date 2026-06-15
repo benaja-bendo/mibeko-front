@@ -10,6 +10,7 @@ import { useAudits, useAuditStats, useAuditFilters, useAuditMutations } from '@/
 import { downloadAuditsCsv, type AuditFilters, type AuditPeriod, type AuditEntry } from '@/features/admin/api/auditApi';
 import AuditDetailDrawer from '@/features/admin/components/AuditDetailDrawer';
 import { EVENT_BADGE, EVENT_LABEL_FALLBACK, typeIcon } from '@/features/admin/components/auditMeta';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 import {
   Activity, Search, Download, Trash2, ShieldAlert, UserCheck, ChevronLeft, ChevronRight,
   ChevronDown, ChevronRight as ChevronRightSmall, X,
@@ -49,7 +50,7 @@ function StatCard({ label, value, loading }: { label: string; value?: number; lo
     <div className="bg-s1 border border-b1 rounded-xl px-3.5 py-2.5">
       <div className="text-t3 text-[10px] font-mono uppercase tracking-wide">{label}</div>
       <div className="text-t1 font-display text-xl font-semibold mt-0.5">
-        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+        {loading ? <span className="text-t4">—</span> : formatCompactNumber(value ?? 0)}
       </div>
     </div>
   );

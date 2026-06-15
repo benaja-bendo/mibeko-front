@@ -11,6 +11,7 @@ import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
 import { useAuthStore } from "@/features/auth/store/authStore";
 import AppLayout from '@/shared/components/layout/AppLayout';
 import PageContainer from '@/shared/components/layout/PageContainer';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 
 // ---------------------------------------------------------------------------
 // KPI Card
@@ -39,7 +40,9 @@ function KpiCard({ label, value, sub, color = 'gold', icon }: KpiCardProps) {
         <span className={colorMap.text}>{icon}</span>
       </div>
       <div className="min-w-0">
-        <div className={`text-2xl font-display font-semibold ${colorMap.text}`}>{value}</div>
+        <div className={`text-2xl font-display font-semibold ${colorMap.text}`}>
+          {typeof value === 'number' ? formatCompactNumber(value) : value}
+        </div>
         <div className="text-t2 text-xs font-body mt-0.5">{label}</div>
         {sub && <div className="text-t3 text-[11px] font-mono mt-1">{sub}</div>}
       </div>
@@ -353,7 +356,7 @@ export default function Dashboard() {
                   { label: 'Échoués',   value: pyStats.documents_failed, color: 'text-red' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5">
-                    <span className={`text-xs font-mono font-semibold ${item.color}`}>{item.value}</span>
+                    <span className={`text-xs font-mono font-semibold ${item.color}`}>{formatCompactNumber(item.value)}</span>
                     <span className="text-t3 text-[11px] font-mono">{item.label}</span>
                   </div>
                 ))}

@@ -25,6 +25,7 @@ import {
   SCOPE_LABELS,
   type LibraryHomeDocument,
 } from '@/features/library/types';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 
 interface LibraryHomeViewProps {
   /** Lance une recherche (suggestion ou recherche récente cliquée). */
@@ -35,13 +36,8 @@ interface LibraryHomeViewProps {
   onClearRecentSearches: () => void;
 }
 
-/** Compteur compact (14 532 → « 14,5 k »). */
-function compact(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(n);
-}
+/** Compteur compact (14 532 → « 14,5 k ») — utilitaire partagé. */
+const compact = formatCompactNumber;
 
 function formatDate(iso?: string | null): string | null {
   if (!iso) return null;
@@ -66,7 +62,7 @@ function SectionTitle({
 }
 
 /** Carte cliquable d'un document (fondamental ou récent). */
-function DocumentCard({
+export function DocumentCard({
   doc,
   onOpen,
 }: {
@@ -98,7 +94,7 @@ function DocumentCard({
           )}
           {date && <span>· {date}</span>}
           {(doc.articles_count ?? 0) > 0 && (
-            <span>· {doc.articles_count} art.</span>
+            <span>· {compact(doc.articles_count ?? 0)} art.</span>
           )}
         </p>
       </div>

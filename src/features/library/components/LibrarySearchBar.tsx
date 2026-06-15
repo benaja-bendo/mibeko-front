@@ -35,6 +35,8 @@ interface LibrarySearchBarProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  /** Effacement complet : vide aussi la recherche soumise (retour accueil). */
+  onClear?: () => void;
   /** Ouvre une suggestion dans l'espace de lecture (document ± article). */
   onOpenSuggestion?: (documentId: string, articleId: string | null) => void;
   isLoading?: boolean;
@@ -84,6 +86,7 @@ export default function LibrarySearchBar({
   value,
   onChange,
   onSubmit,
+  onClear,
   onOpenSuggestion,
   isLoading,
 }: LibrarySearchBarProps) {
@@ -229,7 +232,10 @@ export default function LibrarySearchBar({
         ) : value ? (
           <button
             type="button"
-            onClick={() => onChange('')}
+            onClick={() => {
+              onChange('');
+              onClear?.();
+            }}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-t3 hover:bg-s2 hover:text-t1"
             title="Effacer"
           >

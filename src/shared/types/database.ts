@@ -19,6 +19,14 @@ export interface LegalDocument {
     title?: string | null;
     publication_date?: string | null;
   } | null;
+  themes?: DocumentTheme[];
+}
+
+export interface DocumentTheme {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string | null;
 }
 
 export interface StructureNode {

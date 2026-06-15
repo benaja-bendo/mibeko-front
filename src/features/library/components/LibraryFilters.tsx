@@ -21,6 +21,7 @@ import {
   useDocumentTypes,
   useInstitutions,
 } from '@/features/library/hooks/useLibrary';
+import { useThemes } from '@/features/library/hooks/useThemes';
 import {
   SCOPE_LABELS,
   type LegalScope,
@@ -72,6 +73,7 @@ export default function LibraryFilters({
 }: LibraryFiltersProps) {
   const { data: types, isLoading: loadingTypes } = useDocumentTypes();
   const { data: institutions } = useInstitutions();
+  const { data: themes } = useThemes();
 
   const hasActiveFilters =
     filters.typeCode !== null ||
@@ -79,7 +81,8 @@ export default function LibraryFilters({
     filters.institutionId !== null ||
     filters.dateFrom !== null ||
     filters.dateTo !== null ||
-    filters.sort !== 'relevance';
+    filters.sort !== 'relevance' ||
+    filters.theme !== null;
 
   return (
     <div className="space-y-6 p-4">
@@ -96,6 +99,26 @@ export default function LibraryFilters({
           </button>
         )}
       </div>
+
+      {/* Thème de vie */}
+      <FilterSection title="Thème">
+        <Select
+          value={filters.theme ?? 'all'}
+          onValueChange={(v) => onChange({ theme: v === 'all' ? null : v })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Tous" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les thèmes</SelectItem>
+            {themes?.map((theme) => (
+              <SelectItem key={theme.id} value={theme.slug}>
+                {theme.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterSection>
 
       {/* Périmètre */}
       <FilterSection title="Périmètre">

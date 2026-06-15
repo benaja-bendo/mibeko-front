@@ -42,6 +42,9 @@ export function useLibraryHome() {
  * Conserve les résultats précédents pendant le rechargement (pas de clignotement).
  */
 export function useLibrarySearch(params: SearchParams) {
+  // La recherche d'articles est un moteur full-text : elle exige une requête
+  // texte. Le parcours par thème seul passe par `useThemeDocuments` (liste de
+  // documents), pas par cette recherche.
   const enabled = params.q.trim().length >= 2;
   return useQuery({
     queryKey: libraryKeys.search(params),

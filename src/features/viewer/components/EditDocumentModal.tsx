@@ -20,7 +20,9 @@ import {
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Label } from '@/shared/components/ui/Label';
-import { FilePen } from 'lucide-react';
+import { FilePen, Sparkles } from 'lucide-react';
+import { useThemes, useSuggestThemes } from '@/features/library/hooks/useThemes';
+import { themeIcon } from '@/features/library/components/themeIcon';
 
 const STATUTS = [
   { value: 'vigueur', label: 'En vigueur' },
@@ -42,6 +44,8 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
   const { id: documentId } = useParams<{ id: string }>();
   const { editDocModalOpen, setEditDocModalOpen } = useViewerStore();
   const { updateDocument } = useDocumentMutations(documentId || '');
+  const { data: themes } = useThemes();
+  const suggest = useSuggestThemes();
 
   const [titre, setTitre] = React.useState('');
   const [nor, setNor] = React.useState('');
@@ -50,6 +54,7 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
   const [dateSignature, setDateSignature] = React.useState('');
   const [datePublication, setDatePublication] = React.useState('');
   const [dateVigueur, setDateVigueur] = React.useState('');
+  const [themeIds, setThemeIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (editDocModalOpen && document) {
@@ -60,10 +65,24 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
       setDateSignature(document.date_signature?.slice(0, 10) || '');
       setDatePublication(document.date_publication?.slice(0, 10) || '');
       setDateVigueur((document as { date_entree_vigueur?: string | null }).date_entree_vigueur?.slice(0, 10) || '');
+      setThemeIds((document.themes ?? []).map((t) => t.id));
+      suggest.reset();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editDocModalOpen, document]);
 
   if (!document) return null;
+
+  const toggleTheme = (id: string) =>
+    setThemeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const handleSuggest = () => {
+    if (!documentId) return;
+    suggest.mutate(documentId, {
+      onSuccess: (suggested) =>
+        setThemeIds((prev) => Array.from(new Set([...prev, ...suggested.map((t) => t.id)]))),
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +94,7 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
       date_signature: dateSignature || null,
       date_publication: datePublication || null,
       date_entree_vigueur: dateVigueur || null,
+      themes: themeIds,
     }, {
       onSuccess: () => setEditDocModalOpen(false)
     });
@@ -164,6 +184,41 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
                 value={dateVigueur}
                 onChange={(e) => setDateVigueur(e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Thèmes de vie */}
+          <div className="space-y-2 pt-2 border-t border-b1">
+            <div className="flex items-center justify-between">
+              <Label>Thèmes</Label>
+              <button
+                type="button"
+                onClick={handleSuggest}
+                disabled={suggest.isPending}
+                className="flex items-center gap-1.5 text-[11px] text-gold hover:opacity-80 disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {suggest.isPending ? 'Analyse…' : 'Suggérer (IA)'}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(themes ?? []).map((theme) => {
+                const active = themeIds.includes(theme.id);
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => toggleTheme(theme.id)}
+                    className={[
+                      'flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors',
+                      active ? 'bg-gold/10 border-gold/30 text-t1' : 'bg-s2 border-b1 text-t3 hover:text-t2',
+                    ].join(' ')}
+                  >
+                    <span className={active ? 'text-gold' : 'text-t4'}>{themeIcon(theme.icon, 'w-3.5 h-3.5')}</span>
+                    <span className="text-[12px] truncate">{theme.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

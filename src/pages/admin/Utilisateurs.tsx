@@ -11,6 +11,7 @@ import {
 } from '@/features/admin/api/usersApi';
 import UserDetailDrawer from '@/features/admin/components/UserDetailDrawer';
 import UserFormModal from '@/features/admin/components/UserFormModal';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 import {
   Users, UserPlus, Search, Wifi, Mail, RotateCcw, X, ChevronLeft, ChevronRight,
   Loader2, CheckCircle2, AlertCircle,
@@ -55,7 +56,7 @@ function StatCard({ label, value, loading }: { label: string; value?: number; lo
     <div className="bg-s1 border border-b1 rounded-xl px-3.5 py-2.5">
       <div className="text-t3 text-[10px] font-mono uppercase tracking-wide">{label}</div>
       <div className="text-t1 font-display text-xl font-semibold mt-0.5">
-        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+        {loading ? <span className="text-t4">—</span> : formatCompactNumber(value ?? 0)}
       </div>
     </div>
   );

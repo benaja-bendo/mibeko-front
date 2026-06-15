@@ -38,6 +38,8 @@ export interface SearchParams {
   dateTo?: string | null;
   /** Tri des résultats. */
   sort?: SearchSort;
+  /** Slug du thème de vie (filtre serveur `tag`). */
+  tag?: string | null;
   /** Restreindre à un document précis. */
   documentId?: string | null;
   page?: number;
@@ -71,6 +73,7 @@ export async function searchLibrary(
       date_from: params.dateFrom || undefined,
       date_to: params.dateTo || undefined,
       sort: params.sort && params.sort !== 'relevance' ? params.sort : undefined,
+      tag: params.tag || undefined,
       document_id: params.documentId || undefined,
       page: params.page || undefined,
       per_page: params.perPage || undefined,

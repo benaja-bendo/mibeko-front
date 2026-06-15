@@ -12,6 +12,7 @@ import type { DocumentTypeRef, InstitutionRef, TagRef } from '@/features/admin/a
 import DocumentTypeModal from '@/features/admin/components/DocumentTypeModal';
 import InstitutionModal from '@/features/admin/components/InstitutionModal';
 import TagModal from '@/features/admin/components/TagModal';
+import { themeIcon } from '@/features/library/components/themeIcon';
 import ConfirmDeleteDialog from '@/features/admin/components/ConfirmDeleteDialog';
 import { Button } from '@/shared/components/ui/Button';
 import { Plus, Pencil, Trash2, BookText, Building2, Tag as TagIcon } from 'lucide-react';
@@ -21,7 +22,7 @@ type Tab = 'types' | 'institutions' | 'tags';
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'types', label: 'Types de loi', icon: <BookText className="w-3.5 h-3.5" /> },
   { key: 'institutions', label: 'Institutions', icon: <Building2 className="w-3.5 h-3.5" /> },
-  { key: 'tags', label: 'Tags', icon: <TagIcon className="w-3.5 h-3.5" /> },
+  { key: 'tags', label: 'Thèmes', icon: <TagIcon className="w-3.5 h-3.5" /> },
 ];
 
 export default function Referentiels() {
@@ -354,13 +355,13 @@ function TagsSection() {
         isLoading={isLoading}
         isError={isError}
         onCreate={openCreate}
-        createLabel="Nouveau tag"
+        createLabel="Nouveau thème"
       >
         <table className="w-full">
           <thead className="border-b border-b1 bg-s2/40">
             <tr>
-              <Th>Nom</Th>
-              <Th>Slug</Th>
+              <Th>Thème</Th>
+              <Th>Description</Th>
               <Th className="w-24">Usage</Th>
               <Th className="w-24 text-right">Actions</Th>
             </tr>
@@ -368,15 +369,21 @@ function TagsSection() {
           <tbody>
             {data.map((r) => (
               <tr key={r.id} className="border-b border-b1 last:border-0 hover:bg-s2/40">
-                <td className="px-4 py-2.5 text-t1 text-sm">{r.name}</td>
-                <td className="px-4 py-2.5 text-t3 text-[12px] font-mono">{r.slug}</td>
+                <td className="px-4 py-2.5 text-t1 text-sm">
+                  <div className="flex items-center gap-2">
+                    {themeIcon(r.icon, 'w-4 h-4 text-gold')}
+                    <span>{r.name}</span>
+                    <span className="text-t4 text-[11px] font-mono">{r.slug}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-2.5 text-t3 text-[12px]">{r.description || '—'}</td>
                 <td className="px-4 py-2.5"><CountBadge value={r.usage_count} /></td>
                 <td className="px-4 py-2.5">
                   <RowActions
                     onEdit={() => openEdit(r)}
                     onDelete={() => setToDelete(r)}
                     deleteDisabled={r.usage_count > 0}
-                    deleteHint={`Tag utilisé ${r.usage_count} fois`}
+                    deleteHint={`Thème utilisé ${r.usage_count} fois`}
                   />
                 </td>
               </tr>
@@ -384,7 +391,7 @@ function TagsSection() {
             {!isLoading && data.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-10 text-center text-t4 text-sm">
-                  Aucun tag.
+                  Aucun thème.
                 </td>
               </tr>
             )}
@@ -396,7 +403,7 @@ function TagsSection() {
       <ConfirmDeleteDialog
         open={!!toDelete}
         onOpenChange={(o) => !o && setToDelete(null)}
-        title="Supprimer ce tag ?"
+        title="Supprimer ce thème ?"
         description={`« ${toDelete?.name} » sera définitivement supprimé.`}
         pending={remove.isPending}
         error={remove.error as Error | null}

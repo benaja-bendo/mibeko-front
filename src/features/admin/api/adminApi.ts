@@ -110,6 +110,9 @@ export interface TagRef {
   id: string;
   name: string;
   slug: string;
+  icon: string | null;
+  description: string | null;
+  display_order: number;
   documents_count: number;
   articles_count: number;
   usage_count: number;
@@ -118,6 +121,9 @@ export interface TagRef {
 export interface TagPayload {
   name: string;
   slug?: string;
+  icon?: string | null;
+  description?: string | null;
+  display_order?: number;
 }
 
 export const listTags = (): Promise<TagRef[]> =>

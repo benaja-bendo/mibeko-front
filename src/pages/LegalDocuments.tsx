@@ -6,6 +6,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 import {
   createColumnHelper,
   flexRender,
@@ -827,7 +828,7 @@ export default function LegalDocuments() {
               <div>
                 <h1 className="text-xl font-display font-semibold text-t1">Documents juridiques</h1>
                 <p className="text-t3 text-[11px] font-mono mt-0.5">
-                  {pagination?.total != null ? `${pagination.total.toLocaleString('fr-FR')} document${pagination.total > 1 ? 's' : ''}` : '…'}
+                  {pagination?.total != null ? `${formatCompactNumber(pagination.total)} document${pagination.total > 1 ? 's' : ''}` : '…'}
                   {isFetching && !isLoading && <span className="ml-2 opacity-60 animate-pulse">↻</span>}
                 </p>
               </div>
@@ -1001,7 +1002,7 @@ export default function LegalDocuments() {
                 <span className="text-t3 text-[10px] font-mono">
                   Page <strong className="text-t1">{page}</strong> / <strong className="text-t1">{totalPages}</strong>
                   {pagination?.total && (
-                    <span className="ml-2">— {pagination.total.toLocaleString('fr-FR')} total</span>
+                    <span className="ml-2">— {formatCompactNumber(pagination.total)} total</span>
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">

@@ -71,6 +71,8 @@ export interface LibraryFilterState {
   dateFrom: string | null;
   dateTo: string | null;
   sort: SearchSort;
+  /** Slug du thème de vie (filtre serveur via `tag`). */
+  theme: string | null;
 }
 
 /** Document mis en avant sur l'accueil de la Bibliothèque. */

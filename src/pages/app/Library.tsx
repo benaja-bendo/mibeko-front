@@ -49,6 +49,8 @@ import { useRecentSearches } from '@/features/library/hooks/useRecentSearches';
 import LibrarySearchBar from '@/features/library/components/LibrarySearchBar';
 import LibraryFilters from '@/features/library/components/LibraryFilters';
 import LibraryHomeView from '@/features/library/components/LibraryHomeView';
+import ThemeBrowseStrip from '@/features/library/components/ThemeBrowseStrip';
+import ThemeResults from '@/features/library/components/ThemeResults';
 import LibraryResultItem from '@/features/library/components/LibraryResultItem';
 import LibraryPagination from '@/features/library/components/LibraryPagination';
 import DocumentReaderView from '@/features/library/components/DocumentReaderView';
@@ -70,6 +72,7 @@ const DEFAULT_FILTERS: LibraryFilterState = {
   dateFrom: null,
   dateTo: null,
   sort: 'relevance',
+  theme: null,
 };
 
 /** Étapes de la visite guidée. Les cibles absentes du DOM sont sautées. */
@@ -116,7 +119,8 @@ function countActiveFilters(f: LibraryFilterState): number {
     (f.institutionId ? 1 : 0) +
     (f.dateFrom ? 1 : 0) +
     (f.dateTo ? 1 : 0) +
-    (f.sort !== 'relevance' ? 1 : 0)
+    (f.sort !== 'relevance' ? 1 : 0) +
+    (f.theme ? 1 : 0)
   );
 }
 
@@ -134,6 +138,7 @@ function filtersFromParams(params: URLSearchParams): LibraryFilterState {
     dateFrom: params.get('from'),
     dateTo: params.get('to'),
     sort: sort === 'date_desc' || sort === 'date_asc' ? sort : 'relevance',
+    theme: params.get('theme'),
   };
 }
 
@@ -209,6 +214,7 @@ export default function Library() {
     if (filters.dateFrom) params.set('from', filters.dateFrom);
     if (filters.dateTo) params.set('to', filters.dateTo);
     if (filters.sort !== 'relevance') params.set('sort', filters.sort);
+    if (filters.theme) params.set('theme', filters.theme);
     if (page > 1) params.set('page', String(page));
     if (selected) {
       params.set('doc', selected.documentId);
@@ -226,13 +232,19 @@ export default function Library() {
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
     sort: filters.sort,
+    tag: filters.theme,
     page,
     perPage: PER_PAGE,
   });
 
   const results = data?.results ?? [];
   const pagination = data?.pagination ?? null;
-  const hasSearched = submittedQuery.trim().length >= 2;
+  // Trois modes exclusifs : recherche d'articles (texte), parcours par thème
+  // (liste de documents), ou accueil. Le thème seul NE lance PAS la recherche
+  // full-text (qui exige une requête texte).
+  const isSearch = submittedQuery.trim().length >= 2;
+  const isThemeBrowse = !isSearch && !!filters.theme;
+  const hasSearched = isSearch;
   const activeFilterCount = countActiveFilters(filters);
 
   const runSearch = (q: string) => {
@@ -363,6 +375,10 @@ export default function Library() {
             value={query}
             onChange={setQuery}
             onSubmit={handleSubmit}
+            onClear={() => {
+              setSubmittedQuery('');
+              setPage(1);
+            }}
             onOpenSuggestion={openSuggestion}
             isLoading={isFetching && hasSearched}
           />
@@ -417,8 +433,15 @@ export default function Library() {
       {/* Accueil vivant ou résultats */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-3 p-3">
-          {!hasSearched ? (
+          {isThemeBrowse ? (
+            <ThemeResults
+              slug={filters.theme as string}
+              onOpenDocument={openHomeDocument}
+              onClear={() => patchFilters({ theme: null })}
+            />
+          ) : !isSearch ? (
             <div data-tour="home">
+              <ThemeBrowseStrip onSelect={(slug) => patchFilters({ theme: slug })} />
               <LibraryHomeView
                 onSearch={runSearch}
                 onOpenDocument={openHomeDocument}

@@ -134,6 +134,7 @@ export function useDocumentMutations(documentId: string) {
       legal_scope?: 'national' | 'ohada' | 'communautaire',
       type_code?: string,
       curation_status?: 'draft' | 'review' | 'validated' | 'published',
+      themes?: string[],
     }) => {
       return apiFetch<unknown>(`/legal-documents/${documentId}`, {
         method: 'PATCH',
@@ -144,6 +145,10 @@ export function useDocumentMutations(documentId: string) {
       queryClient.invalidateQueries({ queryKey: ['document', documentId] });
       // La liste du catalogue éditeur affiche titre + statuts : on la rafraîchit aussi.
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // Les thèmes peuvent avoir changé : on rafraîchit la bande et les listes
+      // « Parcourir par thème » de la bibliothèque.
+      queryClient.invalidateQueries({ queryKey: ['library', 'themes'] });
+      queryClient.invalidateQueries({ queryKey: ['library', 'theme-documents'] });
     },
   });
 

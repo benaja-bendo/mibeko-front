@@ -31,11 +31,15 @@ export default function TagModal({
 
   const [name, setName] = React.useState('');
   const [slug, setSlug] = React.useState('');
+  const [icon, setIcon] = React.useState('');
+  const [description, setDescription] = React.useState('');
 
   React.useEffect(() => {
     if (open) {
       setName(record?.name ?? '');
       setSlug(record?.slug ?? '');
+      setIcon(record?.icon ?? '');
+      setDescription(record?.description ?? '');
     }
   }, [open, record]);
 
@@ -44,7 +48,12 @@ export default function TagModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { name: name.trim(), ...(slug.trim() ? { slug: slug.trim() } : {}) };
+    const payload = {
+      name: name.trim(),
+      ...(slug.trim() ? { slug: slug.trim() } : {}),
+      icon: icon.trim() || null,
+      description: description.trim() || null,
+    };
     if (isEdit && record) {
       update.mutate({ id: record.id, payload }, { onSuccess: () => onOpenChange(false) });
     } else {
@@ -58,7 +67,7 @@ export default function TagModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TagIcon className="w-5 h-5" />
-            {isEdit ? 'Modifier le tag' : 'Nouveau tag'}
+            {isEdit ? 'Modifier le thème' : 'Nouveau thème'}
           </DialogTitle>
         </DialogHeader>
 
@@ -66,20 +75,40 @@ export default function TagModal({
           <div className="space-y-2">
             <Label>Nom</Label>
             <Input
-              placeholder="Ex: Droit du travail"
+              placeholder="Ex: Travail & emploi"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Slug <span className="text-t4 font-mono text-[10px]">(optionnel)</span></Label>
+              <Input
+                placeholder="Auto-généré"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Icône <span className="text-t4 font-mono text-[10px]">(lucide)</span></Label>
+              <Input
+                placeholder="Ex: briefcase"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label>Slug <span className="text-t4 font-mono text-[10px]">(optionnel)</span></Label>
+            <Label>Description <span className="text-t4 font-mono text-[10px]">(optionnel)</span></Label>
             <Input
-              placeholder="Auto-généré depuis le nom"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              className="font-mono"
+              placeholder="Ex: Contrat, licenciement, salaire…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 

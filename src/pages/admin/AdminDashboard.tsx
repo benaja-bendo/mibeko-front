@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { useAdminOverview } from '@/features/admin/hooks/useAdmin';
 import { BookText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 
 function Metric({ label, value, loading }: { label: string; value?: number; loading: boolean }) {
   return (
     <div className="bg-s1 border border-b1 rounded-xl px-4 py-3.5">
       <div className="text-t3 text-[11px] font-mono uppercase tracking-wide">{label}</div>
       <div className="text-t1 font-display text-2xl font-semibold mt-1">
-        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+        {loading ? <span className="text-t4">—</span> : formatCompactNumber(value ?? 0)}
       </div>
     </div>
   );
@@ -39,7 +40,7 @@ function AttentionMetric({
         {label}
       </div>
       <div className={`font-display text-2xl font-semibold mt-1 ${warn ? 'text-red-400' : 'text-t1'}`}>
-        {loading ? <span className="text-t4">—</span> : (value ?? 0).toLocaleString('fr-FR')}
+        {loading ? <span className="text-t4">—</span> : formatCompactNumber(value ?? 0)}
       </div>
     </>
   );
