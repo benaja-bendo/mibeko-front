@@ -12,6 +12,7 @@ import {
   type PythonExtractionRun,
 } from '../api/pythonApi';
 import { RoleBadge, ScopeBadge, Spinner, StatusBadge } from './badges';
+import { formatDate } from '@/shared/lib/date';
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '—';
@@ -184,9 +185,9 @@ export function DocumentDetailPanel({
               <MetaItem label="Code stock" value={doc.stock_code} />
               <MetaItem label="Type" value={doc.type_code} />
               <MetaItem label="Statut juridique" value={doc.statut} />
-              <MetaItem label="Publication" value={doc.date_publication} />
-              <MetaItem label="Signature" value={doc.date_signature} />
-              <MetaItem label="Consolidé au" value={doc.consolidation_as_of} />
+              <MetaItem label="Publication" value={formatDate(doc.date_publication)} />
+              <MetaItem label="Signature" value={formatDate(doc.date_signature)} />
+              <MetaItem label="Consolidé au" value={formatDate(doc.consolidation_as_of)} />
               <MetaItem label="Nœuds de structure" value={String(doc.nb_nodes)} />
             </div>
 

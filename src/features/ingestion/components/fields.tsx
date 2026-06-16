@@ -2,6 +2,27 @@
  * fields.tsx — Champs de formulaire partagés de la feature ingestion.
  */
 import React from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/components/ui/Tooltip';
+
+/** Petite pastille « ? » au survol pour expliquer un champ ou un choix. */
+export function HelpTip({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Aide"
+          className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-b2 text-t4 hover:text-t2 hover:border-b3 text-[9px] font-mono leading-none align-middle transition-colors"
+        >
+          ?
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[300px] leading-relaxed font-body normal-case tracking-normal">
+        {children}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function Field({
   label,

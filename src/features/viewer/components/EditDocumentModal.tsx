@@ -22,6 +22,7 @@ import { Input } from '@/shared/components/ui/Input';
 import { Label } from '@/shared/components/ui/Label';
 import { FilePen, Sparkles } from 'lucide-react';
 import { useThemes, useSuggestThemes } from '@/features/library/hooks/useThemes';
+import { useDocumentTypes } from '@/features/library/hooks/useLibrary';
 import { themeIcon } from '@/features/library/components/themeIcon';
 
 const STATUTS = [
@@ -45,10 +46,12 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
   const { editDocModalOpen, setEditDocModalOpen } = useViewerStore();
   const { updateDocument } = useDocumentMutations(documentId || '');
   const { data: themes } = useThemes();
+  const { data: docTypes } = useDocumentTypes();
   const suggest = useSuggestThemes();
 
   const [titre, setTitre] = React.useState('');
   const [nor, setNor] = React.useState('');
+  const [typeCode, setTypeCode] = React.useState<string>('');
   const [statut, setStatut] = React.useState<string>('vigueur');
   const [scope, setScope] = React.useState<string>('national');
   const [dateSignature, setDateSignature] = React.useState('');
@@ -60,6 +63,7 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
     if (editDocModalOpen && document) {
       setTitre(document.titre_officiel || document.title || '');
       setNor(document.reference_nor || '');
+      setTypeCode(document.type?.code || document.type_code || '');
       setStatut(document.statut || 'vigueur');
       setScope(document.legal_scope || 'national');
       setDateSignature(document.date_signature?.slice(0, 10) || '');
@@ -89,6 +93,9 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
     updateDocument.mutate({
       titre_officiel: titre.trim(),
       reference_nor: nor.trim() || null,
+      // type_code est validé `exists:document_types,code` côté Laravel : on
+      // n'envoie rien si vide pour ne pas déclencher d'erreur de validation.
+      type_code: typeCode || undefined,
       statut: statut as 'vigueur' | 'abroge' | 'projet',
       legal_scope: scope as 'national' | 'ohada' | 'communautaire',
       date_signature: dateSignature || null,
@@ -129,6 +136,20 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
                 value={nor}
                 onChange={(e) => setNor(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Type de document</Label>
+              <Select value={typeCode} onValueChange={setTypeCode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(docTypes ?? []).map((t) => (
+                    <SelectItem key={t.code} value={t.code}>{t.code} — {t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -6,29 +6,80 @@
  */
 import React, { useState } from 'react';
 import { uploadDocument } from '../api/pythonApi';
+import { useDocumentTypes } from '@/features/library/hooks/useLibrary';
 import { PdfDropzone, ArtifactMultiPicker } from './FilePicker';
-import { Field, TextInput, DateInput, Select, ErrorNote } from './fields';
+import { Field, TextInput, DateInput, Select, ErrorNote, HelpTip } from './fields';
 import { Spinner } from './badges';
 
+/**
+ * Reproduit `sanitize_path_component` du backend Python (main.py) : ce que l'on
+ * prévisualise ici est exactement la clé/le dossier MinIO qui sera stocké.
+ * On retire les accents en plus (é → e) pour un slug propre ; comme la valeur
+ * envoyée est déjà ASCII-kebab, le sanitize serveur la laisse inchangée.
+ */
+function slugifyStockCode(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+const FRENCH_MONTHS: Record<string, string> = {
+  janvier: '01', février: '02', fevrier: '02', mars: '03', avril: '04',
+  mai: '05', juin: '06', juillet: '07', août: '08', aout: '08',
+  septembre: '09', octobre: '10', novembre: '11', décembre: '12', decembre: '12',
+};
+
+/**
+ * Suggestions best-effort tirées du titre (NOR + date de signature). Jamais
+ * imposées : on ne pré-remplit qu'un champ encore vierge, et tout reste éditable.
+ */
+function suggestFromTitle(title: string): { nor?: string; dateSignature?: string } {
+  const out: { nor?: string; dateSignature?: string } = {};
+
+  // NOR : « n° 45/75 », « n°46 2014 », « no 12-2020 »…
+  const norMatch = /n[°ºo]\s*°?\s*(\d{1,4})(?:\s*[/\- ]\s*(\d{2,4}))?/i.exec(title);
+  if (norMatch) out.nor = norMatch[2] ? `${norMatch[1]}/${norMatch[2]}` : norMatch[1];
+
+  // Date : « du 3 novembre 2014 » → 2014-11-03
+  const dateMatch = /\bdu\s+(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/i.exec(title);
+  if (dateMatch) {
+    const mm = FRENCH_MONTHS[dateMatch[2].toLowerCase()];
+    if (mm) out.dateSignature = `${dateMatch[3]}-${mm}-${dateMatch[1].padStart(2, '0')}`;
+  }
+
+  return out;
+}
+
 export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const { data: docTypes } = useDocumentTypes();
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [mdFiles, setMdFiles] = useState<File[]>([]);
   const [jsonFiles, setJsonFiles] = useState<File[]>([]);
   const [titre, setTitre] = useState('');
   const [stockCode, setStockCode] = useState('');
+  // Tant que l'utilisateur n'a pas édité le code à la main, on le dérive du titre.
+  const [stockCodeTouched, setStockCodeTouched] = useState(false);
   const [legalScope, setLegalScope] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [typeCode, setTypeCode] = useState('');
   const [referenceNor, setReferenceNor] = useState('');
   const [dateSignature, setDateSignature] = useState('');
   const [datePublication, setDatePublication] = useState('');
+  // Suggestions NOR/date dérivées du titre : on cesse de les écraser dès édition manuelle.
+  const [norTouched, setNorTouched] = useState(false);
+  const [dateSignatureTouched, setDateSignatureTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setPdfFile(null); setMdFiles([]); setJsonFiles([]);
-    setTitre(''); setStockCode(''); setLegalScope('');
+    setTitre(''); setStockCode(''); setStockCodeTouched(false); setLegalScope('');
     setTypeCode(''); setReferenceNor(''); setDateSignature(''); setDatePublication('');
+    setNorTouched(false); setDateSignatureTouched(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +124,16 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
       <Field label="Titre officiel" required>
         <TextInput
           value={titre}
-          onChange={(e) => setTitre(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setTitre(v);
+            // Tant qu'il n'a pas été édité à la main, le code stock suit le titre.
+            if (!stockCodeTouched) setStockCode(slugifyStockCode(v));
+            // Suggestions best-effort (NOR, date de signature) tant que vierges.
+            const s = suggestFromTitle(v);
+            if (!norTouched && s.nor) setReferenceNor(s.nor);
+            if (!dateSignatureTouched && s.dateSignature) setDateSignature(s.dateSignature);
+          }}
           placeholder="Ex : Code du Travail (Loi n° 45/75 du 15 mars 1975)"
         />
       </Field>
@@ -82,10 +142,19 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
         <Field label="Code stock" required>
           <TextInput
             value={stockCode}
-            onChange={(e) => setStockCode(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setStockCode(v);
+              // Édition manuelle → on fige ; champ vidé → l'auto-remplissage reprend.
+              setStockCodeTouched(v.trim().length > 0);
+            }}
+            onBlur={(e) => setStockCode(slugifyStockCode(e.target.value))}
             placeholder="code-travail-1975"
             className="font-mono"
           />
+          <p className="text-t4 text-[11px] font-mono mt-1 leading-tight">
+            Identifiant unique + dossier de stockage MinIO. Pré-rempli depuis le titre, modifiable.
+          </p>
         </Field>
         <Field label="Périmètre juridique">
           <Select value={legalScope} onChange={(e) => setLegalScope(e.target.value)}>
@@ -98,8 +167,21 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
       </div>
 
       <div>
-        <div className="text-xs font-mono uppercase tracking-widest text-t3 mb-1.5">
-          Artefacts pré-traités <span className="text-t4 normal-case tracking-normal">(recommandé — évite l'OCR)</span>
+        <div className="text-xs font-mono uppercase tracking-widest text-t3 mb-1.5 flex items-center gap-1.5">
+          <span>Artefacts pré-traités <span className="text-t4 normal-case tracking-normal">(recommandé — évite l'OCR)</span></span>
+          <HelpTip>
+            <div className="space-y-1.5">
+              <p>Ces fichiers court-circuitent l'OCR (MinerU) et permettent un parsing immédiat.</p>
+              <p>
+                <strong className="text-gold">JSON</strong> — à privilégier si le PDF contient des <strong>tableaux</strong> ou
+                une mise en page complexe, et pour conserver les <strong>numéros de page</strong> (citabilité). Format le plus fidèle.
+              </p>
+              <p>
+                <strong className="text-purple">Markdown</strong> — pour les textes simples. Plus lisible/éditable à la main,
+                mais perd les numéros de page et peut dégrader les tableaux.
+              </p>
+            </div>
+          </HelpTip>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <ArtifactMultiPicker
@@ -148,23 +230,34 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
       {showAdvanced && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-1">
           <Field label="Type (code)">
-            <TextInput
-              value={typeCode}
-              onChange={(e) => setTypeCode(e.target.value)}
-              placeholder="CODE, CONV, AU, LOI… (auto si vide)"
-              className="font-mono uppercase"
-            />
+            <Select value={typeCode} onChange={(e) => setTypeCode(e.target.value)} className="font-mono">
+              <option value="">Auto-détection</option>
+              {(docTypes ?? []).map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.code} — {t.name}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field label="Référence (NOR)">
             <TextInput
               value={referenceNor}
-              onChange={(e) => setReferenceNor(e.target.value)}
+              onChange={(e) => {
+                setReferenceNor(e.target.value);
+                setNorTouched(e.target.value.trim().length > 0);
+              }}
               placeholder="45/75"
               className="font-mono"
             />
           </Field>
           <Field label="Date de signature">
-            <DateInput value={dateSignature} onChange={(e) => setDateSignature(e.target.value)} />
+            <DateInput
+              value={dateSignature}
+              onChange={(e) => {
+                setDateSignature(e.target.value);
+                setDateSignatureTouched(!!e.target.value);
+              }}
+            />
           </Field>
           <Field label="Date de publication">
             <DateInput value={datePublication} onChange={(e) => setDatePublication(e.target.value)} />

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { themeIcon } from '@/features/library/components/themeIcon';
+import { formatDate } from '@/shared/lib/date';
 
 export default function DocumentInfoModal({ document }: { document?: LegalDocument }) {
   const { infoModalOpen, setInfoModalOpen } = useViewerStore();
@@ -66,7 +67,7 @@ export default function DocumentInfoModal({ document }: { document?: LegalDocume
                 <span className="text-[10px] font-mono uppercase tracking-wider">Date de signature</span>
               </div>
               <p className="text-[13px] text-t1 font-medium">
-                {document.dates?.signature || document.date_signature || 'Non spécifiée'}
+                {formatDate(document.dates?.signature || document.date_signature) || 'Non spécifiée'}
               </p>
             </div>
 
