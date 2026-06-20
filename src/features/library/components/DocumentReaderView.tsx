@@ -45,6 +45,7 @@ import {
 } from '@/features/library/api/libraryApi';
 import { SCOPE_LABELS, type LegalScope } from '@/features/library/types';
 import type { TreeNode } from '@/shared/types/database';
+import { articleLeafLabel } from '@/shared/lib/legalLabels';
 
 interface DocumentReaderViewProps {
   documentId: string;
@@ -92,7 +93,7 @@ function TocEntry({
   const isArticle = node.type === 'ARTICLE';
   const isActive = node.id === activeId;
   const label = isArticle
-    ? `Art. ${node.numero ?? ''}`
+    ? articleLeafLabel(node.numero, { short: true })
     : `${node.numero ? `${node.numero}. ` : ''}${node.label ?? node.type}`;
 
   return (
@@ -422,7 +423,12 @@ export default function DocumentReaderView({
                     {title}
                   </p>
                   <h3 className="mb-3 font-mono text-sm font-semibold uppercase tracking-wide text-gold">
-                    Article {currentArticle.numero}
+                    {articleLeafLabel(currentArticle.numero)}
+                    {currentArticle.source_locator?.page ? (
+                      <span className="ml-2 font-normal normal-case text-t4">
+                        · p. {currentArticle.source_locator.page}
+                      </span>
+                    ) : null}
                   </h3>
                   <p className="whitespace-pre-wrap text-[15px] leading-7 text-t1/90">
                     {currentArticle.content || '—'}
@@ -558,7 +564,12 @@ export default function DocumentReaderView({
                           }`}
                         >
                           <h4 className="mb-1.5 font-mono text-xs font-semibold uppercase tracking-wide text-gold">
-                            Article {node.numero}
+                            {articleLeafLabel(node.numero)}
+                            {node.source_locator?.page ? (
+                              <span className="ml-2 font-normal normal-case text-t4">
+                                · p. {node.source_locator.page}
+                              </span>
+                            ) : null}
                           </h4>
                           <p className="whitespace-pre-wrap text-[15px] leading-7 text-t1/90">
                             {node.content || '—'}
