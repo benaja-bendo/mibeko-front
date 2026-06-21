@@ -47,10 +47,11 @@ export interface SearchParams {
 }
 
 /**
- * Recherche full-text dans la base juridique (moteur 100 % PostgreSQL).
+ * Recherche dans la base juridique (moteur hybride : full-text PostgreSQL +
+ * filets de rappel trigram et sémantique).
  *
  * Renvoie toujours une liste paginée d'articles classés par pertinence —
- * jamais de synthèse IA (l'IA est une action volontaire distincte).
+ * jamais de réponse générée par l'IA (la synthèse est une action distincte).
  */
 export async function searchLibrary(
   params: SearchParams,
