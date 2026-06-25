@@ -308,6 +308,7 @@ export default function Ingestion() {
               docId={detailId}
               onClose={() => setDetailId(null)}
               onParse={handleParse}
+              onReprocess={handleReprocess}
               onPublish={(ids) => publishMutation.mutate(ids)}
               onReject={(ids) => rejectMutation.mutate(ids)}
               busy={busy}

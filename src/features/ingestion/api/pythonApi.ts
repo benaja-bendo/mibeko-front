@@ -284,6 +284,32 @@ export const parseDocument = async (
 };
 
 // ---------------------------------------------------------------------------
+// Rejouabilité — arbitrage d'un retraitement non-destructif (staging)
+// ---------------------------------------------------------------------------
+
+/** Résumé de comparaison entre la proposition d'un run (staging) et le live. */
+export interface RunDiff {
+  proposed_count: number;
+  live_count: number;
+  added: string[];
+  removed: string[];
+  changed: string[];
+  summary: { added: number; removed: number; changed: number; unchanged: number };
+}
+
+/** Compare la proposition en attente d'un run au contenu actuellement publié. */
+export const getRunDiff = (docId: string, runId: string): Promise<RunDiff> =>
+  pyFetch(`/documents/${docId}/runs/${runId}/diff`);
+
+/** Applique la proposition d'un run au live (écrasement explicite, validé humain). */
+export const promoteRun = (docId: string, runId: string): Promise<{ message: string; document_id?: string }> =>
+  pyFetch(`/documents/${docId}/runs/${runId}/promote`, { method: 'POST' });
+
+/** Rejette la proposition d'un run : le contenu existant reste intact. */
+export const discardRun = (docId: string, runId: string): Promise<{ message: string }> =>
+  pyFetch(`/documents/${docId}/runs/${runId}/discard`, { method: 'POST' });
+
+// ---------------------------------------------------------------------------
 // SSE — Server-Sent Events
 // ---------------------------------------------------------------------------
 

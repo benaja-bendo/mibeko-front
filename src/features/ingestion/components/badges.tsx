@@ -12,6 +12,8 @@ const EXTRACTION_STATUS_CFG: Record<string, { cls: string; label: string }> = {
   running:    { cls: 'text-amber bg-amber/10 border-amber/20',   label: 'En cours' },
   queued:     { cls: 'text-purple bg-purple/10 border-purple/20', label: 'En file' },
   succeeded:  { cls: 'text-green bg-green/10 border-green/20',   label: 'Réussi' },
+  needs_review: { cls: 'text-gold bg-gold-d border-gold/25',     label: 'À arbitrer' },
+  discarded:  { cls: 'text-t3 bg-s2 border-b1',                  label: 'Rejeté' },
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {
