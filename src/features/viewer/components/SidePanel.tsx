@@ -138,7 +138,7 @@ export default function SidePanel() {
             ) : (
               <>
                 <div className="text-[9.5px] font-mono uppercase tracking-[0.09em] text-t3 mb-2 pb-1 border-b border-b1 flex justify-between items-center">
-                  <span>Texte en vigueur</span>
+                  <span>Texte en vigueur — édition rapide</span>
                   {updateArticle.isPending && <Clock className="w-3 h-3 animate-spin" />}
                 </div>
                 <textarea 
@@ -166,7 +166,7 @@ export default function SidePanel() {
                     onClick={() => setRenameModal(true, selectedNode)}
                     className="text-[11px] h-8 col-span-2"
                   >
-                    <Edit2 className="w-3 h-3 mr-1.5" /> Modifier l'article (numéro, contenu, statut)
+                    <Edit2 className="w-3 h-3 mr-1.5" /> Édition complète (numéro, statut, validité…)
                   </Button>
                   <Button
                     variant="outline"
@@ -257,17 +257,25 @@ export default function SidePanel() {
 
                 <div className="pt-3 border-t border-b1">
                   <span className="text-[9.5px] text-t3 font-mono uppercase tracking-[0.07em] block mb-2">Statut de validation</span>
+                  {/* L'état « erreur » n'est plus posé à la main : il est dérivé des
+                      anomalies de curation (badge ✗ + panneau Anomalies). On ne
+                      propose ici que les intentions humaines de curation. */}
+                  {selectedNode.vs === 'err' && (
+                    <p className="text-[10px] text-red mb-2 flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      Anomalie détectée — résolvez-la dans le panneau « Anomalies ».
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
                       { id: 'validated', label: 'Validé', icon: CheckCircle2, color: 'text-green bg-green-d' },
-                      { id: 'error', label: 'Erreur', icon: AlertCircle, color: 'text-red bg-red-d' },
                       { id: 'pending', label: 'Attente', icon: Clock, color: 'text-amber bg-amber-d' },
                       { id: 'draft', label: 'Brouillon', icon: Edit2, color: 'text-t3 bg-s3' },
                     ].map(status => {
                       // Normalize the API value to match the buttons
-                      const currentStatus = selectedNode.vs === 'ok' ? 'validated' : 
-                                            selectedNode.vs === 'err' ? 'error' : 
-                                            selectedNode.vs === 'pend' ? 'pending' : 
+                      const currentStatus = selectedNode.vs === 'ok' ? 'validated' :
+                                            selectedNode.vs === 'err' ? 'error' :
+                                            selectedNode.vs === 'pend' ? 'pending' :
                                             selectedNode.vs || 'draft'; // fallback
 
                       return (

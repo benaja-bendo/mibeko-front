@@ -2,6 +2,7 @@
  * badges.tsx — Badges partagés de la feature ingestion :
  * statut d'extraction, rôle documentaire (STOCK/FLUX), périmètre juridique.
  */
+import { documentRoleLabel, documentRoleHint } from '@/shared/lib/labels';
 
 const EXTRACTION_STATUS_CFG: Record<string, { cls: string; label: string }> = {
   completed:  { cls: 'text-green bg-green/10 border-green/20',   label: 'Terminé' },
@@ -34,9 +35,9 @@ export function RoleBadge({ role }: { role?: string | null }) {
         'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold tracking-wider border',
         isStock ? 'text-gold bg-gold-d border-gold/25' : 'text-purple bg-purple/10 border-purple/25',
       ].join(' ')}
-      title={isStock ? 'Texte consolidé (code, constitution…)' : 'Texte de flux (acte issu d’un JO…)'}
+      title={documentRoleHint(role)}
     >
-      {role}
+      {documentRoleLabel(role, { short: true })}
     </span>
   );
 }

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Button } from '@/shared/components/ui/Button';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { cn } from '@/shared/lib/utils';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Target, Maximize, MousePointer2, AlertCircle as LucideAlertCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Target, Maximize, MoveHorizontal, MousePointer2, AlertCircle as LucideAlertCircle } from 'lucide-react';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { useParams } from 'react-router-dom';
 import type { TreeNode } from '@/shared/types/database';
@@ -53,11 +53,22 @@ export default function PdfViewer({
 
   const ppRef = useRef<HTMLDivElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  // Proxy pdf.js (capté au chargement) + cache du texte normalisé par page :
+  // permet de retrouver la page d'un élément EN CHERCHANT dans le texte du PDF
+  // quand aucune coordonnée n'a été enregistrée à l'ingestion (cas courant).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfProxyRef = useRef<any>(null);
+  const pageTextCache = useRef<Map<number, string>>(new Map());
+  const [locating, setLocating] = useState(false);
 
   const [numPages, setNumPages] = useState<number>(pdfPages?.length || 1);
   const [drawing, setDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number, y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
+  // Mode « ajuster à la largeur » : actif par défaut pour que la page tienne
+  // dans le conteneur (essentiel sur mobile/tablette). Désactivé dès que
+  // l'utilisateur règle le zoom manuellement.
+  const [fitMode, setFitMode] = useState(true);
 
   // Extract all zones from treeData
   const zones = useMemo(() => {
@@ -94,6 +105,36 @@ export default function PdfViewer({
     };
   }, [pdfUrl, token]);
 
+  // Largeur de référence de la « feuille » (le système de coordonnées des zones
+  // PDF est exprimé dans cette base ; on ne fait que la mettre à l'échelle).
+  const PAPER_W = 580;
+
+  // Calcule le zoom qui fait tenir la feuille dans la largeur disponible.
+  const applyFit = React.useCallback(() => {
+    const el = pdfContainerRef.current;
+    if (!el) return;
+    const available = el.clientWidth - 32; // px-4 de chaque côté
+    const z = Math.min(2, Math.max(0.4, available / PAPER_W));
+    setPdfZoom(Number(z.toFixed(3)));
+  }, [setPdfZoom]);
+
+  // En mode « ajuster », recalcule au montage et à chaque redimensionnement.
+  useEffect(() => {
+    if (!fitMode) return;
+    applyFit();
+    const el = pdfContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => applyFit());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitMode, applyFit]);
+
+  // Réglage manuel du zoom : sort du mode « ajuster ».
+  const manualZoom = (updater: number | ((z: number) => number)) => {
+    setFitMode(false);
+    setPdfZoom(updater);
+  };
+
   // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -114,28 +155,101 @@ export default function PdfViewer({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [pdfPage, numPages, setPdfPage, selectionMode, stopSelection]);
 
-  // Article -> PDF sync (Localization)
-  useEffect(() => {
-    // Only proceed if we have a valid source locator with a page number
-    if (selectedNode?.source_locator && typeof selectedNode.source_locator.page === 'number') {
-      const locator = selectedNode.source_locator;
-      
-      // Navigate to the correct page if needed
-      if (locator.page !== pdfPage) {
-        setPdfPage(locator.page);
-      }
-      
-      // Auto-scroll to zone after a small delay to ensure page is rendered
-      const timer = setTimeout(() => {
-        const zoneElement = document.getElementById(`zone-${selectedNode.id}`);
-        if (zoneElement) {
-          zoneElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 300);
+  // Normalise un texte pour la comparaison (sans accents, majuscules, espaces compactés).
+  const normalizeText = (s: string) =>
+    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 
+  // Texte normalisé d'une page (mis en cache : une extraction par page max).
+  const getPageText = React.useCallback(async (n: number): Promise<string> => {
+    if (pageTextCache.current.has(n)) return pageTextCache.current.get(n)!;
+    const pdf = pdfProxyRef.current;
+    if (!pdf) return '';
+    try {
+      const page = await pdf.getPage(n);
+      const tc = await page.getTextContent();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const txt = normalizeText((tc.items as any[]).map((i) => i.str ?? '').join(' '));
+      pageTextCache.current.set(n, txt);
+      return txt;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  // Motifs de recherche d'un élément dans le texte du PDF (heuristique OCR-tolérante).
+  const searchCandidates = (node: TreeNode): string[] => {
+    const num = normalizeText(String(node.numero ?? ''));
+    const candidates: string[] = [];
+
+    if (node.type === 'ARTICLE') {
+      // Entête « Article N » (le plus fiable pour un article numéroté).
+      if (num && !['PREAMBULE', 'SIGNATURE'].includes(num) && !num.startsWith('TABLEAU')) {
+        candidates.push(`ARTICLE ${num}`, `ART. ${num}`, `ART ${num}`);
+      }
+      // Repli universel : un extrait du contenu (couvre préambule/signature et
+      // les cas où la numérotation OCR diffère). On prend une phrase d'amorce.
+      const snippet = normalizeText(String(node.content ?? ''))
+        .split(' ')
+        .filter((w) => w.length > 2)
+        .slice(0, 6)
+        .join(' ');
+      if (snippet.length >= 10) candidates.push(snippet);
+    } else {
+      const type = normalizeText(String(node.type ?? ''));
+      if (type && num) candidates.push(`${type} ${num}`);
+    }
+
+    return candidates;
+  };
+
+  // Cherche la 1re page contenant l'élément (depuis la page courante puis depuis le début).
+  const findPageForNode = React.useCallback(async (node: TreeNode): Promise<number | null> => {
+    const pdf = pdfProxyRef.current;
+    const candidates = searchCandidates(node);
+    if (!pdf || candidates.length === 0) return null;
+    const total: number = pdf.numPages;
+    const order: number[] = [];
+    for (let p = pdfPage; p <= total; p++) order.push(p);
+    for (let p = 1; p < pdfPage; p++) order.push(p);
+    for (const p of order) {
+      const t = await getPageText(p);
+      if (candidates.some((c) => t.includes(c))) return p;
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getPageText, pdfPage]);
+
+  // Article/élément -> PDF : navigation automatique vers la page concernée.
+  // 1) coordonnées enregistrées (source_locator.page) si présentes ;
+  // 2) sinon, recherche du libellé dans le texte du PDF (indépendant de l'ingestion).
+  useEffect(() => {
+    if (!selectedNode) return;
+
+    const loc = selectedNode.source_locator;
+    if (loc && typeof loc.page === 'number') {
+      if (loc.page !== pdfPage) setPdfPage(loc.page);
+      const timer = setTimeout(() => {
+        document.getElementById(`zone-${selectedNode.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [pdfPage, selectedNode?.id, selectedNode?.source_locator, setPdfPage]);
+
+    // Pas de coordonnées : on localise par le texte du PDF.
+    let cancelled = false;
+    setLocating(true);
+    findPageForNode(selectedNode)
+      .then((p) => {
+        if (!cancelled && p && p !== pdfPage) setPdfPage(p);
+      })
+      .finally(() => {
+        if (!cancelled) setLocating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // On ne dépend QUE de l'élément sélectionné (pas de pdfPage : éviter les boucles).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNode?.id]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!selectionMode || !ppRef.current) return;
@@ -227,19 +341,36 @@ export default function PdfViewer({
           </span>
         </div>
 
+        {locating && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-gold whitespace-nowrap">
+            <span className="w-3 h-3 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+            Localisation…
+          </span>
+        )}
+
         <div className="flex-1 hidden sm:block" />
 
         <div className="flex items-center gap-1 ml-auto sm:ml-0">
-          <button onClick={() => setPdfZoom(z => Math.max(0.5, z - 0.1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Zoom arrière">
+          <button onClick={() => manualZoom(z => Math.max(0.5, z - 0.1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Zoom arrière">
             <ZoomOut className="w-[14px] h-[14px]" />
           </button>
           <span className="text-[10px] text-t3 font-mono min-w-[36px] text-center">
             {Math.round(pdfZoom * 100)}%
           </span>
-          <button onClick={() => setPdfZoom(z => Math.min(3, z + 0.1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Zoom avant">
+          <button onClick={() => manualZoom(z => Math.min(3, z + 0.1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Zoom avant">
             <ZoomIn className="w-[14px] h-[14px]" />
           </button>
-          <button onClick={() => setPdfZoom(1)} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors ml-1" title="Taille réelle">
+          <button
+            onClick={() => setFitMode(true)}
+            className={cn(
+              'w-[28px] h-[28px] rounded border flex items-center justify-center transition-colors ml-1',
+              fitMode ? 'border-gold/40 bg-gold/10 text-gold' : 'border-b1 bg-transparent text-t2 hover:bg-s3 hover:border-b2 hover:text-t1',
+            )}
+            title="Ajuster à la largeur"
+          >
+            <MoveHorizontal className="w-[14px] h-[14px]" />
+          </button>
+          <button onClick={() => manualZoom(1)} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Taille réelle (100%)">
             <Maximize className="w-[14px] h-[14px]" />
           </button>
         </div>
@@ -287,18 +418,26 @@ export default function PdfViewer({
           </div>
         )}
 
+        {/* Conteneur d'échelle : sa boîte de layout vaut la taille MISE À L'ÉCHELLE
+            de la feuille, ce qui supprime le débordement horizontal (mobile) et
+            l'espace vertical fantôme. La feuille interne est mise à l'échelle via
+            transform avec origine top-left (la géométrie des zones, calculée par
+            getBoundingClientRect ÷ zoom, reste exacte quelle que soit l'origine). */}
+        <div
+          className="shrink-0"
+          style={{ width: PAPER_W * pdfZoom, height: 820 * pdfZoom, marginBottom: 40 }}
+        >
         <div
           ref={ppRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           className={cn(
-            "bg-white w-[580px] min-h-[820px] rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative shrink-0 origin-top overflow-hidden transition-transform duration-200",
+            "bg-white w-[580px] h-[820px] rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative origin-top-left overflow-hidden transition-transform duration-200",
             selectionMode && "cursor-crosshair"
           )}
           style={{
             transform: `scale(${pdfZoom})`,
-            marginBottom: `${(pdfZoom - 1) * 820 + 40}px`
           }}
         >
           {/* Active drawing rect */}
@@ -349,7 +488,13 @@ export default function PdfViewer({
                 <Document
                   file={fileOptions}
                   options={PDF_OPTIONS}
-                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                  onLoadSuccess={(pdf) => {
+                    // On capte le proxy pdf.js pour la recherche de page par texte,
+                    // et on vide le cache (nouveau document chargé).
+                    pdfProxyRef.current = pdf;
+                    pageTextCache.current.clear();
+                    setNumPages(pdf.numPages);
+                  }}
                   loading={
                     <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3">
                       <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
@@ -391,10 +536,11 @@ export default function PdfViewer({
             — {pdfPage} —
           </div>
         </div>
+        </div>
       </div>
 
-      {/* Footer / Shortcut info */}
-      <div className="h-6 bg-s2 border-t border-b1 flex items-center px-3 justify-between">
+      {/* Footer / Shortcut info — aide clavier/souris, pertinente sur desktop seulement */}
+      <div className="h-6 bg-s2 border-t border-b1 hidden md:flex items-center px-3 justify-between">
         <div className="flex items-center gap-3 text-[9px] text-t3 font-mono">
           <span className="flex items-center gap-1"><kbd className="px-1 bg-s3 rounded border border-b1">←</kbd> <kbd className="px-1 bg-s3 rounded border border-b1">→</kbd> Navigation</span>
           <span className="flex items-center gap-1"><kbd className="px-1 bg-s3 rounded border border-b1">ESC</kbd> Annuler</span>

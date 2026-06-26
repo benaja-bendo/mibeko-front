@@ -10,7 +10,7 @@
  * Publication/rejet passent par l'API Laravel (bulk curation), le reste par
  * l'API Python (upload, parsing, runs). Suivi temps réel via SSE.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getPythonDocuments,
@@ -26,33 +26,22 @@ import { UploadSlideOver } from '@/features/ingestion/components/UploadSlideOver
 import { DocumentDetailPanel } from '@/features/ingestion/components/DocumentDetailPanel';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
-
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
+import { toast } from '@/shared/store/useToast';
+import { documentRoleLabel } from '@/shared/lib/labels';
 
 export default function Ingestion() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [stage, setStage] = useState<QueueStage>('review');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'STOCK' | 'FLUX'>('ALL');
+  const [failedOnly, setFailedOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const toastId = useRef(0);
-
-  const addToast = (message: string, type: Toast['type']) => {
-    const id = ++toastId.current;
-    setToasts((p) => [...p, { id, message, type }]);
-    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 6000);
-  };
 
   usePythonStream({
-    onNotification: ({ message, type }) => addToast(message, type),
+    onNotification: ({ message, type }) => toast[type](message),
   });
 
   const invalidateAll = () => {
@@ -73,36 +62,37 @@ export default function Ingestion() {
     const needle = search.trim().toLowerCase();
     return (docs || []).filter((d) => {
       if (roleFilter !== 'ALL' && d.document_role !== roleFilter) return false;
+      if (failedOnly && d.extraction_status !== 'failed') return false;
       if (needle) {
         const haystack = `${d.titre_officiel} ${d.stock_code || ''} ${d.type_code || ''}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       return true;
     });
-  }, [docs, search, roleFilter]);
+  }, [docs, search, roleFilter, failedOnly]);
 
   // ── Décisions de curation (API Laravel) ──────────────────────────────────
   const publishMutation = useMutation({
     mutationFn: (ids: string[]) =>
       bulkUpdateDocuments({ ids, action: 'set_curation_status', value: 'published' }),
     onSuccess: (res, ids) => {
-      addToast(res.message || `${ids.length} document(s) publié(s)`, 'success');
+      toast.success(res.message || `${ids.length} document(s) publié(s)`);
       setSelectedIds(new Set());
       if (detailId && ids.includes(detailId)) setDetailId(null);
       invalidateAll();
     },
-    onError: (err) => addToast(err instanceof Error ? err.message : 'Erreur de publication', 'error'),
+    onError: (err) => toast.fromError(err, 'Erreur de publication'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (ids: string[]) => bulkDeleteDocuments({ ids }),
     onSuccess: (_res, ids) => {
-      addToast(`${ids.length} document(s) rejeté(s) (corbeille)`, 'success');
+      toast.success(`${ids.length} document(s) rejeté(s) (corbeille)`);
       setSelectedIds(new Set());
       if (detailId && ids.includes(detailId)) setDetailId(null);
       invalidateAll();
     },
-    onError: (err) => addToast(err instanceof Error ? err.message : 'Erreur de rejet', 'error'),
+    onError: (err) => toast.fromError(err, 'Erreur de rejet'),
   });
 
   const busy = publishMutation.isPending || rejectMutation.isPending;
@@ -111,20 +101,20 @@ export default function Ingestion() {
   const handleParse = async (id: string, fmt: 'md' | 'json') => {
     try {
       await parseDocument(id, fmt);
-      addToast(`Parsing ${fmt.toUpperCase()} lancé en arrière-plan`, 'info');
+      toast.info(`Parsing ${fmt.toUpperCase()} lancé en arrière-plan`);
       invalidateAll();
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Erreur de parsing', 'error');
+      toast.fromError(err, 'Erreur de parsing');
     }
   };
 
   const handleReprocess = async (id: string) => {
     try {
       await reprocessDocument(id);
-      addToast("Relance de l'extraction MinerU en arrière-plan", 'info');
+      toast.info("Relance de l'extraction en arrière-plan");
       invalidateAll();
     } catch (err: unknown) {
-      addToast(err instanceof Error ? err.message : 'Erreur de relance', 'error');
+      toast.fromError(err, 'Erreur de relance');
     }
   };
 
@@ -144,6 +134,15 @@ export default function Ingestion() {
 
   const changeStage = (next: QueueStage) => {
     setStage(next);
+    setFailedOnly(false);
+    setSelectedIds(new Set());
+    setDetailId(null);
+  };
+
+  // Carte « Échecs » : bascule sur l'étape « à traiter » filtrée aux échecs réels.
+  const selectFailed = () => {
+    setStage('draft');
+    setFailedOnly(true);
     setSelectedIds(new Set());
     setDetailId(null);
   };
@@ -199,7 +198,12 @@ export default function Ingestion() {
           </div>
 
           {/* ── KPIs / étapes du sas ─────────────────────────────────────── */}
-          <IngestionStats activeStage={stage} onSelectStage={changeStage} />
+          <IngestionStats
+            activeStage={stage}
+            failedActive={failedOnly}
+            onSelectStage={changeStage}
+            onSelectFailed={selectFailed}
+          />
 
           {/* ── Onglets + recherche + filtre rôle ────────────────────────── */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -238,15 +242,30 @@ export default function Ingestion() {
                   key={r}
                   onClick={() => setRoleFilter(r)}
                   className={[
-                    'h-10 px-3 text-[11px] font-mono transition-colors',
+                    'h-10 px-3 text-[11px] font-mono transition-colors whitespace-nowrap',
                     roleFilter === r ? 'bg-gold/10 text-gold' : 'bg-s1 text-t3 hover:text-t2',
                   ].join(' ')}
                 >
-                  {r === 'ALL' ? 'Tous' : r}
+                  {r === 'ALL' ? 'Tous' : documentRoleLabel(r, { short: true })}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* ── Filtre actif « échecs » (amovible) ───────────────────────── */}
+          {failedOnly && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setFailedOnly(false)}
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 bg-red/10 border border-red/20 text-red text-[11px] font-mono rounded-full hover:bg-red/20 transition-colors"
+              >
+                Échecs d'extraction uniquement
+                <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 stroke-current fill-none stroke-[2.5]">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* ── Barre d'actions bulk ─────────────────────────────────────── */}
           {selectedIds.size > 0 && (
@@ -322,33 +341,10 @@ export default function Ingestion() {
         open={showUpload}
         onClose={() => setShowUpload(false)}
         onSuccess={(msg) => {
-          addToast(msg, 'success');
+          toast.success(msg);
           invalidateAll();
         }}
       />
-
-      {/* ── Toasts ─────────────────────────────────────────────────────── */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-[calc(100vw-2rem)] sm:w-80 max-w-[calc(100vw-2rem)] sm:max-w-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={[
-              'flex items-start gap-2.5 p-3 rounded-lg border text-xs font-body shadow-xl animate-in slide-in-from-right-4',
-              t.type === 'success' ? 'bg-green/10 border-green/20 text-green' :
-              t.type === 'error'   ? 'bg-red/10 border-red/20 text-red' :
-                                      'bg-blue/10 border-blue/20 text-blue',
-            ].join(' ')}
-          >
-            <span className="flex-1">{t.message}</span>
-            <button
-              onClick={() => setToasts((p) => p.filter((x) => x.id !== t.id))}
-              className="opacity-50 hover:opacity-100 shrink-0 font-mono"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
     </AppLayout>
   );
 }

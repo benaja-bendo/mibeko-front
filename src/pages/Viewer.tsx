@@ -12,6 +12,8 @@ import DeleteConfirmModal from '@/features/viewer/components/DeleteConfirmModal'
 import DocumentInfoModal from '@/features/viewer/components/DocumentInfoModal';
 import EditDocumentModal from '@/features/viewer/components/EditDocumentModal';
 import PublishModal from '@/features/viewer/components/PublishModal';
+import AnomaliesPanel from '@/features/viewer/components/AnomaliesPanel';
+import Toaster from '@/shared/components/ui/Toaster';
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/shared/components/ui/Resizable';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/shared/components/ui/Sheet';
@@ -61,6 +63,11 @@ export default function Viewer() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {/* Panneau d'anomalies — bord BAS (pleine largeur) : coexiste avec le
+          panneau article (bord droit) sans le chevaucher. */}
+      <AnomaliesPanel treeData={data.tree} />
+
       {/* Drawer structure pour mobile (le panneau gauche est masqué sous md) */}
       <Sheet open={structureDrawerOpen} onOpenChange={setStructureDrawerOpen}>
         <SheetContent side="left" className="p-0 w-[300px] sm:w-[340px] border-r border-b1 md:hidden">
@@ -79,6 +86,7 @@ export default function Viewer() {
       <DocumentInfoModal document={data.document} />
       <EditDocumentModal document={data.document} />
       <PublishModal document={data.document} />
+      <Toaster />
     </div>
   );
 }

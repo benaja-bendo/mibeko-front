@@ -61,10 +61,14 @@ function StageCard({
 
 export function IngestionStats({
   activeStage,
+  failedActive,
   onSelectStage,
+  onSelectFailed,
 }: {
   activeStage: QueueStage;
+  failedActive?: boolean;
   onSelectStage: (stage: QueueStage) => void;
+  onSelectFailed: () => void;
 }) {
   const navigate = useNavigate();
   const { data: stats } = useQuery({
@@ -88,16 +92,16 @@ export function IngestionStats({
         sublabel="déposés — extraction / parsing"
         value={stats?.documents_draft ?? '—'}
         tone="amber"
-        active={activeStage === 'draft'}
+        active={activeStage === 'draft' && !failedActive}
         onClick={() => onSelectStage('draft')}
       />
       <StageCard
         label="Échecs d'extraction"
-        sublabel="à relancer ou rejeter"
+        sublabel="filtrer pour relancer / rejeter"
         value={stats?.documents_failed ?? '—'}
         tone="red"
-        active={false}
-        onClick={() => onSelectStage('draft')}
+        active={failedActive}
+        onClick={onSelectFailed}
       />
       <StageCard
         label="Publiés au catalogue"

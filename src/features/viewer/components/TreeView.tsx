@@ -39,6 +39,31 @@ function flattenVisible(nodes: TreeNodeType[], collapsed: Set<string>, depth = 0
   return acc;
 }
 
+/** Un nœud correspond à la recherche par son numéro, son libellé ou son contenu. */
+function nodeMatches(node: TreeNodeType, q: string): boolean {
+  const haystack = `${node.numero ?? ''} ${node.label ?? ''} ${node.content ?? ''}`.toLowerCase();
+  return haystack.includes(q);
+}
+
+/**
+ * Aplatit en ne gardant que les nœuds qui correspondent OU qui ont un descendant
+ * correspondant — en dépliant systématiquement les branches retenues (on ignore
+ * l'état replié pendant une recherche, pour que les résultats soient visibles).
+ */
+function flattenSearch(nodes: TreeNodeType[], q: string, depth = 0, acc: FlatRow[] = []): boolean {
+  let matchedHere = false;
+  for (const node of nodes) {
+    const childAcc: FlatRow[] = [];
+    const childMatched = node.children?.length ? flattenSearch(node.children, q, depth + 1, childAcc) : false;
+    if (nodeMatches(node, q) || childMatched) {
+      acc.push({ node, depth });
+      acc.push(...childAcc);
+      matchedHere = true;
+    }
+  }
+  return matchedHere;
+}
+
 export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
   const { id: documentId } = useParams<{ id: string }>();
   const searchQuery = useViewerStore((s) => s.searchQuery);
@@ -47,6 +72,8 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
   const expandAll = useViewerStore((s) => s.expandAll);
   const setAddElementModal = useViewerStore((s) => s.setAddElementModal);
   const collapsedNodes = useViewerStore((s) => s.collapsedNodes);
+  const comfortMode = useViewerStore((s) => s.comfortMode);
+  const toggleComfort = useViewerStore((s) => s.toggleComfort);
   const { moveNode, updateArticle } = useDocumentMutations(documentId || '');
   const [isDragOver, setIsDragOver] = React.useState(false);
 
@@ -57,20 +84,32 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
     [moveNode.mutate, updateArticle.mutate],
   );
 
-  // Liste plate des lignes visibles, recalculée seulement quand l'arbre ou
-  // l'état replié/déplié change.
-  const flatRows = React.useMemo(
-    () => flattenVisible(treeData, collapsedNodes),
-    [treeData, collapsedNodes],
-  );
+  // Liste plate des lignes : en recherche, on filtre (et déplie) les branches
+  // correspondantes ; sinon on respecte l'état replié/déplié.
+  const flatRows = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return flattenVisible(treeData, collapsedNodes);
+    const acc: FlatRow[] = [];
+    flattenSearch(treeData, q, 0, acc);
+    return acc;
+  }, [treeData, collapsedNodes, searchQuery]);
+
+  // Hauteur de ligne selon la densité (estimate ET hauteur réelle du TreeNode
+  // dérivent de la MÊME valeur → alignement garanti après bascule).
+  const rowHeight = comfortMode ? 34 : ROW_HEIGHT;
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12,
   });
+
+  // Re-mesure quand la densité change (sinon les positions gardent l'ancienne taille).
+  React.useEffect(() => {
+    rowVirtualizer.measure();
+  }, [rowHeight, rowVirtualizer]);
 
   const handleCollapseAll = () => collapseAll(treeData);
 
@@ -181,6 +220,20 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
           <TooltipContent>Tout déplier</TooltipContent>
         </Tooltip>
 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleComfort}
+              className={cn('h-[24px] px-2', comfortMode && 'border-gold/40 text-gold')}
+            >
+              <span className={comfortMode ? 'text-[13px] leading-none' : 'text-[10px] leading-none'}>Aa</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{comfortMode ? 'Densité compacte' : 'Densité confort (texte plus grand)'}</TooltipContent>
+        </Tooltip>
+
         <div className="w-px h-[16px] bg-b2 mx-1" />
 
         <Tooltip>
@@ -222,6 +275,11 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
         onDrop={handleDrop}
       >
         <TreeMutationsContext.Provider value={treeMutations}>
+          {flatRows.length === 0 && searchQuery.trim() && (
+            <div className="px-3 py-6 text-center text-[11px] font-mono text-t3">
+              Aucun élément ne correspond à « {searchQuery.trim()} ».
+            </div>
+          )}
           <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const { node, depth } = flatRows[virtualRow.index];
@@ -237,7 +295,7 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <TreeNode node={node} depth={depth} />
+                  <TreeNode node={node} depth={depth} comfort={comfortMode} />
                 </div>
               );
             })}

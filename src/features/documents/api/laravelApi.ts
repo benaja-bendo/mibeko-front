@@ -246,6 +246,54 @@ export const downloadFile = async (url: string, filename: string) => {
 export const deleteLegalDocument = (id: string, force?: boolean): Promise<{ success: boolean; message?: string }> =>
   apiFetch(`/legal-documents/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' });
 
+/** Détail de ce qu'une suppression définitive emporterait (compteurs + garde-fous). */
+export interface DeletionImpact {
+  nodes: number;
+  articles: number;
+  versions: number;
+  flags: number;
+  media: number;
+  relations: number;
+  incoming_relations: number;
+  dossier_references: number;
+}
+
+export const getDeletionImpact = (id: string): Promise<{ data: DeletionImpact }> =>
+  apiFetch(`/legal-documents/${id}/deletion-impact`);
+
+/** Anomalie de curation (vue Contrôle). */
+export interface CurationFlagDto {
+  id: string;
+  source: 'heuristic' | 'structural' | 'llm' | 'human';
+  type_probleme: string;
+  severity: 'blocking' | 'warning' | 'info';
+  description: string | null;
+  suggestion: { text?: string } | null;
+  confidence: number | null;
+  resolved: boolean;
+  resolved_by: string | null;
+  created_at: string | null;
+  article_id: string | null;
+  node_id: string | null;
+  page: number | null;
+}
+
+/** Anomalies d'un document, triées (bloquantes d'abord). */
+export const getDocumentCurationFlags = (id: string, openOnly = false): Promise<{ data: CurationFlagDto[] }> =>
+  apiFetch(`/legal-documents/${id}/curation-flags${openOnly ? '?open_only=1' : ''}`);
+
+/** Résout (ou rouvre) une anomalie. */
+export const resolveCurationFlag = (flagId: string, resolved: boolean): Promise<{ data: CurationFlagDto }> =>
+  apiFetch(`/curation-flags/${flagId}`, { method: 'PATCH', body: JSON.stringify({ resolved }) });
+
+/** Relance la détection structurelle déterministe sur le document. */
+export const detectDocumentAnomalies = (id: string): Promise<{ data: { created: number } }> =>
+  apiFetch(`/legal-documents/${id}/detect-anomalies`, { method: 'POST' });
+
+/** Lance l'analyse sémantique (IA) du document — détecte les défauts de contenu. */
+export const analyzeDocumentWithAI = (id: string): Promise<{ data: { found: number } }> =>
+  apiFetch(`/legal-documents/${id}/analyze-ai`, { method: 'POST' });
+
 export const triggerDocumentEmbedding = (
   id: string,
 ): Promise<{ success: boolean; message: string; data: { pending_count: number; in_progress: boolean; batch_id?: string; total_chunks?: number } }> =>

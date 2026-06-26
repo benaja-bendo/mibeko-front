@@ -1,7 +1,7 @@
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import {
   Download, PanelRight, ArrowLeft, MoreHorizontal, FileJson, FileText,
-  Trash2, Info, FilePen, ListTree, CheckCircle2,
+  Trash2, Info, FilePen, ListTree, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import type { LegalDocument } from '@/shared/types/database';
 import { useNavigate } from 'react-router-dom';
@@ -15,13 +15,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/DropdownMenu';
-import { getDocumentExportUrl, getDocumentJsonUrl, getDocumentPdfUrl, downloadFile } from '@/features/documents/api/laravelApi';
+import { getDocumentExportUrl, getDocumentJsonUrl, getDocumentPdfUrl, downloadFile, getDocumentCurationFlags } from '@/features/documents/api/laravelApi';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Topbar({ document }: { document?: LegalDocument }) {
   const {
     sidePanelOpen, closeSidePanel, openSidePanel, selectedNode,
     setInfoModalOpen, setDeleteModal, setEditDocModalOpen,
-    setPublishModalOpen, setStructureDrawerOpen,
+    setPublishModalOpen, setStructureDrawerOpen, setAnomaliesPanel,
   } = useViewerStore();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -29,6 +30,16 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
   const isAdminOrEditor = user?.roles?.includes('admin') || user?.roles?.includes('editor');
   const isAdmin = user?.roles?.includes('admin');
   const isPublished = document?.curation_status === 'published';
+
+  // Nombre d'anomalies non résolues — partage la clé de requête du panneau
+  // (cache mutualisé : se met à jour quand on en résout une).
+  const { data: openAnomalies = 0 } = useQuery({
+    queryKey: ['curation-flags', document?.id],
+    queryFn: () => getDocumentCurationFlags(document!.id).then((r) => r.data),
+    enabled: Boolean(document?.id) && Boolean(isAdminOrEditor),
+    select: (flags) => flags.filter((f) => !f.resolved).length,
+    staleTime: 30000,
+  });
 
   const handleDownload = async (type: 'consolidated' | 'original' | 'json') => {
     if (!document) return;
@@ -59,7 +70,7 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
   const iconButtonClass = "w-[30px] h-[30px] rounded border border-b1 bg-transparent text-t2 items-center justify-center transition-all hover:bg-s3 hover:border-b2 hover:text-t1";
 
   return (
-    <div className="h-[50px] bg-s1 border-b border-b1 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-3 shrink-0 z-50 overflow-hidden">
+    <div className="h-[50px] bg-s1 border-b border-b1 flex items-center px-2 sm:px-4 gap-1.5 sm:gap-3 shrink-0 z-50 min-w-0">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
@@ -100,9 +111,6 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
             <span className="bg-gold-d border border-[rgba(200,168,106,0.2)] text-gold text-[9px] font-semibold tracking-[0.08em] uppercase px-1.5 py-[1px] rounded font-mono shrink-0">
               {document.type?.code || document.type_code || 'DOC'} {document.dates?.signature || document.date_signature ? `· ${(document.dates?.signature || document.date_signature)?.split('-')[0]}` : ''}
             </span>
-            <span className="hidden md:inline-block text-[10px] text-t3 font-mono uppercase tracking-wider truncate">
-              {document.id}
-            </span>
             {isPublished && (
               <span className="inline-flex items-center gap-1 bg-green-d border border-[rgba(86,160,122,.25)] text-green text-[9px] font-semibold tracking-[0.08em] uppercase px-1.5 py-[1px] rounded font-mono shrink-0">
                 <CheckCircle2 className="w-2.5 h-2.5" /> Publié
@@ -120,6 +128,28 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
       <div className="hidden sm:block w-px h-[18px] bg-b2 mx-1 shrink-0" />
 
       <div className="flex items-center gap-1 shrink-0">
+        {/* Anomalies (vue Contrôle) — éditeurs/admins, avec compteur non résolu */}
+        {isAdminOrEditor && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setAnomaliesPanel(true)}
+                className={`relative flex ${openAnomalies > 0 ? 'border-amber/40 bg-amber/10 text-amber hover:bg-amber/20 w-[30px] h-[30px] rounded border items-center justify-center transition-all' : iconButtonClass}`}
+              >
+                <AlertTriangle className="w-[15px] h-[15px]" strokeWidth={1.8} />
+                {openAnomalies > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-1 rounded-full bg-amber text-on-gold text-[9px] font-bold flex items-center justify-center tabular-nums">
+                    {openAnomalies > 99 ? '99+' : openAnomalies}
+                  </span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {openAnomalies > 0 ? `${openAnomalies} anomalie(s) à traiter` : 'Anomalies de curation'}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         {/* Modifier le document — éditeurs/admins, masqué sur mobile (présent dans le menu ⋯) */}
         {isAdminOrEditor && (
           <Tooltip>

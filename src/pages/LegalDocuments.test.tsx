@@ -19,8 +19,10 @@ describe('LegalDocuments', () => {
     renderWithProviders(<LegalDocuments />);
 
     expect(screen.getByRole('heading', { name: 'Documents juridiques' })).toBeInTheDocument();
+    // La liste rend deux vues (tableau ≥ lg + cartes en dessous, bascule CSS) :
+    // l'état vide apparaît donc dans les deux. On tolère ≥ 1 occurrence.
     await waitFor(() => {
-      expect(screen.getByText('Aucun document trouvé')).toBeInTheDocument();
+      expect(screen.getAllByText('Aucun document trouvé').length).toBeGreaterThan(0);
     });
   });
 
@@ -46,9 +48,11 @@ describe('LegalDocuments', () => {
 
     renderWithProviders(<LegalDocuments />);
 
+    // Titre présent dans la vue cartes ET la vue tableau (bascule CSS) → ≥ 1.
     await waitFor(() => {
-      expect(screen.getByText('Loi n° 1')).toBeInTheDocument();
+      expect(screen.getAllByText('Loi n° 1').length).toBeGreaterThan(0);
     });
+    // La référence NOR n'est rendue que dans le tableau.
     expect(screen.getByText('NOR123')).toBeInTheDocument();
   });
 });

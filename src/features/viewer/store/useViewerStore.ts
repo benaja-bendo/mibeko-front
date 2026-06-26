@@ -75,6 +75,15 @@ interface ViewerState {
   publishModalOpen: boolean;
   setPublishModalOpen: (open: boolean) => void;
 
+  // Panneau des anomalies de curation (vue Contrôle / validation humaine)
+  anomaliesPanelOpen: boolean;
+  setAnomaliesPanel: (open: boolean) => void;
+
+  // Densité d'affichage de l'arbre : compact (défaut) ou confort (texte plus
+  // grand, lignes plus hautes) pour les longues sessions de relecture.
+  comfortMode: boolean;
+  toggleComfort: () => void;
+
   // Drawer structure (arborescence) sur mobile
   structureDrawerOpen: boolean;
   setStructureDrawerOpen: (open: boolean) => void;
@@ -136,6 +145,8 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   sidePanelOpen: false,
   activeTab: 'content',
+  // Le panneau article (bord droit) et le panneau anomalies (bord bas) occupent
+  // des bords différents : ils coexistent sans se chevaucher.
   openSidePanel: (node) => set({ sidePanelOpen: true, selectedId: node.id, selectedNode: node, structureDrawerOpen: false }),
   closeSidePanel: () => set({ sidePanelOpen: false }),
   setActiveTab: (activeTab) => set({ activeTab }),
@@ -178,6 +189,12 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   publishModalOpen: false,
   setPublishModalOpen: (open) => set({ publishModalOpen: open }),
+
+  anomaliesPanelOpen: false,
+  setAnomaliesPanel: (open) => set({ anomaliesPanelOpen: open }),
+
+  comfortMode: false,
+  toggleComfort: () => set((s) => ({ comfortMode: !s.comfortMode })),
 
   structureDrawerOpen: false,
   setStructureDrawerOpen: (open) => set({ structureDrawerOpen: open }),

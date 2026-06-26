@@ -5,7 +5,7 @@
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { formatCompactNumber } from '@/shared/lib/formatNumber';
 import {
   createColumnHelper,
@@ -28,6 +28,9 @@ import {
 } from '@/features/documents/api/laravelApi';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { toast } from '@/shared/store/useToast';
+import DeletionImpactPanel from '@/features/documents/components/DeletionImpactPanel';
+import { SEARCH_AI_LABEL } from '@/shared/lib/labels';
 import { hasRole } from '@/shared/types/auth';
 import {
   Dialog,
@@ -466,6 +469,7 @@ const columnHelper = createColumnHelper<LaravelDocument>();
 
 export default function LegalDocuments() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isAdmin = hasRole(user, 'admin');
 
@@ -525,6 +529,14 @@ export default function LegalDocuments() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Compteur « à valider » pour le bandeau de parcours vers l'ingestion.
+  const { data: reviewData } = useQuery({
+    queryKey: ['documents', 'review-count'],
+    queryFn: () => getCatalog({ curation_status: 'review', per_page: 1 }),
+    staleTime: 60_000,
+  });
+  const reviewCount = reviewData?.pagination?.total ?? 0;
+
   const institutions = institutionsData?.data ?? [];
   const types = (typesData?.data ?? []) as { code: string; nom: string }[];
 
@@ -538,9 +550,9 @@ export default function LegalDocuments() {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       setRowSelection({});
-      // Simple toast-like feedback via title bar (no toast component needed)
-      console.info(res.message);
+      toast.success(res.message || 'Documents mis à jour');
     },
+    onError: (err) => toast.fromError(err, 'Échec de la mise à jour'),
   });
 
   const bulkDeleteMutation = useMutation({
@@ -550,8 +562,9 @@ export default function LegalDocuments() {
       setRowSelection({});
       setShowBulkDeleteModal(false);
       setIsForceDelete(false);
-      console.info(res.message || 'Documents supprimés avec succès');
+      toast.success(res.message || 'Documents supprimés avec succès');
     },
+    onError: (err) => toast.fromError(err, 'Échec de la suppression'),
   });
 
   const deleteMutation = useMutation({
@@ -561,8 +574,9 @@ export default function LegalDocuments() {
       setRowSelection({});
       setDeleteTarget(null);
       setIsForceDelete(false);
-      console.info(res.message || 'Document supprimé');
+      toast.success(res.message || 'Document supprimé');
     },
+    onError: (err) => toast.fromError(err, 'Échec de la suppression'),
   });
 
   const embeddingMutation = useMutation({
@@ -572,9 +586,13 @@ export default function LegalDocuments() {
       // in_progress=false → rien à faire (déjà indexé) : on rafraîchit juste les compteurs.
       if (res.data?.in_progress) {
         setEmbeddingInProgress((prev) => new Set(prev).add(id));
+        toast.info('Indexation pour la recherche IA lancée en arrière-plan');
+      } else {
+        toast.success('Document déjà indexé pour la recherche IA');
       }
       queryClient.invalidateQueries({ queryKey: ['documents'] });
     },
+    onError: (err) => toast.fromError(err, "Échec du lancement de l'indexation"),
   });
 
   const cancelEmbeddingMutation = useMutation({
@@ -585,8 +603,10 @@ export default function LegalDocuments() {
         next.delete(id);
         return next;
       });
+      toast.info('Indexation interrompue (le travail déjà fait est conservé)');
       queryClient.invalidateQueries({ queryKey: ['documents'] });
     },
+    onError: (err) => toast.fromError(err, "Échec de l'interruption"),
   });
 
   // Réconcilie le Set optimiste avec la vérité serveur : on retire un doc dès que
@@ -713,7 +733,7 @@ export default function LegalDocuments() {
       // Embedding
       columnHelper.display({
         id: 'embedding',
-        header: 'Embedding',
+        header: SEARCH_AI_LABEL,
         cell: ({ row }) => (
           <EmbeddingStatusCell
             doc={row.original}
@@ -844,9 +864,25 @@ export default function LegalDocuments() {
             </Link>
           </div>
 
+          {/* ── Bandeau parcours : documents en attente de validation ──────── */}
+          {reviewCount > 0 && (
+            <Link
+              to="/editor/ingestion"
+              className="flex items-center gap-2.5 px-4 py-2.5 bg-amber-400/10 border border-amber-400/20 rounded-xl text-amber-400 hover:bg-amber-400/15 transition-colors text-sm"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2 shrink-0">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span className="flex-1">
+                <strong>{formatCompactNumber(reviewCount)}</strong> document{reviewCount > 1 ? 's' : ''} en attente de validation dans l'ingestion
+              </span>
+              <span className="font-mono text-xs shrink-0">Ouvrir →</span>
+            </Link>
+          )}
+
           {/* ── Search + Filter toggle ────────────────────────────────────── */}
-          <div className="flex gap-2">
-            <div className="relative flex-1 group">
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] group">
               <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 stroke-t3 group-focus-within:stroke-gold fill-none stroke-[1.5] transition-colors pointer-events-none">
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -926,10 +962,92 @@ export default function LegalDocuments() {
             />
           )}
 
-          {/* ── Table ────────────────────────────────────────────────────── */}
+          {/* ── Liste : tableau ≥ lg, cartes empilées en dessous ─────────── */}
           <div className="flex-1 min-h-0 bg-s1 border border-b1 rounded-2xl shadow-sm overflow-hidden flex flex-col">
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-sm border-separate border-spacing-0">
+              {/* Cartes (mobile / tablette) */}
+              <div className="lg:hidden divide-y divide-b1/40">
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="p-4 space-y-2">
+                      <div className="h-3.5 bg-s2 rounded animate-pulse w-3/4" />
+                      <div className="h-3 bg-s2 rounded animate-pulse w-1/3" />
+                    </div>
+                  ))
+                ) : docs.length === 0 ? (
+                  <div className="px-6 py-16 text-center flex flex-col items-center gap-3 text-t3">
+                    <span className="font-mono text-xs uppercase tracking-widest">Aucun document trouvé</span>
+                    {(search || activeFilterCount > 0) && (
+                      <button
+                        onClick={() => { setSearch(''); setFilters(EMPTY_FILTERS); }}
+                        className="text-gold text-[11px] font-mono hover:underline"
+                      >
+                        Effacer les filtres
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  table.getRowModel().rows.map((row) => {
+                    const doc = row.original;
+                    const titre = docTitle(doc);
+                    return (
+                      <div
+                        key={row.id}
+                        className={`p-4 transition-colors ${row.getIsSelected() ? 'bg-gold/5' : 'hover:bg-s2/40'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={row.getIsSelected()}
+                            onChange={row.getToggleSelectedHandler()}
+                            className="mt-1 w-4 h-4 accent-gold rounded cursor-pointer shrink-0"
+                            aria-label="Sélectionner"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to={`/editor/viewer/${doc.id}`}
+                              className={`block font-body text-sm font-medium line-clamp-2 hover:text-gold transition-colors ${titre ? 'text-t1' : 'text-t4 italic'}`}
+                            >
+                              {titre || '(Sans titre)'}
+                            </Link>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <Badge label={CURATION_LABELS[doc.curation_status ?? ''] || doc.curation_status || '—'} cfg={CURATION_CFG[doc.curation_status ?? ''] || 'text-t3 bg-s2 border-b1'} />
+                              {doc.statut && <Badge label={STATUT_LABELS[doc.statut] || doc.statut} cfg={STATUT_CFG[doc.statut] || 'text-t3 bg-s2 border-b1'} />}
+                              <span className="text-t3 text-[10px] font-mono bg-s2 px-1.5 py-0.5 rounded border border-b1">
+                                {doc.type?.code || doc.type_code || '—'}
+                              </span>
+                              {(doc.institution?.sigle || doc.institution?.nom) && (
+                                <span className="text-t3 text-[10px] font-mono">{doc.institution?.sigle || doc.institution?.nom}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-2.5">
+                              <CompletenessIndicators doc={doc} />
+                              <span className="text-t4 text-[10px] font-mono whitespace-nowrap">{timeAgo(doc.updated_at)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-3">
+                              <Link
+                                to={`/editor/viewer/${doc.id}`}
+                                className="inline-flex items-center gap-1 h-8 px-3 text-[11px] font-mono text-gold bg-gold/10 border border-gold/20 rounded-md hover:bg-gold/20 transition-all"
+                              >
+                                Éditer
+                              </Link>
+                              <button
+                                onClick={() => setDeleteTarget(doc)}
+                                className="inline-flex items-center gap-1 h-8 px-3 text-[11px] font-mono text-red-400 bg-red-500/10 border border-red-500/20 rounded-md hover:bg-red-500/15 transition-all"
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Tableau (desktop large) */}
+              <table className="hidden lg:table w-full text-sm border-separate border-spacing-0">
                 <thead className="bg-s2/60 sticky top-0 z-10 backdrop-blur-md">
                   {table.getHeaderGroups().map((hg) => (
                     <tr key={hg.id}>
@@ -982,7 +1100,8 @@ export default function LegalDocuments() {
                     table.getRowModel().rows.map((row) => (
                       <tr
                         key={row.id}
-                        className={`transition-colors group cursor-default ${row.getIsSelected() ? 'bg-gold/5' : 'hover:bg-s2/40'}`}
+                        onClick={() => navigate(`/editor/viewer/${row.original.id}`)}
+                        className={`transition-colors group cursor-pointer ${row.getIsSelected() ? 'bg-gold/5' : 'hover:bg-s2/40'}`}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td key={cell.id} className="px-4 py-3 align-middle">
@@ -1053,6 +1172,10 @@ export default function LegalDocuments() {
           <div className="mt-2 text-xs font-mono text-t3 bg-s2 border border-b1 rounded-lg p-3">
             {deleteTarget ? docTitle(deleteTarget) || deleteTarget.id : ''}
           </div>
+
+          {/* Impact détaillé de la purge — visible pour les admins (autorisés à la
+              suppression définitive), même UX que le viewer. */}
+          {isAdmin && deleteTarget && <DeletionImpactPanel documentId={deleteTarget.id} />}
 
           {isAdmin && (
             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">

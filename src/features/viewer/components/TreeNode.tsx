@@ -24,7 +24,7 @@ function getConfig(type: string) {
   return TC[type] || TC.ARTICLE;
 }
 
-function TreeNode({ node, depth }: { node: TreeNodeType; depth: number }) {
+function TreeNode({ node, depth, comfort = false }: { node: TreeNodeType; depth: number; comfort?: boolean }) {
   // Sélecteurs ciblés : un nœud ne se re-rend que lorsque SON propre état
   // (replié / sélectionné) change — et non à chaque mutation du store, ce qui
   // re-rendait inutilement les milliers de nœuds de l'arbre à chaque clic.
@@ -216,7 +216,8 @@ function TreeNode({ node, depth }: { node: TreeNodeType; depth: number }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "flex items-center h-[28px] pr-1.5 cursor-pointer transition-all gap-[1px] border-l-2 border-transparent group relative",
+          "flex items-center pr-1.5 cursor-pointer transition-all gap-[1px] border-l-2 border-transparent group relative",
+          comfort ? "h-[34px]" : "h-[28px]",
           isSelected ? "bg-gold-d border-l-gold" : "hover:bg-s2",
           dropPosition === 'inside' && "bg-gold/20 ring-1 ring-gold/50 rounded-sm",
           isDragging && "opacity-40 grayscale"
@@ -258,11 +259,11 @@ function TreeNode({ node, depth }: { node: TreeNodeType; depth: number }) {
           {cfg.s}
         </span>
 
-        <span className="font-mono text-[9.5px] text-t3 mr-[3px] shrink-0">
+        <span className={cn("font-mono text-t3 mr-[3px] shrink-0", comfort ? "text-[11px]" : "text-[9.5px]")}>
           {node.numero}
         </span>
 
-        <span className="flex-1 text-[12px] text-t1 whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2">
+        <span className={cn("flex-1 text-t1 whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2", comfort ? "text-[13.5px]" : "text-[12px]")}>
           <span>{node.label}</span>
           {node.content && (
             <span className="text-[10.5px] text-t3 italic font-serif opacity-50 font-normal truncate max-w-[200px]">
