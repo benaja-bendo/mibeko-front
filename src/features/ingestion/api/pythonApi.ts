@@ -5,6 +5,7 @@
  */
 
 import { pythonClient, pythonBaseUrl as BASE } from '@/shared/api';
+import { getStoredToken } from '@/features/auth/store/authStore';
 
 // ---------------------------------------------------------------------------
 // Types Python API
@@ -313,30 +314,105 @@ export const discardRun = (docId: string, runId: string): Promise<{ message: str
 // SSE — Server-Sent Events
 // ---------------------------------------------------------------------------
 
+/** Délai de reconnexion (ms) après une coupure du flux SSE. */
+const SSE_RECONNECT_DELAY = 3000;
+
+/**
+ * Découpe une trame SSE brute en `{ event, data }`.
+ * Les heartbeats (lignes de commentaire `": ping"`) ne portent ni `event:` ni
+ * `data:` et renvoient donc `null` — ils sont ignorés en amont.
+ */
+function parseSseFrame(frame: string): { event: string; data: string } | null {
+  let event = 'message';
+  const dataLines: string[] = [];
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim();
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+  }
+  if (dataLines.length === 0) return null;
+  return { event, data: dataLines.join('\n') };
+}
+
 /**
  * Ouvre une connexion SSE vers le backend Python pour les notifications temps réel.
+ *
+ * On utilise `fetch` + `ReadableStream` (et non `EventSource` natif) afin de
+ * porter l'en-tête standard `Authorization: Bearer` : le flux est réservé aux
+ * éditeurs côté Python (`require_editor`). La reconnexion automatique
+ * d'`EventSource` est réimplémentée manuellement avec un léger délai.
+ *
  * Retourne une fonction de nettoyage à appeler pour fermer la connexion.
  */
 export const openPythonStream = (
   onUpdate: () => void,
   onNotification: (payload: { message: string; type: 'success' | 'error' | 'info' }) => void
 ): (() => void) => {
-  const es = new EventSource(`${BASE}/stream`);
+  const controller = new AbortController();
+  let closed = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  es.addEventListener('update', () => onUpdate());
-
-  es.addEventListener('notification', (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      onNotification(data);
-    } catch {
-      // ignore malformed payloads
+  const dispatch = (event: string, data: string) => {
+    if (event === 'update') {
+      onUpdate();
+    } else if (event === 'notification') {
+      try {
+        onNotification(JSON.parse(data));
+      } catch {
+        // ignore malformed payloads
+      }
     }
-  });
-
-  es.onerror = () => {
-    // SSE will auto-reconnect — no action needed
   };
 
-  return () => es.close();
+  const scheduleReconnect = () => {
+    if (closed) return;
+    reconnectTimer = setTimeout(connect, SSE_RECONNECT_DELAY);
+  };
+
+  async function connect() {
+    if (closed) return;
+    const token = getStoredToken();
+    try {
+      const response = await fetch(`${BASE}/stream`, {
+        headers: {
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: controller.signal,
+      });
+
+      // 401/403 : inutile de réessayer sans nouvel identifiant — on s'arrête.
+      if (response.status === 401 || response.status === 403) return;
+      if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() ?? ''; // dernière trame potentiellement incomplète
+        for (const rawFrame of frames) {
+          if (!rawFrame.trim()) continue;
+          const parsed = parseSseFrame(rawFrame);
+          if (parsed) dispatch(parsed.event, parsed.data);
+        }
+      }
+      // Le serveur a clôturé le flux proprement → on tente de se reconnecter.
+      scheduleReconnect();
+    } catch {
+      if (controller.signal.aborted) return; // fermeture volontaire (cleanup)
+      scheduleReconnect();
+    }
+  }
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    controller.abort();
+  };
 };
