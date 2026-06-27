@@ -21,6 +21,7 @@ import type {
   ChatMessage as ChatMessageType,
 } from '@/features/assistant/types';
 import MarkdownLite from './MarkdownLite';
+import MessageFeedback from './MessageFeedback';
 import CitationPreview from './CitationPreview';
 import SourceCitations, {
   type SourceCitationsHandle,
@@ -221,6 +222,16 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
 
         {message.sources && message.sources.length > 0 && (
           <SourceCitations ref={sourcesRef} sources={message.sources} />
+        )}
+
+        {/* Avis 👍/👎 : une fois la réponse terminée et son id backend connu
+            (historique, ou émis en fin de flux pour une réponse fraîche). */}
+        {!message.pending && !message.error && message.backendId && (
+          <MessageFeedback
+            key={message.backendId}
+            messageId={message.backendId}
+            initialRating={message.feedback ?? null}
+          />
         )}
       </div>
     </div>

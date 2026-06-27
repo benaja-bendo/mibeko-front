@@ -43,6 +43,9 @@ export function persistedToChatMessages(
     sources: m.meta?.sources ?? undefined,
     references: m.meta?.references ?? undefined,
     mode: m.meta?.mode ?? undefined,
+    // Message d'historique : `id` est déjà l'identifiant backend.
+    backendId: m.id,
+    feedback: m.feedback ?? null,
     createdAt: m.created_at,
   }));
 }
@@ -173,6 +176,11 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
                 setConversationId(id);
                 onConversationCreated?.(id);
               }
+            },
+            onMessageId: (id) => {
+              // Id backend de la réponse : permet de la noter (feedback) sans
+              // attendre un rechargement de la conversation.
+              patchMessage(assistantId, { backendId: id });
             },
             onStatus: (msg) => setStatus(msg),
             onSources: (batch) => {

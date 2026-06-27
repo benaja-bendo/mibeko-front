@@ -30,6 +30,9 @@ export interface AssistantSource {
 
 export type ChatRole = 'user' | 'assistant';
 
+/** Avis de l'utilisateur sur une réponse de l'assistant. */
+export type FeedbackRating = 'up' | 'down';
+
 /**
  * Mode de réponse de l'IA :
  *  - `concise`  : réponse directe en quelques phrases (défaut) ;
@@ -75,6 +78,15 @@ export interface ChatMessage {
   pending?: boolean;
   /** `true` si la génération a échoué. */
   error?: boolean;
+  /**
+   * Identifiant backend du message (table `agent_conversation_messages`).
+   * Pour une réponse fraîchement streamée, `id` est local : le backend renvoie
+   * son identifiant réel en fin de flux afin de pouvoir noter la réponse.
+   * Absent pour les messages d'historique, dont `id` est déjà l'id backend.
+   */
+  backendId?: string;
+  /** Avis de l'utilisateur courant sur cette réponse (null = non noté). */
+  feedback?: FeedbackRating | null;
 }
 
 /** Résumé de conversation (liste de l'historique). */
@@ -98,6 +110,8 @@ export interface PersistedMessage {
     /** Mode demandé (absent si concise). */
     mode?: AssistantMode;
   } | null;
+  /** Avis de l'utilisateur courant sur ce message (réponses assistant). */
+  feedback?: FeedbackRating | null;
   created_at?: string;
 }
 
@@ -130,6 +144,8 @@ export interface StreamCallbacks {
   onError?: (message: string) => void;
   /** Identifiant de conversation (créé si premier message). */
   onConversationId?: (id: string) => void;
+  /** Identifiant backend du message assistant (émis en fin de flux). */
+  onMessageId?: (id: string) => void;
   /** Fin du flux (`[DONE]`). */
   onDone?: () => void;
 }

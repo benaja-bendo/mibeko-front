@@ -14,6 +14,7 @@ import type {
   AssistantReference,
   ConversationDetail,
   ConversationSummary,
+  FeedbackRating,
   Paginated,
   StreamCallbacks,
 } from '@/features/assistant/types';
@@ -70,6 +71,27 @@ export async function renameConversation(
 /** Supprime une conversation et tous ses messages. */
 export async function deleteConversation(id: string): Promise<void> {
   await laravelClient.delete(`assistant/conversations/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Feedback 👍/👎 sur une réponse de l'assistant
+// ---------------------------------------------------------------------------
+
+/** Enregistre (ou met à jour) l'avis de l'utilisateur sur un message assistant. */
+export async function sendFeedback(
+  messageId: string,
+  rating: FeedbackRating,
+  comment?: string,
+): Promise<void> {
+  await laravelClient.post(`assistant/messages/${messageId}/feedback`, {
+    rating,
+    ...(comment ? { comment } : {}),
+  });
+}
+
+/** Retire l'avis de l'utilisateur sur un message assistant. */
+export async function clearFeedback(messageId: string): Promise<void> {
+  await laravelClient.delete(`assistant/messages/${messageId}/feedback`);
 }
 
 // ---------------------------------------------------------------------------
@@ -228,6 +250,13 @@ export async function streamChat(
           case 'error': {
             const payload = JSON.parse(data);
             callbacks.onError?.(payload.message ?? 'Erreur inconnue');
+            break;
+          }
+          case 'meta': {
+            const payload = JSON.parse(data);
+            if (typeof payload.message_id === 'string') {
+              callbacks.onMessageId?.(payload.message_id);
+            }
             break;
           }
           // Évènement par défaut "message" => fragment de texte.
