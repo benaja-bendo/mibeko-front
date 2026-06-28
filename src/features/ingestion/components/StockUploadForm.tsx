@@ -12,19 +12,28 @@ import { Field, TextInput, DateInput, Select, ErrorNote, HelpTip } from './field
 import { Spinner } from './badges';
 
 /**
+ * Côté base, `legal_documents.stock_code` est un `varchar(100)`. On plafonne donc
+ * le code ici : un titre long produit un slug bien plus long que 100 caractères,
+ * ce qui faisait planter l'INSERT (StringDataRightTruncation → 500).
+ */
+const MAX_STOCK_CODE_LEN = 100;
+
+/**
  * Reproduit `sanitize_path_component` du backend Python (main.py) : ce que l'on
  * prévisualise ici est exactement la clé/le dossier MinIO qui sera stocké.
  * On retire les accents en plus (é → e) pour un slug propre ; comme la valeur
  * envoyée est déjà ASCII-kebab, le sanitize serveur la laisse inchangée.
+ * Le résultat est tronqué à MAX_STOCK_CODE_LEN (sans laisser de tiret en fin).
  */
 function slugifyStockCode(value: string): string {
-  return value
+  const slug = value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '');
+  return slug.slice(0, MAX_STOCK_CODE_LEN).replace(/-+$/g, '');
 }
 
 const FRENCH_MONTHS: Record<string, string> = {
@@ -86,6 +95,10 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
     e.preventDefault();
     if (!pdfFile || !titre.trim() || !stockCode.trim()) {
       setError('PDF, titre officiel et code stock sont requis.');
+      return;
+    }
+    if (stockCode.trim().length > MAX_STOCK_CODE_LEN) {
+      setError(`Le code stock ne doit pas dépasser ${MAX_STOCK_CODE_LEN} caractères (raccourcissez-le : il est dérivé du titre).`);
       return;
     }
     setError(null);
@@ -151,9 +164,11 @@ export function StockUploadForm({ onSuccess }: { onSuccess: (msg: string) => voi
             onBlur={(e) => setStockCode(slugifyStockCode(e.target.value))}
             placeholder="code-travail-1975"
             className="font-mono"
+            maxLength={MAX_STOCK_CODE_LEN}
           />
           <p className="text-t4 text-[11px] font-mono mt-1 leading-tight">
-            Identifiant unique + dossier de stockage MinIO. Pré-rempli depuis le titre, modifiable.
+            Identifiant unique + dossier de stockage MinIO. Pré-rempli depuis le titre, modifiable
+            {' '}(max&nbsp;{MAX_STOCK_CODE_LEN}&nbsp;car.).
           </p>
         </Field>
         <Field label="Périmètre juridique">
