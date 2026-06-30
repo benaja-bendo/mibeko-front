@@ -4,7 +4,7 @@ import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { cn } from '@/shared/lib/utils';
 import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
-import { apiFetch } from '@/features/documents/api/laravelApi';
+import { apiFetch, apiErrorMessage } from '@/features/documents/api/laravelApi';
 import { Button } from '@/shared/components/ui/Button';
 import ValidityModal from './ValidityModal';
 import AddRelationModal from './AddRelationModal';
@@ -155,6 +155,13 @@ export default function SidePanel() {
                   <Save className="w-3.5 h-3.5 mr-2" />
                   {updateArticle.isPending ? 'Enregistrement...' : 'Sauvegarder'}
                 </Button>
+
+                {updateArticle.isError && (
+                  <p className="mt-2 text-red text-[10.5px] font-mono bg-red-d border border-red/20 rounded px-2.5 py-2 flex items-start gap-1.5">
+                    <AlertCircle className="w-3 h-3 shrink-0 mt-px" />
+                    <span>{apiErrorMessage(updateArticle.error, "Échec de l'enregistrement.")}</span>
+                  </p>
+                )}
 
                 <div className="text-[9.5px] font-mono uppercase tracking-[0.09em] text-t3 mt-6 mb-2 pb-1 border-b border-b1">
                   Actions rapides

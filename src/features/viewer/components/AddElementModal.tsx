@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/Select';
-import { Plus, LayoutTemplate, Type } from 'lucide-react';
+import { Plus, LayoutTemplate, Type, AlertCircle } from 'lucide-react';
+import { apiErrorMessage } from '@/features/documents/api/laravelApi';
 
 export default function AddElementModal() {
   const { id: documentId } = useParams<{ id: string }>();
@@ -168,6 +169,13 @@ export default function AddElementModal() {
                 />
               </div>
             </div>
+          )}
+
+          {(createArticle.isError || createNode.isError) && (
+            <p className="text-red text-[10.5px] font-mono bg-red-d border border-red/20 rounded px-2.5 py-2 flex items-start gap-1.5">
+              <AlertCircle className="w-3 h-3 shrink-0 mt-px" />
+              <span>{apiErrorMessage(createArticle.error ?? createNode.error, "Échec de l'ajout. Vérifiez le numéro et le contenu.")}</span>
+            </p>
           )}
 
           <DialogFooter className="pt-4">

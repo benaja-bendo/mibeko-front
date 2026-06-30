@@ -135,6 +135,8 @@ export function useDocumentMutations(documentId: string) {
       type_code?: string,
       curation_status?: 'draft' | 'review' | 'validated' | 'published',
       themes?: string[],
+      // Publication forcée : outrepasse le garde-fou des anomalies bloquantes.
+      force?: boolean,
     }) => {
       return apiFetch<unknown>(`/legal-documents/${documentId}`, {
         method: 'PATCH',

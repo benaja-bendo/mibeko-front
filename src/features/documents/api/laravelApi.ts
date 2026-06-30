@@ -152,6 +152,20 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return response.data;
 }
 
+/**
+ * Extrait le message d'erreur lisible renvoyé par l'API Laravel (axios).
+ * Préfère `message`, puis la première erreur de validation, sinon un repli.
+ */
+export function apiErrorMessage(error: unknown, fallback = 'Une erreur est survenue. Réessayez.'): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response?.data;
+    if (data?.message) return data.message;
+    const firstError = data?.errors && Object.values(data.errors)[0]?.[0];
+    if (firstError) return firstError;
+  }
+  return fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Documents
 // ---------------------------------------------------------------------------

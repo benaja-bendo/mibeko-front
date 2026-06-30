@@ -11,8 +11,9 @@ import {
   DialogFooter,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
+import { apiErrorMessage } from '@/features/documents/api/laravelApi';
 import { cn } from '@/shared/lib/utils';
-import { UploadCloud, CheckCircle2, Undo2 } from 'lucide-react';
+import { UploadCloud, CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
 
 const WORKFLOW = [
   { id: 'draft', label: 'Brouillon' },
@@ -20,16 +21,6 @@ const WORKFLOW = [
   { id: 'validated', label: 'Validé' },
   { id: 'published', label: 'Publié' },
 ] as const;
-
-/** Extrait le message d'erreur renvoyé par l'API Laravel (axios). */
-function apiErrorMessage(error: unknown): string {
-  const fallback = 'La publication a échoué. Réessayez.';
-  if (error && typeof error === 'object' && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    return response?.data?.message || fallback;
-  }
-  return fallback;
-}
 
 /**
  * Publication des corrections : passe le document en `curation_status =
@@ -47,10 +38,11 @@ export default function PublishModal({ document }: { document?: LegalDocument })
   const isPublished = current === 'published';
   const currentIndex = WORKFLOW.findIndex(s => s.id === current);
 
-  const handleAction = (target: 'published' | 'review') => {
-    updateDocument.mutate({ curation_status: target }, {
-      onSuccess: () => setPublishModalOpen(false)
-    });
+  const handleAction = (target: 'published' | 'review', force = false) => {
+    updateDocument.mutate(
+      { curation_status: target, ...(force ? { force: true } : {}) },
+      { onSuccess: () => setPublishModalOpen(false) }
+    );
   };
 
   return (
@@ -98,9 +90,30 @@ export default function PublishModal({ document }: { document?: LegalDocument })
         </div>
 
         {updateDocument.isError && (
-          <p className="text-red text-[11px] font-mono bg-red-d border border-red/20 rounded px-3 py-2">
-            {apiErrorMessage(updateDocument.error)}
-          </p>
+          <div className="space-y-2">
+            <p className="text-red text-[11px] font-mono bg-red-d border border-red/20 rounded px-3 py-2">
+              {apiErrorMessage(updateDocument.error, 'La publication a échoué. Réessayez.')}
+            </p>
+            {!isPublished && (
+              <div className="bg-amber-d border border-amber/20 rounded px-3 py-2.5">
+                <p className="text-amber text-[11px] leading-relaxed mb-2">
+                  Vous pouvez publier malgré les anomalies non résolues. Le document
+                  deviendra immédiatement visible dans la bibliothèque Pro, le catalogue
+                  et l'application mobile — même si son contenu reste imparfait.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={updateDocument.isPending}
+                  onClick={() => handleAction('published', true)}
+                  className="w-full gap-2 border-amber/40 text-amber hover:bg-amber/10"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {updateDocument.isPending ? 'Publication…' : 'Publier quand même'}
+                </Button>
+              </div>
+            )}
+          </div>
         )}
 
         <DialogFooter className="pt-2 gap-2">
