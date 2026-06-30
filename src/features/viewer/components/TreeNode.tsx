@@ -30,6 +30,9 @@ function TreeNode({ node, depth, comfort = false }: { node: TreeNodeType; depth:
   // re-rendait inutilement les milliers de nœuds de l'arbre à chaque clic.
   const isCollapsed = useViewerStore((s) => s.collapsedNodes.has(node.id));
   const isSelected = useViewerStore((s) => s.selectedId === node.id);
+  // Mise en évidence transitoire après « Localiser » (sélecteur ciblé : seul le
+  // nœud concerné se re-rend, la virtualisation et la perf de l'arbre intactes).
+  const isHighlighted = useViewerStore((s) => s.highlightedId === node.id);
   const toggleNode = useViewerStore((s) => s.toggleNode);
   const selectNode = useViewerStore((s) => s.selectNode);
   const openSidePanel = useViewerStore((s) => s.openSidePanel);
@@ -219,6 +222,7 @@ function TreeNode({ node, depth, comfort = false }: { node: TreeNodeType; depth:
           "flex items-center pr-1.5 cursor-pointer transition-all gap-[1px] border-l-2 border-transparent group relative",
           comfort ? "h-[34px]" : "h-[28px]",
           isSelected ? "bg-gold-d border-l-gold" : "hover:bg-s2",
+          isHighlighted && "bg-gold/25 ring-2 ring-inset ring-gold animate-pulse z-10",
           dropPosition === 'inside' && "bg-gold/20 ring-1 ring-gold/50 rounded-sm",
           isDragging && "opacity-40 grayscale"
         )}

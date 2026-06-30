@@ -22,12 +22,13 @@ const SOURCE_LABEL: Record<string, string> = {
   llm: 'IA', structural: 'auto', heuristic: 'auto', human: 'humain',
 };
 
-/** Recherche un nœud (article ou division) par id dans l'arbre. */
-function findNode(nodes: TreeNode[], id: string): TreeNode | null {
+/** Chemin racine→cible (inclus) d'un nœud par id dans l'arbre, ou null. */
+function findPath(nodes: TreeNode[], id: string, trail: TreeNode[] = []): TreeNode[] | null {
   for (const node of nodes) {
-    if (node.id === id) return node;
+    const here = [...trail, node];
+    if (node.id === id) return here;
     if (node.children) {
-      const found = findNode(node.children, id);
+      const found = findPath(node.children, id, here);
       if (found) return found;
     }
   }
@@ -37,7 +38,7 @@ function findNode(nodes: TreeNode[], id: string): TreeNode | null {
 export default function AnomaliesPanel({ treeData }: { treeData: TreeNode[] }) {
   const { id: documentId } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { anomaliesPanelOpen, setAnomaliesPanel, selectNode, openSidePanel, setPdfPage } = useViewerStore();
+  const { anomaliesPanelOpen, setAnomaliesPanel, selectNode, openSidePanel, setPdfPage, expandNodes, revealNode, setSearchQuery } = useViewerStore();
 
   const { data, isLoading } = useQuery({
     queryKey: ['curation-flags', documentId],
@@ -86,14 +87,24 @@ export default function AnomaliesPanel({ treeData }: { treeData: TreeNode[] }) {
   };
   const analyzing = detectMutation.isPending || aiMutation.isPending;
 
-  /** Navigue vers la cible : sélection dans l'arbre (→ PDF) + panneau article. */
+  /**
+   * Localise la cible d'une anomalie : déplie ses ancêtres, fait défiler l'arbre
+   * jusqu'à la ligne et la met en évidence, sélectionne le nœud (→ saut PDF) et
+   * ouvre le panneau article. Une recherche active est effacée, sinon elle
+   * filtrerait la cible hors de l'arbre.
+   */
   const goToTarget = (flag: CurationFlagDto) => {
     const targetId = (flag.article_id || flag.node_id)?.toLowerCase();
     if (targetId) {
-      const node = findNode(treeData, targetId);
-      if (node) {
+      const path = findPath(treeData, targetId);
+      if (path) {
+        const node = path[path.length - 1];
+        const ancestorIds = path.slice(0, -1).map((n) => n.id);
+        setSearchQuery('');
+        expandNodes(ancestorIds);
         selectNode(node.id, node);
         if (node.type === 'ARTICLE') openSidePanel(node);
+        revealNode(node.id);
       }
     }
     if (flag.page) setPdfPage(flag.page);

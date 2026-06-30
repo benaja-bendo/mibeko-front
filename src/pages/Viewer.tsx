@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
@@ -22,6 +23,14 @@ export default function Viewer() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useDocumentData(id || '');
   const { structureDrawerOpen, setStructureDrawerOpen } = useViewerStore();
+  const resetForDocument = useViewerStore((s) => s.resetForDocument);
+
+  // Le store du viewer est un singleton qui survit à la navigation SPA : on
+  // réinitialise l'état propre au document (page PDF, zoom, sélection, replis…)
+  // à chaque changement d'`id`, sinon il « fuit » d'un document à l'autre.
+  useEffect(() => {
+    resetForDocument();
+  }, [id, resetForDocument]);
 
   if (isLoading) {
     return (

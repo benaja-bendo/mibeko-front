@@ -129,6 +129,14 @@ export default function PdfViewer({
     return () => ro.disconnect();
   }, [fitMode, applyFit]);
 
+  // Nouveau document : on rétablit le mode « ajuster à la largeur ». `fitMode`
+  // est un état LOCAL : comme la route n'est pas keyée, ce composant n'est pas
+  // remonté au changement de document, donc le store ne peut pas le remettre à
+  // zéro — sans ça, un zoom manuel sur le document précédent persisterait.
+  useEffect(() => {
+    setFitMode(true);
+  }, [documentId]);
+
   // Réglage manuel du zoom : sort du mode « ajuster ».
   const manualZoom = (updater: number | ((z: number) => number)) => {
     setFitMode(false);

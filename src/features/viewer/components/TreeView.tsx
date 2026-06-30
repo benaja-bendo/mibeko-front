@@ -111,6 +111,28 @@ export default function TreeView({ treeData }: { treeData: TreeNodeType[] }) {
     rowVirtualizer.measure();
   }, [rowHeight, rowVirtualizer]);
 
+  // « Localiser » (depuis le panneau Anomalies) : on fait défiler l'arbre
+  // virtualisé jusqu'à la ligne ciblée. `locateNonce` re-déclenche même cible ;
+  // au moment où il change, `flatRows` reflète déjà le dépliage des ancêtres.
+  // rAF : laisse la virtualisation recalculer ses positions avant le scroll.
+  const locateId = useViewerStore((s) => s.locateId);
+  const locateNonce = useViewerStore((s) => s.locateNonce);
+  const clearHighlight = useViewerStore((s) => s.clearHighlight);
+  React.useEffect(() => {
+    if (!locateId) return;
+    const index = flatRows.findIndex((r) => r.node.id === locateId);
+    if (index < 0) return;
+    const raf = requestAnimationFrame(() => {
+      rowVirtualizer.scrollToIndex(index, { align: 'center' });
+    });
+    const timer = setTimeout(() => clearHighlight(), 2200);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locateNonce]);
+
   const handleCollapseAll = () => collapseAll(treeData);
 
   const handleDragOver = (e: React.DragEvent) => {
