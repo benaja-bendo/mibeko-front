@@ -16,10 +16,12 @@ import {
   listFlags,
   updateFlag,
   deleteFlag,
+  bulkFlags,
   type DocumentTypePayload,
   type InstitutionPayload,
   type TagPayload,
   type FlagFilters,
+  type FlagBulkAction,
 } from '@/features/admin/api/adminApi';
 
 const STALE = 60 * 1000;
@@ -170,6 +172,10 @@ export function useFlagMutations() {
     mutationFn: (id: string) => deleteFlag(id),
     onSuccess: invalidate,
   });
+  const bulk = useMutation({
+    mutationFn: ({ ids, action }: { ids: string[]; action: FlagBulkAction }) => bulkFlags(ids, action),
+    onSuccess: invalidate,
+  });
 
-  return { resolve, remove };
+  return { resolve, remove, bulk };
 }

@@ -199,3 +199,20 @@ export const updateFlag = (id: string, resolved: boolean): Promise<CurationFlagR
 
 export const deleteFlag = (id: string): Promise<Envelope<null>> =>
   apiFetch<Envelope<null>>(`/admin/flags/${id}`, { method: 'DELETE' });
+
+/** Actions groupées sur une sélection de signalements. */
+export type FlagBulkAction = 'resolve' | 'reopen' | 'delete';
+
+/**
+ * Applique une action à plusieurs signalements en une requête. Renvoie le
+ * nombre de signalements réellement touchés et le message serveur (déjà
+ * accordé en nombre) pour affichage direct.
+ */
+export const bulkFlags = (
+  ids: string[],
+  action: FlagBulkAction,
+): Promise<{ affected: number; message: string }> =>
+  apiFetch<Envelope<{ affected: number }>>('/admin/flags/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ ids, action }),
+  }).then((r) => ({ affected: r.data.affected, message: r.message ?? '' }));

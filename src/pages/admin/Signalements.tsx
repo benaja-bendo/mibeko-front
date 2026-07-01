@@ -2,10 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '@/shared/components/layout/AppLayout';
 import { useFlags, useFlagMutations } from '@/features/admin/hooks/useAdmin';
-import type { CurationFlagRef, FlagStatus } from '@/features/admin/api/adminApi';
+import type { CurationFlagRef, FlagStatus, FlagBulkAction } from '@/features/admin/api/adminApi';
 import ConfirmDeleteDialog from '@/features/admin/components/ConfirmDeleteDialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Check, RotateCcw, Trash2, FileText, ExternalLink, Flag } from 'lucide-react';
+import { toast } from '@/shared/store/useToast';
+import { Check, Minus, RotateCcw, Trash2, FileText, ExternalLink, Flag } from 'lucide-react';
 
 const TABS: { key: FlagStatus; label: string }[] = [
   { key: 'open', label: 'Ouverts' },
@@ -28,19 +29,88 @@ function fmtDate(iso?: string | null): string {
   }
 }
 
+/** Case à cocher stylée cohérente avec le design (accent doré). */
+function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : checked}
+      aria-label={ariaLabel}
+      onClick={onChange}
+      className={[
+        'w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors',
+        checked || indeterminate
+          ? 'bg-gold border-gold text-on-gold'
+          : 'border-b1 text-transparent hover:border-t3',
+      ].join(' ')}
+    >
+      {indeterminate ? <Minus className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+    </button>
+  );
+}
+
 export default function Signalements() {
   const [tab, setTab] = React.useState<FlagStatus>('open');
   const [page, setPage] = React.useState(1);
   const { data, isLoading, isError } = useFlags({ status: tab, page });
-  const { resolve, remove } = useFlagMutations();
+  const { resolve, remove, bulk } = useFlagMutations();
   const [toDelete, setToDelete] = React.useState<CurationFlagRef | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
 
   const flags = data?.data ?? [];
   const pagination = data?.pagination;
 
+  // La sélection est propre à la page/onglet courant : on la vide dès qu'on
+  // change de vue (les identifiants des autres pages ne sont plus visibles).
+  React.useEffect(() => {
+    setSelected(new Set());
+  }, [tab, page]);
+
+  const flagIds = flags.map((f) => f.id);
+  const selectedCount = selected.size;
+  const allSelected = flags.length > 0 && flagIds.every((id) => selected.has(id));
+
   const switchTab = (t: FlagStatus) => {
     setTab(t);
     setPage(1);
+  };
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAll = () => setSelected(() => (allSelected ? new Set() : new Set(flagIds)));
+
+  const runBulk = (action: FlagBulkAction) => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    bulk.mutate(
+      { ids, action },
+      {
+        onSuccess: (res) => {
+          toast.success(res.message || 'Action effectuée');
+          setSelected(new Set());
+          setBulkDeleteOpen(false);
+        },
+        onError: (e) => toast.fromError(e),
+      },
+    );
   };
 
   return (
@@ -71,9 +141,69 @@ export default function Signalements() {
 
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-3xl space-y-3">
-            <div className="text-t3 text-xs font-mono">
-              {isLoading ? 'Chargement…' : `${pagination?.total ?? flags.length} signalement(s)`}
-            </div>
+            {/* Barre d'outils : sélection globale + compteur / actions groupées */}
+            {!isLoading && !isError && flags.length > 0 ? (
+              <div className="flex items-center gap-3 min-h-8">
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={selectedCount > 0 && !allSelected}
+                  onChange={toggleAll}
+                  ariaLabel={allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                />
+                {selectedCount > 0 ? (
+                  <>
+                    <span className="text-t2 text-xs font-mono">{selectedCount} sélectionné(s)</span>
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      {tab !== 'resolved' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={bulk.isPending}
+                          onClick={() => runBulk('resolve')}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Résoudre
+                        </Button>
+                      )}
+                      {tab !== 'open' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={bulk.isPending}
+                          onClick={() => runBulk('reopen')}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Ré-ouvrir
+                        </Button>
+                      )}
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={bulk.isPending}
+                        onClick={() => {
+                          bulk.reset();
+                          setBulkDeleteOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Supprimer
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-t3 text-xs font-mono">
+                    {pagination?.total ?? flags.length} signalement(s)
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="text-t3 text-xs font-mono">
+                {isLoading ? 'Chargement…' : `${pagination?.total ?? flags.length} signalement(s)`}
+              </div>
+            )}
 
             {isError && (
               <div className="text-red text-sm font-mono py-8 text-center">
@@ -94,6 +224,8 @@ export default function Signalements() {
               <FlagCard
                 key={flag.id}
                 flag={flag}
+                selected={selected.has(flag.id)}
+                onToggleSelect={() => toggleOne(flag.id)}
                 onResolve={() => resolve.mutate({ id: flag.id, resolved: !flag.resolved })}
                 resolving={resolve.isPending}
                 onDelete={() => setToDelete(flag)}
@@ -136,17 +268,31 @@ export default function Signalements() {
         error={remove.error as Error | null}
         onConfirm={() => toDelete && remove.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })}
       />
+
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={(o) => !o && setBulkDeleteOpen(false)}
+        title={`Supprimer ${selectedCount} signalement(s) ?`}
+        description="Les signalements sélectionnés seront définitivement supprimés. Action irréversible."
+        pending={bulk.isPending}
+        error={bulk.error as Error | null}
+        onConfirm={() => runBulk('delete')}
+      />
     </AppLayout>
   );
 }
 
 function FlagCard({
   flag,
+  selected,
+  onToggleSelect,
   onResolve,
   resolving,
   onDelete,
 }: {
   flag: CurationFlagRef;
+  selected: boolean;
+  onToggleSelect: () => void;
   onResolve: () => void;
   resolving: boolean;
   onDelete: () => void;
@@ -154,8 +300,21 @@ function FlagCard({
   const { target } = flag;
 
   return (
-    <div className="bg-s1 border border-b1 rounded-xl p-4">
-      <div className="flex items-start justify-between gap-4">
+    <div
+      className={[
+        'border rounded-xl p-4 transition-colors',
+        selected ? 'bg-gold/[0.04] border-gold/40' : 'bg-s1 border-b1',
+      ].join(' ')}
+    >
+      <div className="flex items-start gap-3">
+        <div className="pt-0.5">
+          <Checkbox
+            checked={selected}
+            onChange={onToggleSelect}
+            ariaLabel={selected ? 'Désélectionner ce signalement' : 'Sélectionner ce signalement'}
+          />
+        </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-block text-[11px] font-mono uppercase tracking-wide text-gold bg-gold/10 border border-gold/20 rounded px-1.5 py-0.5">
