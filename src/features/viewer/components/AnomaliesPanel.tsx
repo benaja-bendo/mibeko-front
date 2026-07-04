@@ -19,7 +19,7 @@ const SEVERITY: Record<string, { label: string; cls: string; dot: string }> = {
 };
 
 const SOURCE_LABEL: Record<string, string> = {
-  llm: 'IA', structural: 'auto', heuristic: 'auto', human: 'humain',
+  llm: 'IA', structural: 'auto', heuristic: 'auto', human: 'humain', report: 'signalement',
 };
 
 /** Chemin racine→cible (inclus) d'un nœud par id dans l'arbre, ou null. */
