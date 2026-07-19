@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom';
 import AppLayout from '@/widgets/layout/AppLayout';
 
 const BENEFITS = [
-  'Bibliotheque juridique centralisee',
+  'Bibliothèque juridique centralisée',
   'Assistant IA avec citations',
   'Organisation des recherches par dossiers',
 ];
 
 /**
- * Présente une page simple de découverte de l'offre Pro pour éviter les CTA cassés.
+ * Présente l'offre Pro et dirige vers le checkout interne (/settings/billing).
  */
 export default function Upgrade() {
   return (
@@ -21,11 +21,11 @@ export default function Upgrade() {
             </div>
 
             <h1 className="mt-4 text-3xl font-display font-semibold text-t1">
-              Passez a l&apos;offre Pro
+              Passez à l&apos;offre Pro
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-t2">
-              Debloquez les outils de recherche, d&apos;analyse et de gestion documentaire
+              Débloquez les outils de recherche, d&apos;analyse et de gestion documentaire
               pour votre pratique juridique.
             </p>
 
@@ -39,17 +39,17 @@ export default function Upgrade() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/app/library"
+                to="/settings/billing"
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-gold px-4 text-sm font-semibold text-on-gold transition-opacity hover:opacity-90"
               >
-                Voir la bibliotheque
+                S&apos;abonner à l&apos;offre Pro
               </Link>
-              <a
-                href="https://mibeko.fr"
+              <Link
+                to="/app/library"
                 className="inline-flex h-10 items-center justify-center rounded-lg border border-b1 bg-s1 px-4 text-sm font-medium text-t2 transition-colors hover:bg-s2 hover:text-t1"
               >
-                Decouvrir l&apos;offre
-              </a>
+                Voir la bibliothèque
+              </Link>
             </div>
           </div>
         </div>
