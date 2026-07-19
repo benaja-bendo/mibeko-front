@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { LegalDocument, TreeNode } from '@/shared/types/database';
-import { apiFetch } from '@/features/documents/api/laravelApi';
-import { laravelBaseUrl as BASE } from '@/shared/api';
+import { laravelClient, laravelBaseUrl as BASE } from '@/shared/api';
 
 interface DocumentData {
   document: LegalDocument;
@@ -104,8 +103,8 @@ export function useDocumentData(id: string) {
     queryKey: ['document', id],
     queryFn: async () => {
       const [docData, treeData] = await Promise.all([
-        apiFetch<{ data?: LegalDocument }>(`/legal-documents/${id}`),
-        apiFetch<{ data?: TreeNode[] }>(`/legal-documents/${id}/tree`)
+        laravelClient.get<{ data?: LegalDocument }>(`legal-documents/${id}`).then((r) => r.data),
+        laravelClient.get<{ data?: TreeNode[] }>(`legal-documents/${id}/tree`).then((r) => r.data)
       ]);
 
       const pdfUrl = `${BASE}/legal-documents/${id}/pdf`;
@@ -138,10 +137,7 @@ export function useDocumentMutations(documentId: string) {
       // Publication forcée : outrepasse le garde-fou des anomalies bloquantes.
       force?: boolean,
     }) => {
-      return apiFetch<unknown>(`/legal-documents/${documentId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return laravelClient.patch<unknown>(`legal-documents/${documentId}`, data).then((r) => r.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', documentId] });
@@ -156,44 +152,39 @@ export function useDocumentMutations(documentId: string) {
 
   const createNode = useMutation({
     mutationFn: async (data: { type_unite: string, numero?: string, titre?: string, parent_id?: string, sort_order?: number }) => {
-      return apiFetch<unknown>('/structure-nodes', {
-        method: 'POST',
-        body: JSON.stringify({ ...data, document_id: documentId }),
-      });
+      return laravelClient
+        .post<unknown>('structure-nodes', { ...data, document_id: documentId })
+        .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const updateNode = useMutation({
     mutationFn: async ({ id, ...data }: { id: string, type_unite?: string, numero?: string, titre?: string, validation_status?: string }) => {
-      return apiFetch<unknown>(`/structure-nodes/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return laravelClient.patch<unknown>(`structure-nodes/${id}`, data).then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const deleteNode = useMutation({
     mutationFn: async (id: string) => {
-      return apiFetch<unknown>(`/structure-nodes/${id}`, { method: 'DELETE' });
+      return laravelClient.delete<unknown>(`structure-nodes/${id}`).then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const deleteArticle = useMutation({
     mutationFn: async (id: string) => {
-      return apiFetch<unknown>(`/articles/${id}`, { method: 'DELETE' });
+      return laravelClient.delete<unknown>(`articles/${id}`).then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const createArticle = useMutation({
     mutationFn: async (data: { parent_node_id: string, numero_article: string, content: string, ordre_affichage?: number }) => {
-      return apiFetch<unknown>('/articles', {
-        method: 'POST',
-        body: JSON.stringify({ ...data, document_id: documentId }),
-      });
+      return laravelClient
+        .post<unknown>('articles', { ...data, document_id: documentId })
+        .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
@@ -214,30 +205,25 @@ export function useDocumentMutations(documentId: string) {
         height: number;
       } | null
     }) => {
-      return apiFetch<unknown>(`/articles/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      return laravelClient.patch<unknown>(`articles/${id}`, data).then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const addArticleVersion = useMutation({
     mutationFn: async ({ id, content, start_date }: { id: string, content: string, start_date: string }) => {
-      return apiFetch<unknown>(`/articles/${id}/versions`, {
-        method: 'POST',
-        body: JSON.stringify({ content, start_date }),
-      });
+      return laravelClient
+        .post<unknown>(`articles/${id}/versions`, { content, start_date })
+        .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const moveNode = useMutation({
     mutationFn: async ({ id, parent_id, sort_order }: { id: string, parent_id: string | null, sort_order: number }) => {
-      return apiFetch<unknown>(`/structure-nodes/${id}/move`, {
-        method: 'POST',
-        body: JSON.stringify({ parent_id, sort_order }),
-      });
+      return laravelClient
+        .post<unknown>(`structure-nodes/${id}/move`, { parent_id, sort_order })
+        .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
@@ -252,17 +238,16 @@ export function useDocumentMutations(documentId: string) {
       commentaire?: string,
       effective_date?: string
     }) => {
-      return apiFetch<unknown>(`/articles/${data.source_article_id}/relations`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return laravelClient
+        .post<unknown>(`articles/${data.source_article_id}/relations`, data)
+        .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });
 
   const deleteRelation = useMutation({
     mutationFn: async (id: string) => {
-      return apiFetch<unknown>(`/relations/${id}`, { method: 'DELETE' });
+      return laravelClient.delete<unknown>(`relations/${id}`).then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),
   });

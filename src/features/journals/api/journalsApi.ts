@@ -1,5 +1,5 @@
-import { apiFetch, type LaravelDocument } from '@/features/documents/api/laravelApi';
-import { laravelBaseUrl as BASE } from '@/shared/api';
+import type { LaravelDocument } from '@/features/documents/api/laravelApi';
+import { laravelClient, laravelBaseUrl as BASE } from '@/shared/api';
 
 /**
  * journalsApi.ts — Administration des journaux officiels (espace éditeur).
@@ -61,16 +61,20 @@ export const listJournals = (filters: JournalFilters = {}): Promise<JournalListR
   if (filters.year) q.set('filter[year]', filters.year);
   if (filters.transcription_status) q.set('filter[transcription_status]', filters.transcription_status);
   if (filters.is_published) q.set('filter[is_published]', filters.is_published);
-  return apiFetch<JournalListResponse>(`/official-journals?${q.toString()}`);
+  return laravelClient.get<JournalListResponse>(`official-journals?${q.toString()}`).then((r) => r.data);
 };
 
 /** Détail d'un journal (ressource non enveloppée : withoutWrapping actif côté API). */
 export const getJournal = (id: string, opts: { managerView?: boolean } = {}): Promise<OfficialJournal> =>
-  apiFetch<OfficialJournal>(`/official-journals/${id}${opts.managerView ? '?include_unpublished=1' : ''}`);
+  laravelClient
+    .get<OfficialJournal>(`official-journals/${id}${opts.managerView ? '?include_unpublished=1' : ''}`)
+    .then((r) => r.data);
 
 /** Années de publication des journaux publiés (chips du kiosque Pro). */
 export const listJournalYears = (): Promise<{ data: Array<{ year: number; total: number }> }> =>
-  apiFetch<{ data: Array<{ year: number; total: number }> }>(`/official-journals/years`);
+  laravelClient
+    .get<{ data: Array<{ year: number; total: number }> }>(`official-journals/years`)
+    .then((r) => r.data);
 
 export const updateJournal = (
   id: string,
@@ -81,13 +85,12 @@ export const updateJournal = (
     is_published: boolean;
   }>
 ) =>
-  apiFetch<{ data: OfficialJournal; message?: string }>(`/official-journals/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  });
+  laravelClient
+    .patch<{ data: OfficialJournal; message?: string }>(`official-journals/${id}`, payload)
+    .then((r) => r.data);
 
 export const deleteJournal = (id: string) =>
-  apiFetch<{ message?: string }>(`/official-journals/${id}`, { method: 'DELETE' });
+  laravelClient.delete<{ message?: string }>(`official-journals/${id}`).then((r) => r.data);
 
 /**
  * Crée manuellement un texte manquant (acte de FLUX), généralement rattaché
@@ -103,17 +106,13 @@ export const createMissingDocument = (payload: {
   date_publication?: string | null;
   statut?: 'vigueur' | 'abroge' | 'projet';
 }) =>
-  apiFetch<{ data: LaravelDocument }>(`/legal-documents`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  laravelClient.post<{ data: LaravelDocument }>(`legal-documents`, payload).then((r) => r.data);
 
 /** Rattache (journalId) ou détache (null) un texte existant. */
 export const setDocumentJournal = (documentId: string, journalId: string | null) =>
-  apiFetch<{ data: LaravelDocument }>(`/legal-documents/${documentId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ official_journal_id: journalId }),
-  });
+  laravelClient
+    .patch<{ data: LaravelDocument }>(`legal-documents/${documentId}`, { official_journal_id: journalId })
+    .then((r) => r.data);
 
 /** URL du PDF original du journal via le proxy interne (auth Bearer). */
 export const getJournalPdfUrl = (id: string): string =>

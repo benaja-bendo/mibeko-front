@@ -6,7 +6,7 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData
 import { useParams } from 'react-router-dom';
 import { GitGraph, Search, Trash2, Calendar } from 'lucide-react';
 import type { TreeNode } from '@/shared/types/database';
-import { apiFetch } from '@/features/documents/api/laravelApi';
+import { laravelClient } from '@/shared/api';
 
 interface AddRelationModalProps {
   open: boolean;
@@ -52,8 +52,8 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
   // Fetch existing relations when modal opens
   React.useEffect(() => {
     if (open && article?.id) {
-      apiFetch<{data: Relation[]}>(`/articles/${article.id}/relations`)
-        .then(data => setExistingRelations(data.data || []))
+      laravelClient.get<{data: Relation[]}>(`articles/${article.id}/relations`)
+        .then(res => setExistingRelations(res.data.data || []))
         .catch(err => console.error('Failed to fetch relations', err));
     }
   }, [open, article?.id]);
@@ -61,8 +61,8 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
   const handleSearch = async () => {
     if (search.length < 3) return;
     try {
-      const data = await apiFetch<{data: SearchResult[]}>(`/relations/search?q=${encodeURIComponent(search)}`);
-      setResults(data.data || []);
+      const res = await laravelClient.get<{data: SearchResult[]}>(`relations/search?q=${encodeURIComponent(search)}`);
+      setResults(res.data.data || []);
     } catch (err) {
       console.error('Search failed', err);
     }
@@ -85,8 +85,8 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
         setResults([]);
         setCommentaire('');
         // Refresh list
-        apiFetch<{data: Relation[]}>(`/articles/${article.id}/relations`)
-          .then(data => setExistingRelations(data.data || []));
+        laravelClient.get<{data: Relation[]}>(`articles/${article.id}/relations`)
+          .then(res => setExistingRelations(res.data.data || []));
       }
     });
   };

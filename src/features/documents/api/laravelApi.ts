@@ -1,8 +1,12 @@
-import { laravelClient as apiClient, laravelBaseUrl as BASE } from '@/shared/api';
+import { laravelClient, laravelBaseUrl as BASE } from '@/shared/api';
 
 /**
  * laravelApi.ts — Client typé pour le backend Laravel 13 (mibeko-tableau-de-bord).
  * Toutes les requêtes passent par le proxy Vite /api/v1 → http://localhost:8000/api/v1
+ *
+ * Toutes les fonctions s'appuient directement sur `laravelClient` (axios) : jeton
+ * Bearer, purge sur 401 et normalisation des messages d'erreur sont assurés par
+ * ses intercepteurs (voir `shared/api/laravelClient`).
  */
 
 // ---------------------------------------------------------------------------
@@ -134,24 +138,6 @@ export interface RawCatalogResponse {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Fetch helper avec gestion d'erreurs uniforme (migré vers axios)
-// ---------------------------------------------------------------------------
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const method = options?.method || 'GET';
-  const data = options?.body ? JSON.parse(options.body as string) : undefined;
-
-  const response = await apiClient.request<T>({
-    url: path.startsWith('/') ? path.slice(1) : path,
-    method,
-    data,
-    // Mapping des autres options fetch vers axios si nécessaire
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    signal: options?.signal as any,
-  });
-  return response.data;
-}
-
 /**
  * Extrait le message d'erreur lisible renvoyé par l'API Laravel (axios).
  * Préfère `message`, puis la première erreur de validation, sinon un repli.
@@ -199,11 +185,12 @@ export const getCatalog = (params?: CatalogFilters): Promise<CatalogResponse> =>
   if (params?.document_role) q.set('filter[document_role]', params.document_role);
   if (params?.recent) q.set('filter[recent]', String(params.recent));
 
+  let path = `legal-documents?${q}`;
   if (params?.search) {
     q.set('q', params.search);
-    return apiFetch(`/legal-documents/search?${q}`);
+    path = `legal-documents/search?${q}`;
   }
-  return apiFetch(`/legal-documents?${q}`);
+  return laravelClient.get<CatalogResponse>(path).then((r) => r.data);
 };
 
 export const bulkUpdateDocuments = (payload: {
@@ -211,29 +198,36 @@ export const bulkUpdateDocuments = (payload: {
   action: 'set_curation_status' | 'set_statut';
   value: string;
 }): Promise<{ data: { updated_count: number }; message: string }> =>
-  apiFetch('/legal-documents/bulk', { method: 'PATCH', body: JSON.stringify(payload) });
+  laravelClient
+    .patch<{ data: { updated_count: number }; message: string }>('legal-documents/bulk', payload)
+    .then((r) => r.data);
 
 export const bulkDeleteDocuments = (payload: {
   ids: string[];
   force?: boolean;
 }): Promise<{ data: { deleted_count: number }; message: string }> =>
-  apiFetch('/legal-documents/bulk', { method: 'DELETE', body: JSON.stringify(payload) });
+  // DELETE avec corps : axios exige de passer la charge via l'option `data`.
+  laravelClient
+    .delete<{ data: { deleted_count: number }; message: string }>('legal-documents/bulk', { data: payload })
+    .then((r) => r.data);
 
 /** Catalogue mobile /catalog — retourne {data:{resources:[...]}} pour sync */
 export const getMobileCatalog = (): Promise<RawCatalogResponse> =>
-  apiFetch('/catalog');
+  laravelClient.get<RawCatalogResponse>('catalog').then((r) => r.data);
 
 /** Stats du catalogue. */
 export const getCatalogStats = (): Promise<CatalogStats> =>
-  apiFetch('/catalog/stats');
+  laravelClient.get<CatalogStats>('catalog/stats').then((r) => r.data);
 
 /** Détail d'un document. */
 export const getDocument = (id: string): Promise<{ data: LaravelDocument }> =>
-  apiFetch(`/legal-documents/${id}`);
+  laravelClient.get<{ data: LaravelDocument }>(`legal-documents/${id}`).then((r) => r.data);
 
 /** Arbre structurel d'un document. */
 export const getDocumentTree = (id: string): Promise<{ data: LaravelTreeNode[] } | LaravelTreeNode[]> =>
-  apiFetch(`/legal-documents/${id}/tree`);
+  laravelClient
+    .get<{ data: LaravelTreeNode[] } | LaravelTreeNode[]>(`legal-documents/${id}/tree`)
+    .then((r) => r.data);
 
 /** URL PDF pour un document. */
 export const getDocumentPdfUrl = (id: string): string =>
@@ -248,7 +242,7 @@ export const getDocumentJsonUrl = (id: string): string =>
   `${BASE}/legal-documents/${id}/download`;
 
 export const downloadFile = async (url: string, filename: string) => {
-  const response = await apiClient.get(url, { responseType: 'blob' });
+  const response = await laravelClient.get(url, { responseType: 'blob' });
   const blob = new Blob([response.data]);
   const link = document.createElement('a');
   link.href = window.URL.createObjectURL(blob);
@@ -258,7 +252,9 @@ export const downloadFile = async (url: string, filename: string) => {
 };
 
 export const deleteLegalDocument = (id: string, force?: boolean): Promise<{ success: boolean; message?: string }> =>
-  apiFetch(`/legal-documents/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' });
+  laravelClient
+    .delete<{ success: boolean; message?: string }>(`legal-documents/${id}${force ? '?force=1' : ''}`)
+    .then((r) => r.data);
 
 /** Détail de ce qu'une suppression définitive emporterait (compteurs + garde-fous). */
 export interface DeletionImpact {
@@ -273,7 +269,7 @@ export interface DeletionImpact {
 }
 
 export const getDeletionImpact = (id: string): Promise<{ data: DeletionImpact }> =>
-  apiFetch(`/legal-documents/${id}/deletion-impact`);
+  laravelClient.get<{ data: DeletionImpact }>(`legal-documents/${id}/deletion-impact`).then((r) => r.data);
 
 /** Anomalie de curation (vue Contrôle). */
 export interface CurationFlagDto {
@@ -294,34 +290,44 @@ export interface CurationFlagDto {
 
 /** Anomalies d'un document, triées (bloquantes d'abord). */
 export const getDocumentCurationFlags = (id: string, openOnly = false): Promise<{ data: CurationFlagDto[] }> =>
-  apiFetch(`/legal-documents/${id}/curation-flags${openOnly ? '?open_only=1' : ''}`);
+  laravelClient
+    .get<{ data: CurationFlagDto[] }>(`legal-documents/${id}/curation-flags${openOnly ? '?open_only=1' : ''}`)
+    .then((r) => r.data);
 
 /** Résout (ou rouvre) une anomalie. */
 export const resolveCurationFlag = (flagId: string, resolved: boolean): Promise<{ data: CurationFlagDto }> =>
-  apiFetch(`/curation-flags/${flagId}`, { method: 'PATCH', body: JSON.stringify({ resolved }) });
+  laravelClient.patch<{ data: CurationFlagDto }>(`curation-flags/${flagId}`, { resolved }).then((r) => r.data);
 
 /** Relance la détection structurelle déterministe sur le document. */
 export const detectDocumentAnomalies = (id: string): Promise<{ data: { created: number } }> =>
-  apiFetch(`/legal-documents/${id}/detect-anomalies`, { method: 'POST' });
+  laravelClient.post<{ data: { created: number } }>(`legal-documents/${id}/detect-anomalies`).then((r) => r.data);
 
 /** Lance l'analyse sémantique (IA) du document — détecte les défauts de contenu. */
 export const analyzeDocumentWithAI = (id: string): Promise<{ data: { found: number } }> =>
-  apiFetch(`/legal-documents/${id}/analyze-ai`, { method: 'POST' });
+  laravelClient.post<{ data: { found: number } }>(`legal-documents/${id}/analyze-ai`).then((r) => r.data);
 
 export const triggerDocumentEmbedding = (
   id: string,
 ): Promise<{ success: boolean; message: string; data: { pending_count: number; in_progress: boolean; batch_id?: string; total_chunks?: number } }> =>
-  apiFetch(`/legal-documents/${id}/embed`, { method: 'POST' });
+  laravelClient
+    .post<{ success: boolean; message: string; data: { pending_count: number; in_progress: boolean; batch_id?: string; total_chunks?: number } }>(
+      `legal-documents/${id}/embed`,
+    )
+    .then((r) => r.data);
 
 /** Interrompt l'indexation en cours (les embeddings déjà calculés sont conservés). */
 export const cancelDocumentEmbedding = (
   id: string,
 ): Promise<{ success: boolean; message: string; data: { in_progress: boolean } }> =>
-  apiFetch(`/legal-documents/${id}/embed`, { method: 'DELETE' });
+  laravelClient
+    .delete<{ success: boolean; message: string; data: { in_progress: boolean } }>(`legal-documents/${id}/embed`)
+    .then((r) => r.data);
 
 /** Recherche full-text dans les articles. */
 export const searchDocuments = (query: string): Promise<{ data: LaravelDocument[] }> =>
-  apiFetch(`/legal-documents/search?q=${encodeURIComponent(query)}`);
+  laravelClient
+    .get<{ data: LaravelDocument[] }>(`legal-documents/search?q=${encodeURIComponent(query)}`)
+    .then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Structure Nodes
@@ -334,20 +340,20 @@ export const createNode = (payload: {
   titre?: string;
   parent_id?: string;
   sort_order?: number;
-}) => apiFetch('/structure-nodes', { method: 'POST', body: JSON.stringify(payload) });
+}) => laravelClient.post('structure-nodes', payload).then((r) => r.data);
 
 export const updateNode = (id: string, payload: Partial<{
   type_unite: string;
   numero: string;
   titre: string;
   validation_status: string;
-}>) => apiFetch(`/structure-nodes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}>) => laravelClient.patch(`structure-nodes/${id}`, payload).then((r) => r.data);
 
 export const deleteNode = (id: string) =>
-  apiFetch(`/structure-nodes/${id}`, { method: 'DELETE' });
+  laravelClient.delete(`structure-nodes/${id}`).then((r) => r.data);
 
 export const moveNode = (id: string, payload: { parent_id: string | null; sort_order: number }) =>
-  apiFetch(`/structure-nodes/${id}/move`, { method: 'POST', body: JSON.stringify(payload) });
+  laravelClient.post(`structure-nodes/${id}/move`, payload).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Articles
@@ -359,7 +365,7 @@ export const createArticle = (payload: {
   numero_article: string;
   content: string;
   ordre_affichage?: number;
-}) => apiFetch('/articles', { method: 'POST', body: JSON.stringify(payload) });
+}) => laravelClient.post('articles', payload).then((r) => r.data);
 
 export const updateArticle = (id: string, payload: Partial<{
   numero_article: string;
@@ -368,20 +374,20 @@ export const updateArticle = (id: string, payload: Partial<{
   parent_node_id: string;
   ordre_affichage: number;
   source_locator: { page: number; x: number; y: number; width: number; height: number } | null;
-}>) => apiFetch(`/articles/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}>) => laravelClient.patch(`articles/${id}`, payload).then((r) => r.data);
 
 export const deleteArticle = (id: string) =>
-  apiFetch(`/articles/${id}`, { method: 'DELETE' });
+  laravelClient.delete(`articles/${id}`).then((r) => r.data);
 
 export const addArticleVersion = (id: string, payload: { content: string; start_date: string }) =>
-  apiFetch(`/articles/${id}/versions`, { method: 'POST', body: JSON.stringify(payload) });
+  laravelClient.post(`articles/${id}/versions`, payload).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 
 export const getArticleRelations = (articleId: string) =>
-  apiFetch(`/articles/${articleId}/relations`);
+  laravelClient.get(`articles/${articleId}/relations`).then((r) => r.data);
 
 export const createRelation = (articleId: string, payload: {
   target_article_id?: string;
@@ -389,20 +395,20 @@ export const createRelation = (articleId: string, payload: {
   relation_type: string;
   commentaire?: string;
   effective_date?: string;
-}) => apiFetch(`/articles/${articleId}/relations`, { method: 'POST', body: JSON.stringify(payload) });
+}) => laravelClient.post(`articles/${articleId}/relations`, payload).then((r) => r.data);
 
 export const deleteRelation = (id: string) =>
-  apiFetch(`/relations/${id}`, { method: 'DELETE' });
+  laravelClient.delete(`relations/${id}`).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Institutions & Types
 // ---------------------------------------------------------------------------
 
-export const getInstitutions = () => apiFetch('/institutions');
-export const getDocumentTypes = () => apiFetch('/document-types');
+export const getInstitutions = () => laravelClient.get('institutions').then((r) => r.data);
+export const getDocumentTypes = () => laravelClient.get('document-types').then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Home
 // ---------------------------------------------------------------------------
 export const getHomeStats = (): Promise<CatalogStats> =>
-  apiFetch('/home');
+  laravelClient.get<CatalogStats>('home').then((r) => r.data);

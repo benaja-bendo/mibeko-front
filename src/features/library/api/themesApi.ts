@@ -1,4 +1,4 @@
-import { apiFetch } from '@/features/documents/api/laravelApi';
+import { laravelClient } from '@/shared/api';
 import type { DocumentTheme } from '@/shared/types/database';
 import type { LibraryHomeDocument } from '@/features/library/types';
 
@@ -25,7 +25,7 @@ export interface Theme {
 }
 
 export const listThemes = (): Promise<Theme[]> =>
-  apiFetch<Envelope<Theme[]>>('/library/themes').then((r) => r.data);
+  laravelClient.get<Envelope<Theme[]>>('library/themes').then((r) => r.data.data);
 
 export interface ThemeDocumentsResult {
   theme: { id: string; name: string; slug: string; icon: string | null; description: string | null };
@@ -34,10 +34,12 @@ export interface ThemeDocumentsResult {
 
 /** Textes publiés rattachés à un thème (parcours, pas recherche full-text). */
 export const getThemeDocuments = (slug: string): Promise<ThemeDocumentsResult> =>
-  apiFetch<Envelope<ThemeDocumentsResult>>(`/library/themes/${encodeURIComponent(slug)}`).then((r) => r.data);
+  laravelClient
+    .get<Envelope<ThemeDocumentsResult>>(`library/themes/${encodeURIComponent(slug)}`)
+    .then((r) => r.data.data);
 
 /** Suggestion IA de thèmes pour un document (assistance éditeur, non écrite). */
 export const suggestDocumentThemes = (documentId: string): Promise<DocumentTheme[]> =>
-  apiFetch<Envelope<DocumentTheme[]>>(`/legal-documents/${documentId}/suggest-themes`, {
-    method: 'POST',
-  }).then((r) => r.data);
+  laravelClient
+    .post<Envelope<DocumentTheme[]>>(`legal-documents/${documentId}/suggest-themes`)
+    .then((r) => r.data.data);

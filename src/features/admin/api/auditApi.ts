@@ -1,4 +1,3 @@
-import { apiFetch } from '@/features/documents/api/laravelApi';
 import { laravelClient } from '@/shared/api/laravelClient';
 
 /**
@@ -115,22 +114,21 @@ function toQuery(filters: AuditFilters): URLSearchParams {
 // ---------------------------------------------------------------------------
 
 export const listAudits = (filters: AuditFilters = {}): Promise<AuditListResult> =>
-  apiFetch<AuditListResult>(`/admin/audits?${toQuery(filters).toString()}`);
+  laravelClient.get<AuditListResult>(`admin/audits?${toQuery(filters).toString()}`).then((r) => r.data);
 
 export const getAuditStats = (): Promise<AuditStats> =>
-  apiFetch<Envelope<AuditStats>>('/admin/audits/stats').then((r) => r.data);
+  laravelClient.get<Envelope<AuditStats>>('admin/audits/stats').then((r) => r.data.data);
 
 export const getAuditFilters = (): Promise<AuditFilterOptions> =>
-  apiFetch<Envelope<AuditFilterOptions>>('/admin/audits/filters').then((r) => r.data);
+  laravelClient.get<Envelope<AuditFilterOptions>>('admin/audits/filters').then((r) => r.data.data);
 
 export const getAudit = (id: number): Promise<AuditEntry> =>
-  apiFetch<Envelope<AuditEntry>>(`/admin/audits/${id}`).then((r) => r.data);
+  laravelClient.get<Envelope<AuditEntry>>(`admin/audits/${id}`).then((r) => r.data.data);
 
 export const purgeAudits = (olderThanDays: number): Promise<{ deleted: number }> =>
-  apiFetch<Envelope<{ deleted: number }>>('/admin/audits', {
-    method: 'DELETE',
-    body: JSON.stringify({ older_than_days: olderThanDays }),
-  }).then((r) => r.data);
+  laravelClient
+    .delete<Envelope<{ deleted: number }>>('admin/audits', { data: { older_than_days: olderThanDays } })
+    .then((r) => r.data.data);
 
 /**
  * Télécharge le CSV des entrées filtrées. Passe par l'axios authentifié

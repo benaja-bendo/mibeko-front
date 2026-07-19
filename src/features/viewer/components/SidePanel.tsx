@@ -4,7 +4,8 @@ import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { cn } from '@/shared/lib/utils';
 import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
-import { apiFetch, apiErrorMessage } from '@/features/documents/api/laravelApi';
+import { apiErrorMessage } from '@/features/documents/api/laravelApi';
+import { laravelClient } from '@/shared/api';
 import { Button } from '@/shared/components/ui/Button';
 import ValidityModal from './ValidityModal';
 import AddRelationModal from './AddRelationModal';
@@ -32,13 +33,13 @@ export default function SidePanel() {
   React.useEffect(() => {
     // Fetch relations if activeTab is meta
     if (selectedNode?.id && activeTab === 'meta' && selectedNode.type === 'ARTICLE') {
-      apiFetch<{data: Array<{
+      laravelClient.get<{data: Array<{
         id: string;
         relation_type: string;
         target_article?: { numero_article?: string | null } | null;
         target_document?: { titre_officiel?: string | null } | null;
-      }>}>(`/articles/${selectedNode.id}/relations`)
-        .then(data => setRelations(data.data || []))
+      }>}>(`articles/${selectedNode.id}/relations`)
+        .then(res => setRelations(res.data.data || []))
         .catch(err => console.error('Failed to fetch relations', err));
     }
   }, [activeTab, selectedNode?.id, selectedNode?.type]);

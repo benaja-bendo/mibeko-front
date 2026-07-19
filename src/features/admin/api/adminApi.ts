@@ -1,4 +1,4 @@
-import { apiFetch } from '@/features/documents/api/laravelApi';
+import { laravelClient } from '@/shared/api';
 
 /**
  * adminApi.ts — Espace Administration (rôle admin).
@@ -27,7 +27,7 @@ export interface AdminOverview {
 }
 
 export const getAdminOverview = (): Promise<AdminOverview> =>
-  apiFetch<Envelope<AdminOverview>>('/admin/overview').then((r) => r.data);
+  laravelClient.get<Envelope<AdminOverview>>('admin/overview').then((r) => r.data.data);
 
 // ---------------------------------------------------------------------------
 // Référentiels — Types de documents (« types de loi »)
@@ -47,26 +47,24 @@ export interface DocumentTypePayload {
 }
 
 export const listDocumentTypes = (): Promise<DocumentTypeRef[]> =>
-  apiFetch<Envelope<DocumentTypeRef[]>>('/admin/document-types').then((r) => r.data);
+  laravelClient.get<Envelope<DocumentTypeRef[]>>('admin/document-types').then((r) => r.data.data);
 
 export const createDocumentType = (payload: DocumentTypePayload): Promise<DocumentTypeRef> =>
-  apiFetch<Envelope<DocumentTypeRef>>('/admin/document-types', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.post<Envelope<DocumentTypeRef>>('admin/document-types', payload).then((r) => r.data.data);
 
 /** Le `code` est immuable : seuls le libellé et le niveau sont modifiables. */
 export const updateDocumentType = (
   code: string,
   payload: Omit<DocumentTypePayload, 'code'>,
 ): Promise<DocumentTypeRef> =>
-  apiFetch<Envelope<DocumentTypeRef>>(`/admin/document-types/${encodeURIComponent(code)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient
+    .patch<Envelope<DocumentTypeRef>>(`admin/document-types/${encodeURIComponent(code)}`, payload)
+    .then((r) => r.data.data);
 
 export const deleteDocumentType = (code: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/document-types/${encodeURIComponent(code)}`, { method: 'DELETE' });
+  laravelClient
+    .delete<Envelope<null>>(`admin/document-types/${encodeURIComponent(code)}`)
+    .then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Référentiels — Institutions
@@ -85,22 +83,16 @@ export interface InstitutionPayload {
 }
 
 export const listInstitutions = (): Promise<InstitutionRef[]> =>
-  apiFetch<Envelope<InstitutionRef[]>>('/admin/institutions').then((r) => r.data);
+  laravelClient.get<Envelope<InstitutionRef[]>>('admin/institutions').then((r) => r.data.data);
 
 export const createInstitution = (payload: InstitutionPayload): Promise<InstitutionRef> =>
-  apiFetch<Envelope<InstitutionRef>>('/admin/institutions', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.post<Envelope<InstitutionRef>>('admin/institutions', payload).then((r) => r.data.data);
 
 export const updateInstitution = (id: string, payload: InstitutionPayload): Promise<InstitutionRef> =>
-  apiFetch<Envelope<InstitutionRef>>(`/admin/institutions/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.patch<Envelope<InstitutionRef>>(`admin/institutions/${id}`, payload).then((r) => r.data.data);
 
 export const deleteInstitution = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/institutions/${id}`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/institutions/${id}`).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Référentiels — Tags
@@ -127,22 +119,16 @@ export interface TagPayload {
 }
 
 export const listTags = (): Promise<TagRef[]> =>
-  apiFetch<Envelope<TagRef[]>>('/admin/tags').then((r) => r.data);
+  laravelClient.get<Envelope<TagRef[]>>('admin/tags').then((r) => r.data.data);
 
 export const createTag = (payload: TagPayload): Promise<TagRef> =>
-  apiFetch<Envelope<TagRef>>('/admin/tags', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.post<Envelope<TagRef>>('admin/tags', payload).then((r) => r.data.data);
 
 export const updateTag = (id: string, payload: TagPayload): Promise<TagRef> =>
-  apiFetch<Envelope<TagRef>>(`/admin/tags/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.patch<Envelope<TagRef>>(`admin/tags/${id}`, payload).then((r) => r.data.data);
 
 export const deleteTag = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/tags/${id}`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/tags/${id}`).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Signalements (CurationFlag)
@@ -187,18 +173,15 @@ export const listFlags = (filters: FlagFilters = {}): Promise<FlagListResult> =>
   if (filters.type) q.set('type', filters.type);
   if (filters.page) q.set('page', String(filters.page));
   q.set('per_page', String(filters.per_page ?? 20));
-  return apiFetch<FlagListResult>(`/admin/flags?${q.toString()}`);
+  return laravelClient.get<FlagListResult>(`admin/flags?${q.toString()}`).then((r) => r.data);
 };
 
 /** Résout (true) ou ré-ouvre (false) un signalement. */
 export const updateFlag = (id: string, resolved: boolean): Promise<CurationFlagRef> =>
-  apiFetch<Envelope<CurationFlagRef>>(`/admin/flags/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ resolved }),
-  }).then((r) => r.data);
+  laravelClient.patch<Envelope<CurationFlagRef>>(`admin/flags/${id}`, { resolved }).then((r) => r.data.data);
 
 export const deleteFlag = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/flags/${id}`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/flags/${id}`).then((r) => r.data);
 
 /** Actions groupées sur une sélection de signalements. */
 export type FlagBulkAction = 'resolve' | 'reopen' | 'delete';
@@ -212,7 +195,6 @@ export const bulkFlags = (
   ids: string[],
   action: FlagBulkAction,
 ): Promise<{ affected: number; message: string }> =>
-  apiFetch<Envelope<{ affected: number }>>('/admin/flags/bulk', {
-    method: 'POST',
-    body: JSON.stringify({ ids, action }),
-  }).then((r) => ({ affected: r.data.affected, message: r.message ?? '' }));
+  laravelClient
+    .post<Envelope<{ affected: number }>>('admin/flags/bulk', { ids, action })
+    .then((r) => ({ affected: r.data.data.affected, message: r.data.message ?? '' }));

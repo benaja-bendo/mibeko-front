@@ -1,4 +1,4 @@
-import { apiFetch } from '@/features/documents/api/laravelApi';
+import { laravelClient } from '@/shared/api';
 import type { User, UserRole } from '@/shared/types/auth';
 
 /**
@@ -187,74 +187,67 @@ export const listUsers = (filters: UserFilters = {}): Promise<UserListResult> =>
   if (filters.trashed) q.set('trashed', filters.trashed);
   if (filters.page) q.set('page', String(filters.page));
   q.set('per_page', String(filters.per_page ?? 20));
-  return apiFetch<UserListResult>(`/admin/users?${q.toString()}`);
+  return laravelClient.get<UserListResult>(`admin/users?${q.toString()}`).then((r) => r.data);
 };
 
 export const getUserStats = (): Promise<UserStats> =>
-  apiFetch<Envelope<UserStats>>('/admin/users/stats').then((r) => r.data);
+  laravelClient.get<Envelope<UserStats>>('admin/users/stats').then((r) => r.data.data);
 
 export const getUser = (id: string): Promise<AdminUserDetail> =>
-  apiFetch<Envelope<AdminUserDetail>>(`/admin/users/${id}`).then((r) => r.data);
+  laravelClient.get<Envelope<AdminUserDetail>>(`admin/users/${id}`).then((r) => r.data.data);
 
 export const createUser = (
   payload: CreateUserPayload,
 ): Promise<{ user: AdminUserRow; generated_password: string | null }> =>
-  apiFetch<Envelope<{ user: AdminUserRow; generated_password: string | null }>>('/admin/users', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient
+    .post<Envelope<{ user: AdminUserRow; generated_password: string | null }>>('admin/users', payload)
+    .then((r) => r.data.data);
 
 export const updateUser = (id: string, payload: UpdateUserPayload): Promise<AdminUserRow> =>
-  apiFetch<Envelope<AdminUserRow>>(`/admin/users/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.patch<Envelope<AdminUserRow>>(`admin/users/${id}`, payload).then((r) => r.data.data);
 
 export const deleteUser = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/users/${id}`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/users/${id}`).then((r) => r.data);
 
 export const restoreUser = (id: string): Promise<AdminUserRow> =>
-  apiFetch<Envelope<AdminUserRow>>(`/admin/users/${id}/restore`, { method: 'POST' }).then((r) => r.data);
+  laravelClient.post<Envelope<AdminUserRow>>(`admin/users/${id}/restore`).then((r) => r.data.data);
 
 export const sendUserPasswordReset = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/users/${id}/password-reset`, { method: 'POST' });
+  laravelClient.post<Envelope<null>>(`admin/users/${id}/password-reset`).then((r) => r.data);
 
 export const revokeUserTokens = (id: string): Promise<{ revoked: number }> =>
-  apiFetch<Envelope<{ revoked: number }>>(`/admin/users/${id}/revoke-tokens`, { method: 'POST' }).then(
-    (r) => r.data,
-  );
+  laravelClient
+    .post<Envelope<{ revoked: number }>>(`admin/users/${id}/revoke-tokens`)
+    .then((r) => r.data.data);
 
 export const verifyUserEmail = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/users/${id}/verify-email`, { method: 'POST' });
+  laravelClient.post<Envelope<null>>(`admin/users/${id}/verify-email`).then((r) => r.data);
 
 export const disableUserTwoFactor = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/users/${id}/two-factor`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/users/${id}/two-factor`).then((r) => r.data);
 
 export const impersonateUser = (id: string): Promise<{ token: string; user: User }> =>
-  apiFetch<Envelope<{ token: string; user: User }>>(`/admin/users/${id}/impersonate`, {
-    method: 'POST',
-  }).then((r) => r.data);
+  laravelClient
+    .post<Envelope<{ token: string; user: User }>>(`admin/users/${id}/impersonate`)
+    .then((r) => r.data.data);
 
 // ---------------------------------------------------------------------------
 // Invitations
 // ---------------------------------------------------------------------------
 
 export const listInvitations = (): Promise<InvitationRef[]> =>
-  apiFetch<Envelope<InvitationRef[]>>('/admin/invitations').then((r) => r.data);
+  laravelClient.get<Envelope<InvitationRef[]>>('admin/invitations').then((r) => r.data.data);
 
 export const createInvitation = (payload: CreateInvitationPayload): Promise<InvitationRef> =>
-  apiFetch<Envelope<InvitationRef>>('/admin/invitations', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }).then((r) => r.data);
+  laravelClient.post<Envelope<InvitationRef>>('admin/invitations', payload).then((r) => r.data.data);
 
 export const resendInvitation = (id: string): Promise<InvitationRef> =>
-  apiFetch<Envelope<InvitationRef>>(`/admin/invitations/${id}/resend`, { method: 'POST' }).then(
-    (r) => r.data,
-  );
+  laravelClient
+    .post<Envelope<InvitationRef>>(`admin/invitations/${id}/resend`)
+    .then((r) => r.data.data);
 
 export const deleteInvitation = (id: string): Promise<Envelope<null>> =>
-  apiFetch<Envelope<null>>(`/admin/invitations/${id}`, { method: 'DELETE' });
+  laravelClient.delete<Envelope<null>>(`admin/invitations/${id}`).then((r) => r.data);
 
 export interface AcceptInvitationPayload {
   email: string;
@@ -267,7 +260,9 @@ export interface AcceptInvitationPayload {
 export const acceptInvitation = (
   payload: AcceptInvitationPayload,
 ): Promise<{ token: string; user: User }> =>
-  apiFetch<Envelope<{ token: string; user: User }>>('/invitations/accept', {
-    method: 'POST',
-    body: JSON.stringify({ ...payload, device_name: 'mibeko-saas-web' }),
-  }).then((r) => r.data);
+  laravelClient
+    .post<Envelope<{ token: string; user: User }>>('invitations/accept', {
+      ...payload,
+      device_name: 'mibeko-saas-web',
+    })
+    .then((r) => r.data.data);
