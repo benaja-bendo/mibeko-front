@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getStoredToken } from '@/features/auth/store/authStore';
+import { getStoredToken, handleUnauthorized } from '@/shared/auth/tokenAccess';
 
 export const laravelBaseUrl = import.meta.env.VITE_LARAVEL_API_URL || '/api/v1';
 
@@ -24,9 +24,7 @@ laravelClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      import('@/features/auth/store/authStore').then(({ useAuthStore }) => {
-        useAuthStore.getState().clearAuth();
-      });
+      handleUnauthorized();
     }
     const message = error.response?.data?.message || error.message || 'API error';
     return Promise.reject(new Error(message));

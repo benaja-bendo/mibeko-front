@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/shared/types/auth';
+import { configureTokenAccess } from '@/shared/auth/tokenAccess';
 
 const TOKEN_KEY = 'mibeko_token';
 
@@ -101,3 +102,11 @@ export const useAuthStore = create<AuthState>()(
 // Pendant une impersonation, `token` est déjà celui de l'utilisateur incarné.
 export const getStoredToken = (): string | null =>
   useAuthStore.getState().token;
+
+// Alimente l'abstraction `shared/auth/tokenAccess` : ainsi les couches basses
+// (clients axios, flux SSE) accèdent au jeton et réagissent aux 401 sans jamais
+// importer `features/auth` (respect de la règle FSD `shared ↛ features`).
+configureTokenAccess({
+  getToken: getStoredToken,
+  onUnauthorized: () => useAuthStore.getState().clearAuth(),
+});

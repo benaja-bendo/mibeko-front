@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getStoredToken } from '@/features/auth/store/authStore';
+import { getStoredToken, handleUnauthorized } from '@/shared/auth/tokenAccess';
 
 export const pythonBaseUrl = import.meta.env.VITE_PYTHON_API_URL || '/py/api/v1';
 
@@ -44,6 +44,11 @@ function formatPythonError(data: unknown, fallback: string): string {
 pythonClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Session révoquée/expirée : on purge l'auth comme le fait laravelClient,
+    // sinon l'app garde un jeton mort et enchaîne les 401 silencieux.
+    if (error.response?.status === 401) {
+      handleUnauthorized();
+    }
     const message = formatPythonError(error.response?.data, error.message || 'Python API error');
     return Promise.reject(new Error(message));
   },

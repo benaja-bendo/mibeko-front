@@ -10,8 +10,7 @@
  * Fournit aussi les URLs d'actions documentaires (PDF, JSON).
  */
 
-import { laravelClient, laravelBaseUrl } from '@/shared/api';
-import { getStoredToken } from '@/features/auth/store/authStore';
+import { laravelClient, laravelBaseUrl, openSsePost, SSE_DONE } from '@/shared/api';
 import type {
   DocumentTypeOption,
   InstitutionOption,
@@ -133,83 +132,31 @@ export async function getInstitutions(): Promise<InstitutionOption[]> {
 // IA à la demande — streaming SSE (explication d'article / synthèse)
 // ---------------------------------------------------------------------------
 
-/** Découpe une trame SSE brute en `{ event, data }` (même format que l'Assistant). */
-function parseSseFrame(frame: string): { event: string; data: string } | null {
-  const lines = frame.split('\n');
-  let event = 'message';
-  const dataLines: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim();
-    } else if (line.startsWith('data:')) {
-      dataLines.push(line.slice(5).replace(/^ /, ''));
-    }
-  }
-
-  if (dataLines.length === 0) return null;
-  return { event, data: dataLines.join('\n') };
-}
-
 /**
  * Consomme un flux SSE POST et branche chaque évènement sur les callbacks.
  *
- * `EventSource` ne gérant pas les requêtes POST avec corps, on lit le flux via
- * `fetch` + `ReadableStream` (comme la feature Assistant).
+ * Mêmes événements que l'Assistant (`status`/`sources`/`error`/`message`), à ceci
+ * près qu'il n'y a ni en-tête `X-Conversation-Id` ni événement `meta`. Le
+ * transport (`fetch` + `ReadableStream`, en-têtes, gestion des erreurs HTTP) est
+ * mutualisé dans `shared/api` via {@link openSsePost}.
  */
-async function consumeSse(
+function consumeSse(
   path: string,
   body: Record<string, unknown>,
   callbacks: LibraryAiCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {
-  const token = getStoredToken();
+  let done = false;
 
-  const response = await fetch(`${laravelBaseUrl}/${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: 'include',
-    body: JSON.stringify(body),
+  return openSsePost({
+    url: `${laravelBaseUrl}/${path}`,
+    body,
     signal,
-  });
-
-  if (!response.ok || !response.body) {
-    let detail = `Erreur ${response.status}`;
-    try {
-      const payload = await response.json();
-      detail = payload?.message || detail;
-    } catch {
-      /* corps non JSON — on garde le code HTTP */
-    }
-    throw new Error(detail);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const frames = buffer.split('\n\n');
-    buffer = frames.pop() ?? '';
-
-    for (const rawFrame of frames) {
-      if (!rawFrame.trim()) continue;
-      const parsed = parseSseFrame(rawFrame);
-      if (!parsed) continue;
-
-      const { event, data } = parsed;
-
-      if (data === '[DONE]') {
+    onFrame: ({ event, data }) => {
+      if (data === SSE_DONE) {
         callbacks.onDone?.();
-        return;
+        done = true;
+        return true; // arrête la lecture
       }
 
       try {
@@ -238,10 +185,11 @@ async function consumeSse(
       } catch {
         // Trame JSON malformée — on l'ignore pour ne pas casser le flux.
       }
-    }
-  }
-
-  callbacks.onDone?.();
+    },
+  }).then(() => {
+    // Fin de flux sans sentinelle `[DONE]` explicite.
+    if (!done) callbacks.onDone?.();
+  });
 }
 
 /** Streame l'explication pédagogique d'un article précis. */

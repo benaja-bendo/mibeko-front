@@ -4,8 +4,8 @@
  * Le rewrite Vite enlève /py, donc /py/api/... → /api/... sur le serveur Python.
  */
 
-import { pythonClient, pythonBaseUrl as BASE } from '@/shared/api';
-import { getStoredToken } from '@/features/auth/store/authStore';
+import { pythonClient, pythonBaseUrl as BASE, readSseStream } from '@/shared/api';
+import { getStoredToken } from '@/shared/auth/tokenAccess';
 
 // ---------------------------------------------------------------------------
 // Types Python API
@@ -318,22 +318,6 @@ export const discardRun = (docId: string, runId: string): Promise<{ message: str
 const SSE_RECONNECT_DELAY = 3000;
 
 /**
- * Découpe une trame SSE brute en `{ event, data }`.
- * Les heartbeats (lignes de commentaire `": ping"`) ne portent ni `event:` ni
- * `data:` et renvoient donc `null` — ils sont ignorés en amont.
- */
-function parseSseFrame(frame: string): { event: string; data: string } | null {
-  let event = 'message';
-  const dataLines: string[] = [];
-  for (const line of frame.split('\n')) {
-    if (line.startsWith('event:')) event = line.slice(6).trim();
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
-  }
-  if (dataLines.length === 0) return null;
-  return { event, data: dataLines.join('\n') };
-}
-
-/**
  * Ouvre une connexion SSE vers le backend Python pour les notifications temps réel.
  *
  * On utilise `fetch` + `ReadableStream` (et non `EventSource` natif) afin de
@@ -384,22 +368,9 @@ export const openPythonStream = (
       if (response.status === 401 || response.status === 403) return;
       if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      // Lecture incrémentale mutualisée (découpe des trames + heartbeats ignorés).
+      await readSseStream(response.body, ({ event, data }) => dispatch(event, data));
 
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split('\n\n');
-        buffer = frames.pop() ?? ''; // dernière trame potentiellement incomplète
-        for (const rawFrame of frames) {
-          if (!rawFrame.trim()) continue;
-          const parsed = parseSseFrame(rawFrame);
-          if (parsed) dispatch(parsed.event, parsed.data);
-        }
-      }
       // Le serveur a clôturé le flux proprement → on tente de se reconnecter.
       scheduleReconnect();
     } catch {
