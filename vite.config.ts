@@ -60,13 +60,45 @@ function pdfjsAssets(): Plugin {
   }
 }
 
+/**
+ * Injecte le script Umami (analytics respectueux, auto-hébergé) dans index.html
+ * UNIQUEMENT si les deux variables sont définies au build. Défaut : rien.
+ * L'origine du script doit aussi être autorisée par la CSP nginx
+ * (docker/nginx/default.conf).
+ */
+function umamiAnalytics(): Plugin {
+  return {
+    name: 'mibeko:umami-analytics',
+    transformIndexHtml(html) {
+      const url = process.env.VITE_UMAMI_URL
+      const websiteId = process.env.VITE_UMAMI_WEBSITE_ID
+      if (!url || !websiteId) return html
+      return {
+        html,
+        tags: [
+          {
+            tag: 'script',
+            injectTo: 'head',
+            attrs: {
+              defer: true,
+              src: `${url.replace(/\/$/, '')}/script.js`,
+              'data-website-id': websiteId,
+            },
+          },
+        ],
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     babel({ presets: [reactCompilerPreset()] }),
-    pdfjsAssets()
+    pdfjsAssets(),
+    umamiAnalytics()
   ],
   build: {
     chunkSizeWarningLimit: 700,
