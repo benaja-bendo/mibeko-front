@@ -150,7 +150,7 @@ export default function Library() {
   // Mode « ajout à un dossier » (depuis le drawer d'un dossier).
   const addToDossierId = searchParams.get('addTo');
   const targetDossier = useDossier(addToDossierId);
-  const addReference = useDossierAnnexes((s) => s.addReference);
+  const { addReference } = useDossierAnnexes();
   const addedIds = useMemo(
     () => new Set(targetDossier?.references.map((r) => r.id) ?? []),
     [targetDossier?.references],

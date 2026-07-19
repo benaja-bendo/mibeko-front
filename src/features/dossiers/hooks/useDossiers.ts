@@ -2,11 +2,13 @@
  * useDossiers.ts — Hooks TanStack Query du domaine Dossiers.
  *
  * Convention du repo : l'état serveur vit dans React Query. La liste serveur
- * (cœur + échéances) est fusionnée avec les annexes locales (références, pièces,
- * documents) pour produire la vue `Dossier` consommée par les composants.
+ * renvoie chaque dossier complet — cœur « affaire », échéances ET annexes
+ * (références, pièces, documents) nichées — produisant directement la vue
+ * `Dossier` consommée par les composants. Aucune fusion locale : les annexes
+ * sont persistées côté API (cf. `useDossierAnnexes`).
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createDossier,
@@ -17,15 +19,10 @@ import {
   updateDossier,
   updateEcheance,
 } from '@/features/dossiers/api/dossiersApi';
-import {
-  EMPTY_ANNEX,
-  useDossierAnnexes,
-  type DossierAnnex,
-} from '@/features/dossiers/store/useDossierAnnexes';
+import { migrateLocalAnnexes } from '@/features/dossiers/store/migrateLocalAnnexes';
 import type {
   CreateDossierInput,
   Dossier,
-  DossierRecord,
   EcheanceInput,
   UpdateDossierInput,
 } from '@/features/dossiers/types';
@@ -35,31 +32,29 @@ export const dossierKeys = {
   list: () => [...dossierKeys.all, 'list'] as const,
 };
 
-/** Fusionne un enregistrement serveur avec ses annexes locales. */
-function merge(record: DossierRecord, annex: DossierAnnex = EMPTY_ANNEX): Dossier {
-  return {
-    ...record,
-    references: annex.references,
-    pieces: annex.pieces,
-    documents: annex.documents,
-  };
-}
-
-/** Liste des dossiers (serveur + annexes), source de vérité de la page. */
+/** Liste des dossiers complets (serveur), source de vérité de la page. */
 export function useDossiers() {
+  const qc = useQueryClient();
   const query = useQuery({
     queryKey: dossierKeys.list(),
     queryFn: listDossiers,
     staleTime: 30_000,
   });
-  const byId = useDossierAnnexes((s) => s.byId);
 
-  const data = useMemo<Dossier[] | undefined>(
-    () => query.data?.map((record) => merge(record, byId[record.id])),
-    [query.data, byId],
-  );
+  // Migration douce, une seule fois : remonte vers l'API les annexes locales
+  // résiduelles des dossiers possédés, puis purge le localStorage. La clé stable
+  // (ids triés) évite de relancer l'effet à chaque rendu.
+  const idsKey = query.data
+    ? query.data.map((d) => d.id).sort().join(',')
+    : '';
+  useEffect(() => {
+    if (!idsKey) return;
+    void migrateLocalAnnexes(idsKey.split(','), () =>
+      qc.invalidateQueries({ queryKey: dossierKeys.list() }),
+    );
+  }, [idsKey, qc]);
 
-  return { ...query, data };
+  return query;
 }
 
 /** Dossier unique, dérivé de la liste (aucune requête supplémentaire). */
@@ -90,13 +85,11 @@ export function useUpdateDossier() {
 
 export function useDeleteDossier() {
   const qc = useQueryClient();
-  const clearAnnex = useDossierAnnexes((s) => s.clear);
   return useMutation({
     mutationFn: (id: string) => deleteDossier(id),
-    onSuccess: (_data, id) => {
-      clearAnnex(id);
-      qc.invalidateQueries({ queryKey: dossierKeys.list() });
-    },
+    // Les annexes sont supprimées côté serveur avec le dossier (cascade) : plus
+    // rien à purger localement.
+    onSuccess: () => qc.invalidateQueries({ queryKey: dossierKeys.list() }),
   });
 }
 

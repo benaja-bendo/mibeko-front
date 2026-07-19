@@ -10,9 +10,13 @@
 import { laravelClient } from '@/shared/api';
 import type {
   CreateDossierInput,
+  Dossier,
   DossierRecord,
   Echeance,
   EcheanceInput,
+  GeneratedDocument,
+  LegalReference,
+  Piece,
   UpdateDossierInput,
 } from '@/features/dossiers/types';
 
@@ -37,6 +41,42 @@ interface ApiEcheance {
   updated_at?: string;
 }
 
+/**
+ * Forme brute d'une référence juridique renvoyée par l'API.
+ *
+ * `id` EST l'UUID de la cible (article/document), conformément à la Resource
+ * backend (`DossierReferenceResource` expose `target_id` sous la clé `id`) et au
+ * modèle front `LegalReference.id`. Le backend n'expose pas d'id de ligne dédié.
+ */
+interface ApiReference {
+  id: string;
+  type: LegalReference['type'];
+  title: string;
+  breadcrumb: string | null;
+  number: string | null;
+  note: string | null;
+}
+
+/** Forme brute d'une pièce renvoyée par l'API. */
+interface ApiPiece {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  note: string | null;
+  added_at: string;
+}
+
+/** Forme brute d'un document généré renvoyé par l'API. */
+interface ApiDocument {
+  id: string;
+  template_id: string;
+  template_name: string;
+  title: string;
+  html: string;
+  created_at: string;
+}
+
 /** Forme brute d'un dossier renvoyée par l'API. */
 interface ApiDossier {
   id: string;
@@ -53,6 +93,9 @@ interface ApiDossier {
   description: string | null;
   color: string | null;
   echeances?: ApiEcheance[];
+  references?: ApiReference[];
+  pieces?: ApiPiece[];
+  documents?: ApiDocument[];
   created_at: string;
   updated_at: string;
 }
@@ -77,6 +120,44 @@ function mapEcheance(api: ApiEcheance): Echeance {
   };
 }
 
+/**
+ * Mappe une référence serveur vers le modèle web. Le champ `id` exposé est
+ * l'UUID de l'article/document (clé de déduplication et cible des suppressions),
+ * conformément au contrat `LegalReference.id`.
+ */
+function mapReference(api: ApiReference): LegalReference {
+  return {
+    id: api.id,
+    type: api.type,
+    title: api.title,
+    breadcrumb: api.breadcrumb ?? undefined,
+    number: api.number ?? null,
+    note: api.note ?? undefined,
+  };
+}
+
+function mapPiece(api: ApiPiece): Piece {
+  return {
+    id: api.id,
+    name: api.name,
+    size: api.size,
+    mime: api.mime,
+    note: api.note ?? undefined,
+    addedAt: api.added_at,
+  };
+}
+
+function mapDocument(api: ApiDocument): GeneratedDocument {
+  return {
+    id: api.id,
+    templateId: api.template_id,
+    templateName: api.template_name,
+    title: api.title,
+    html: api.html,
+    createdAt: api.created_at,
+  };
+}
+
 function mapRecord(api: ApiDossier): DossierRecord {
   return {
     id: api.id,
@@ -95,6 +176,20 @@ function mapRecord(api: ApiDossier): DossierRecord {
     echeances: (api.echeances ?? []).map(mapEcheance),
     createdAt: api.created_at,
     updatedAt: api.updated_at,
+  };
+}
+
+/**
+ * Mappe un dossier complet : cœur « affaire » + annexes nichées. L'API renvoie
+ * les trois collections (references/pieces/documents) avec le dossier, de sorte
+ * qu'un dossier est chargé entièrement en une seule requête.
+ */
+function mapDossier(api: ApiDossier): Dossier {
+  return {
+    ...mapRecord(api),
+    references: (api.references ?? []).map(mapReference),
+    pieces: (api.pieces ?? []).map(mapPiece),
+    documents: (api.documents ?? []).map(mapDocument),
   };
 }
 
@@ -138,16 +233,19 @@ function echeanceToApi(input: EcheanceInput): Record<string, unknown> {
 
 // ── Dossiers ─────────────────────────────────────────────────────────────────
 
-/** Liste « affaire » complète des dossiers de l'utilisateur (échéances incluses). */
-export async function listDossiers(): Promise<DossierRecord[]> {
+/**
+ * Liste complète des dossiers de l'utilisateur : cœur « affaire », échéances ET
+ * annexes (références, pièces, documents) nichées — tout en une seule requête.
+ */
+export async function listDossiers(): Promise<Dossier[]> {
   const { data } = await laravelClient.get('dossiers', { params: { full: 1 } });
-  return (data.data as ApiDossier[]).map(mapRecord);
+  return (data.data as ApiDossier[]).map(mapDossier);
 }
 
-/** Détail d'un dossier. */
-export async function getDossier(id: string): Promise<DossierRecord> {
+/** Détail d'un dossier complet (cœur + échéances + annexes). */
+export async function getDossier(id: string): Promise<Dossier> {
   const { data } = await laravelClient.get(`dossiers/${id}`);
-  return mapRecord(data.data);
+  return mapDossier(data.data);
 }
 
 /** Crée un dossier (et ses échéances initiales). */
@@ -197,6 +295,97 @@ export async function updateEcheance(
 
 export async function deleteEcheance(id: string): Promise<void> {
   await laravelClient.delete(`echeances/${id}`);
+}
+
+// ── Annexes : références juridiques ───────────────────────────────────────────
+
+/** Saisie d'une référence (l'`id` est l'UUID de l'article/document). */
+export type AddReferenceInput = Omit<LegalReference, 'note'> & { note?: string };
+
+/**
+ * Rattache une référence au dossier. Le backend déduplique par la cible (`id` =
+ * UUID article/document) : ajouter deux fois le même article/document renvoie la
+ * référence existante sans doublon.
+ */
+export async function addReference(
+  dossierId: string,
+  input: AddReferenceInput,
+): Promise<LegalReference> {
+  const body = {
+    id: input.id,
+    type: input.type,
+    title: input.title,
+    breadcrumb: input.breadcrumb ?? null,
+    number: input.number ?? null,
+    note: input.note ?? null,
+  };
+  const { data } = await laravelClient.post(
+    `dossiers/${dossierId}/references`,
+    body,
+  );
+  return mapReference(data.data);
+}
+
+/** Détache une référence (résolue par l'UUID article/document dans le dossier). */
+export async function removeReference(
+  dossierId: string,
+  refId: string,
+): Promise<void> {
+  await laravelClient.delete(`dossiers/${dossierId}/references/${refId}`);
+}
+
+// ── Annexes : pièces ──────────────────────────────────────────────────────────
+
+/** Métadonnées d'une pièce (aucun binaire versé dans cette itération). */
+export type AddPieceInput = Omit<Piece, 'id' | 'addedAt'>;
+
+export async function addPiece(
+  dossierId: string,
+  input: AddPieceInput,
+): Promise<Piece> {
+  const body = {
+    name: input.name,
+    size: input.size,
+    mime: input.mime,
+    note: input.note ?? null,
+  };
+  const { data } = await laravelClient.post(`dossiers/${dossierId}/pieces`, body);
+  return mapPiece(data.data);
+}
+
+export async function removePiece(
+  dossierId: string,
+  pieceId: string,
+): Promise<void> {
+  await laravelClient.delete(`dossiers/${dossierId}/pieces/${pieceId}`);
+}
+
+// ── Annexes : documents générés ───────────────────────────────────────────────
+
+export type AddDocumentInput = Omit<GeneratedDocument, 'id' | 'createdAt'>;
+
+export async function addDocument(
+  dossierId: string,
+  input: AddDocumentInput,
+): Promise<GeneratedDocument> {
+  const body = {
+    template_id: input.templateId,
+    template_name: input.templateName,
+    title: input.title,
+    html: input.html,
+  };
+  const { data } = await laravelClient.post(
+    `dossiers/${dossierId}/documents`,
+    body,
+  );
+  return mapDocument(data.data);
+}
+
+export async function removeDocument(
+  dossierId: string,
+  docId: string,
+): Promise<void> {
+  await laravelClient.delete(`dossiers/${dossierId}/documents/${docId}`);
 }
 
 // ── Export PDF (inchangé) ─────────────────────────────────────────────────────

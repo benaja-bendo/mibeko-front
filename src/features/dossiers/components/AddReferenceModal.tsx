@@ -19,7 +19,7 @@ import {
 import { useLibrarySearch } from '@/features/library/hooks/useLibrary';
 import type { SearchResultItem } from '@/features/library/types';
 import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
-import type { LegalReference } from '@/features/dossiers/types';
+import { useDossier } from '@/features/dossiers/hooks/useDossiers';
 
 interface AddReferenceModalProps {
   open: boolean;
@@ -27,21 +27,17 @@ interface AddReferenceModalProps {
   dossierId: string;
 }
 
-const NO_REFS: LegalReference[] = [];
-
 export default function AddReferenceModal({
   open,
   onOpenChange,
   dossierId,
 }: AddReferenceModalProps) {
   const navigate = useNavigate();
-  const addReference = useDossierAnnexes((s) => s.addReference);
-  const references = useDossierAnnexes(
-    (s) => s.byId[dossierId]?.references ?? NO_REFS,
-  );
+  const { addReference } = useDossierAnnexes();
+  const dossier = useDossier(dossierId);
   const addedIds = useMemo(
-    () => new Set(references.map((r) => r.id)),
-    [references],
+    () => new Set((dossier?.references ?? []).map((r) => r.id)),
+    [dossier?.references],
   );
 
   const [query, setQuery] = useState('');

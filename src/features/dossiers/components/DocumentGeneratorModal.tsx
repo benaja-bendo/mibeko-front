@@ -61,7 +61,7 @@ export default function DocumentGeneratorModal({
   open,
   onOpenChange,
 }: DocumentGeneratorModalProps) {
-  const addDocument = useDossierAnnexes((s) => s.addDocument);
+  const { addDocument } = useDossierAnnexes();
   const [template, setTemplate] = useState<DocumentTemplate | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
 

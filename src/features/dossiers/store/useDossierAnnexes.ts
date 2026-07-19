@@ -1,139 +1,176 @@
 /**
- * useDossierAnnexes.ts — Annexes locales d'un dossier (références, pièces, documents).
+ * useDossierAnnexes.ts — Annexes d'un dossier (références, pièces, documents).
  *
- * Le cœur du dossier (champs « affaire » + échéances) vit côté serveur via
- * TanStack Query (cf. `hooks/useDossiers`). Ces trois collections ne sont pas
- * encore persistées par l'API : elles restent locales (localStorage), indexées
- * par identifiant de dossier, et sont fusionnées dans la vue `Dossier` par le
- * hook `useDossiers`.
+ * Ces trois collections sont désormais persistées par l'API Laravel (au même
+ * titre que le cœur « affaire » et les échéances). Elles sont renvoyées nichées
+ * dans le dossier (`references[]`, `pieces[]`, `documents[]`) et chargées avec
+ * lui par `useDossiers`. Ce hook expose la même surface qu'auparavant
+ * (`addReference/removeReference/addPiece/removePiece/addDocument/removeDocument`)
+ * mais adossée à des mutations serveur (TanStack Query) avec mise à jour
+ * optimiste pour préserver la réactivité de l'ancien store local.
+ *
+ * Les identifiants persistés sont générés par le serveur : les composants ne
+ * fabriquent plus d'uid client. Pour les références, l'`id` reste l'UUID de
+ * l'article/document (clé de déduplication, cf. contrat `LegalReference.id`).
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type {
-  GeneratedDocument,
-  LegalReference,
-  Piece,
-} from '@/features/dossiers/types';
+import { useCallback, useMemo } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  addDocument,
+  addPiece,
+  addReference,
+  removeDocument,
+  removePiece,
+  removeReference,
+  type AddDocumentInput,
+  type AddPieceInput,
+  type AddReferenceInput,
+} from '@/features/dossiers/api/dossiersApi';
+import { dossierKeys } from '@/features/dossiers/hooks/useDossiers';
+import type { Dossier } from '@/features/dossiers/types';
 
-export interface DossierAnnex {
-  references: LegalReference[];
-  pieces: Piece[];
-  documents: GeneratedDocument[];
-}
-
-export const EMPTY_ANNEX: DossierAnnex = {
-  references: [],
-  pieces: [],
-  documents: [],
-};
-
-interface DossierAnnexesState {
-  byId: Record<string, DossierAnnex>;
-
-  addReference: (
-    dossierId: string,
-    ref: Omit<LegalReference, 'note'> & { note?: string },
-  ) => void;
-  removeReference: (dossierId: string, refId: string) => void;
-
-  addPiece: (dossierId: string, piece: Omit<Piece, 'id' | 'addedAt'>) => void;
-  removePiece: (dossierId: string, pieceId: string) => void;
-
-  addDocument: (
-    dossierId: string,
-    doc: Omit<GeneratedDocument, 'id' | 'createdAt'>,
-  ) => void;
-  removeDocument: (dossierId: string, docId: string) => void;
-
-  /** Oublie les annexes d'un dossier supprimé. */
-  clear: (dossierId: string) => void;
-}
-
-/** Génère un identifiant unique (fallback si crypto indisponible). */
-function uid(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `id_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-
-const now = () => new Date().toISOString();
-
-/** Met à jour les annexes d'un dossier par fusion immuable. */
-function patchAnnex(
-  byId: Record<string, DossierAnnex>,
+/** Applique une transformation aux annexes d'un dossier dans le cache liste. */
+function patchDossierInCache(
+  qc: ReturnType<typeof useQueryClient>,
   dossierId: string,
-  updater: (annex: DossierAnnex) => DossierAnnex,
-): Record<string, DossierAnnex> {
-  const current = byId[dossierId] ?? EMPTY_ANNEX;
-  return { ...byId, [dossierId]: updater(current) };
+  updater: (dossier: Dossier) => Dossier,
+) {
+  qc.setQueryData<Dossier[]>(dossierKeys.list(), (prev) =>
+    prev?.map((d) => (d.id === dossierId ? updater(d) : d)),
+  );
 }
 
-export const useDossierAnnexes = create<DossierAnnexesState>()(
-  persist(
-    (set) => ({
-      byId: {},
+/**
+ * Surface stable consommée par les composants (DossierDrawer,
+ * DocumentGeneratorModal, AddReferenceModal, Library). Chaque méthode déclenche
+ * une mutation serveur ; le cache liste est mis à jour de façon optimiste puis
+ * réconcilié à la réponse.
+ */
+export interface DossierAnnexesApi {
+  addReference: (dossierId: string, ref: AddReferenceInput) => void;
+  removeReference: (dossierId: string, refId: string) => void;
+  addPiece: (dossierId: string, piece: AddPieceInput) => void;
+  removePiece: (dossierId: string, pieceId: string) => void;
+  addDocument: (dossierId: string, doc: AddDocumentInput) => void;
+  removeDocument: (dossierId: string, docId: string) => void;
+}
 
-      addReference: (dossierId, ref) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) =>
-            a.references.some((r) => r.id === ref.id)
-              ? a
-              : { ...a, references: [...a.references, { ...ref }] },
-          ),
-        })),
+/**
+ * Hook des mutations d'annexes. Remplace l'ancien store zustand local :
+ * même API impérative, persistance serveur.
+ */
+export function useDossierAnnexes(): DossierAnnexesApi {
+  const qc = useQueryClient();
+  const invalidate = useCallback(
+    () => qc.invalidateQueries({ queryKey: dossierKeys.list() }),
+    [qc],
+  );
 
-      removeReference: (dossierId, refId) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) => ({
-            ...a,
-            references: a.references.filter((r) => r.id !== refId),
-          })),
-        })),
+  const addReferenceMut = useMutation({
+    mutationFn: ({
+      dossierId,
+      input,
+    }: {
+      dossierId: string;
+      input: AddReferenceInput;
+    }) => addReference(dossierId, input),
+    onSettled: invalidate,
+  });
 
-      addPiece: (dossierId, piece) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) => ({
-            ...a,
-            pieces: [...a.pieces, { ...piece, id: uid(), addedAt: now() }],
-          })),
-        })),
+  const removeReferenceMut = useMutation({
+    mutationFn: ({ dossierId, refId }: { dossierId: string; refId: string }) =>
+      removeReference(dossierId, refId),
+    onSettled: invalidate,
+  });
 
-      removePiece: (dossierId, pieceId) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) => ({
-            ...a,
-            pieces: a.pieces.filter((p) => p.id !== pieceId),
-          })),
-        })),
+  const addPieceMut = useMutation({
+    mutationFn: ({
+      dossierId,
+      input,
+    }: {
+      dossierId: string;
+      input: AddPieceInput;
+    }) => addPiece(dossierId, input),
+    onSettled: invalidate,
+  });
 
-      addDocument: (dossierId, doc) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) => ({
-            ...a,
-            documents: [{ ...doc, id: uid(), createdAt: now() }, ...a.documents],
-          })),
-        })),
+  const removePieceMut = useMutation({
+    mutationFn: ({ dossierId, pieceId }: { dossierId: string; pieceId: string }) =>
+      removePiece(dossierId, pieceId),
+    onSettled: invalidate,
+  });
 
-      removeDocument: (dossierId, docId) =>
-        set((s) => ({
-          byId: patchAnnex(s.byId, dossierId, (a) => ({
-            ...a,
-            documents: a.documents.filter((d) => d.id !== docId),
-          })),
-        })),
+  const addDocumentMut = useMutation({
+    mutationFn: ({
+      dossierId,
+      input,
+    }: {
+      dossierId: string;
+      input: AddDocumentInput;
+    }) => addDocument(dossierId, input),
+    onSettled: invalidate,
+  });
 
-      clear: (dossierId) =>
-        set((s) => {
-          if (!(dossierId in s.byId)) return s;
-          const next = { ...s.byId };
-          delete next[dossierId];
-          return { byId: next };
-        }),
+  const removeDocumentMut = useMutation({
+    mutationFn: ({ dossierId, docId }: { dossierId: string; docId: string }) =>
+      removeDocument(dossierId, docId),
+    onSettled: invalidate,
+  });
+
+  return useMemo<DossierAnnexesApi>(
+    () => ({
+      addReference: (dossierId, input) => {
+        // Idempotence : ne pas doubler une référence déjà rattachée (dédup par id
+        // article/document, comme l'ancien localStorage).
+        patchDossierInCache(qc, dossierId, (d) =>
+          d.references.some((r) => r.id === input.id)
+            ? d
+            : { ...d, references: [...d.references, { ...input }] },
+        );
+        addReferenceMut.mutate({ dossierId, input });
+      },
+
+      removeReference: (dossierId, refId) => {
+        patchDossierInCache(qc, dossierId, (d) => ({
+          ...d,
+          references: d.references.filter((r) => r.id !== refId),
+        }));
+        removeReferenceMut.mutate({ dossierId, refId });
+      },
+
+      addPiece: (dossierId, input) => {
+        addPieceMut.mutate({ dossierId, input });
+      },
+
+      removePiece: (dossierId, pieceId) => {
+        patchDossierInCache(qc, dossierId, (d) => ({
+          ...d,
+          pieces: d.pieces.filter((p) => p.id !== pieceId),
+        }));
+        removePieceMut.mutate({ dossierId, pieceId });
+      },
+
+      addDocument: (dossierId, input) => {
+        addDocumentMut.mutate({ dossierId, input });
+      },
+
+      removeDocument: (dossierId, docId) => {
+        patchDossierInCache(qc, dossierId, (d) => ({
+          ...d,
+          documents: d.documents.filter((doc) => doc.id !== docId),
+        }));
+        removeDocumentMut.mutate({ dossierId, docId });
+      },
     }),
-    {
-      name: 'mibeko_dossier_annexes',
-    },
-  ),
-);
+    [
+      qc,
+      addReferenceMut,
+      removeReferenceMut,
+      addPieceMut,
+      removePieceMut,
+      addDocumentMut,
+      removeDocumentMut,
+    ],
+  );
+}

@@ -135,10 +135,8 @@ export default function DossierDrawer({
   const deleteDossier = useDeleteDossier();
   const updateEcheance = useUpdateEcheance();
   const deleteEcheance = useDeleteEcheance();
-  const removeReference = useDossierAnnexes((s) => s.removeReference);
-  const addPiece = useDossierAnnexes((s) => s.addPiece);
-  const removePiece = useDossierAnnexes((s) => s.removePiece);
-  const removeDocument = useDossierAnnexes((s) => s.removeDocument);
+  const { removeReference, addPiece, removePiece, removeDocument } =
+    useDossierAnnexes();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
