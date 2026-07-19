@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { User, Bell, CreditCard, LifeBuoy } from 'lucide-react';
 import type { ReactNode } from 'react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { isEditorOrAbove } from '@/shared/types/auth';
 import { cn } from '@/shared/lib/utils';

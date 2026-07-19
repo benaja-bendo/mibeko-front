@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useAdminOverview } from '@/features/admin/hooks/useAdmin';
 import { BookText, ChevronRight, AlertTriangle } from 'lucide-react';
 import { formatCompactNumber } from '@/shared/lib/formatNumber';

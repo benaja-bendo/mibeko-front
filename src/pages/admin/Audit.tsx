@@ -1,5 +1,5 @@
 import React from 'react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import {

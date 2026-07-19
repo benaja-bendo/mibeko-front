@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Plus, Search, LayoutGrid, Table2, FolderOpen } from 'lucide-react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useDossiers, useUpdateDossier } from '@/features/dossiers/hooks/useDossiers';
 import type { DossierStatus } from '@/features/dossiers/types';
 import DossierTable from '@/features/dossiers/components/DossierTable';

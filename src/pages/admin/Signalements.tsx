@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useFlags, useFlagMutations } from '@/features/admin/hooks/useAdmin';
 import type { CurationFlagRef, FlagStatus, FlagBulkAction } from '@/features/admin/api/adminApi';
 import ConfirmDeleteDialog from '@/features/admin/components/ConfirmDeleteDialog';

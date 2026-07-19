@@ -9,7 +9,7 @@ import { getCatalog } from '@/features/documents/api/laravelApi';
 import { getPythonGlobalStats, getPythonDocuments } from '@/features/ingestion/api/pythonApi';
 import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
 import { useAuthStore } from "@/features/auth/store/authStore";
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import PageContainer from '@/shared/components/layout/PageContainer';
 import { formatCompactNumber } from '@/shared/lib/formatNumber';
 

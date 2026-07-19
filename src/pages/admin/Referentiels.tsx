@@ -1,5 +1,5 @@
 import React from 'react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import {
   useDocumentTypes,
   useDocumentTypeMutations,

@@ -20,7 +20,7 @@ import {
   Newspaper,
   Clock,
 } from 'lucide-react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getCatalog } from '@/features/documents/api/laravelApi';
 import { useJournalsList } from '@/features/journals/hooks/useJournals';

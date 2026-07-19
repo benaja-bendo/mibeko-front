@@ -24,7 +24,7 @@ import { IngestionStats, ServiceHealth, type QueueStage } from '@/features/inges
 import { ValidationQueue } from '@/features/ingestion/components/ValidationQueue';
 import { UploadSlideOver } from '@/features/ingestion/components/UploadSlideOver';
 import { DocumentDetailPanel } from '@/features/ingestion/components/DocumentDetailPanel';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { toast } from '@/shared/store/useToast';
 import { documentRoleLabel } from '@/shared/lib/labels';

@@ -6,7 +6,7 @@
  * sur grand écran.
  */
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useJournal } from '@/features/journals/hooks/useJournals';
 import { getJournalPdfUrl } from '@/features/journals/api/journalsApi';
 import JournalPdfPreview from '@/features/journals/components/JournalPdfPreview';

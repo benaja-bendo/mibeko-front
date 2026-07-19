@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import PageContainer from '@/shared/components/layout/PageContainer';
 import { useJournal, useJournalMutations } from '@/features/journals/hooks/useJournals';
 import JournalEditModal from '@/features/journals/components/JournalEditModal';

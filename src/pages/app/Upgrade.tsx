@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 
 const BENEFITS = [
   'Bibliotheque juridique centralisee',

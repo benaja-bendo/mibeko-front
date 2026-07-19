@@ -1,8 +1,8 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../test/msw/server';
-import { renderWithProviders } from '../../../test/render';
+import { server } from '../../test/msw/server';
+import { renderWithProviders } from '../../test/render';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import Sidebar from './Sidebar';
 

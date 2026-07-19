@@ -24,7 +24,7 @@ import {
   PanelLeftOpen,
   RotateCcw,
 } from 'lucide-react';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import {
   ResizableHandle,
   ResizablePanel,

@@ -26,7 +26,7 @@ import {
   type LaravelDocument,
   type CatalogFilters,
 } from '@/features/documents/api/laravelApi';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { toast } from '@/shared/store/useToast';
 import DeletionImpactPanel from '@/features/documents/components/DeletionImpactPanel';

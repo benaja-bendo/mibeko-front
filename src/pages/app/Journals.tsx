@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import { useJournalsList, useJournalYears } from '@/features/journals/hooks/useJournals';
 import { getJournalPdfUrl, type OfficialJournal } from '@/features/journals/api/journalsApi';
 import {

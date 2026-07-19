@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { getPythonHealth } from '@/features/ingestion/api/pythonApi';
 import { laravelClient } from '@/shared/api/laravelClient';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import AppLayout from '@/widgets/layout/AppLayout';
 import PageContainer from '@/shared/components/layout/PageContainer';
 
 type BackendStatus = 'checking' | 'ok' | 'error';
