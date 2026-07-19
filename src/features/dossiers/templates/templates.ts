@@ -72,12 +72,12 @@ export const TEMPLATES: DocumentTemplate[] = [
     description:
       'Sommation de régler une créance échue, préalable à toute action en recouvrement.',
     fields: [
-      { key: 'lieu', label: 'Fait à', type: 'text', placeholder: 'Kinshasa', required: true },
+      { key: 'lieu', label: 'Fait à', type: 'text', placeholder: 'Brazzaville', required: true },
       { key: 'date', label: 'Date', type: 'date' },
       { key: 'expediteur', label: 'Expéditeur (créancier)', type: 'text', required: true },
       { key: 'destinataire', label: 'Destinataire (débiteur)', type: 'text', required: true },
       { key: 'adresse', label: 'Adresse du destinataire', type: 'textarea' },
-      { key: 'montant', label: 'Montant dû', type: 'text', placeholder: '15 000 USD', required: true },
+      { key: 'montant', label: 'Montant dû', type: 'text', placeholder: '1 500 000 FCFA', required: true },
       { key: 'cause', label: 'Cause de la créance', type: 'textarea', placeholder: 'Facture n°… du …', required: true },
       { key: 'delai', label: 'Délai accordé (jours)', type: 'number', defaultValue: '8' },
     ],

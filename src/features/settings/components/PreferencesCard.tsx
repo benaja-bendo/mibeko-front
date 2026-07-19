@@ -17,11 +17,12 @@ interface PreferencesCardProps {
   settings: AccountSettings;
 }
 
-/** Fuseaux proposés : zone RDC en priorité, puis quelques fuseaux courants. */
+/** Fuseaux proposés : Congo-Brazzaville en priorité, puis quelques fuseaux courants
+ *  (Kinshasa/Lubumbashi restent proposés pour les valeurs déjà enregistrées). */
 const TIMEZONES = [
+  'Africa/Brazzaville',
   'Africa/Kinshasa',
   'Africa/Lubumbashi',
-  'Africa/Brazzaville',
   'Europe/Paris',
   'Europe/Brussels',
   'UTC',
