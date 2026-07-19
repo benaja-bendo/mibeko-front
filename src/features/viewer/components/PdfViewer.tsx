@@ -28,11 +28,9 @@ interface Zone {
 
 export default function PdfViewer({
   pdfUrl,
-  pdfPages,
   treeData = []
 }: {
   pdfUrl?: string;
-  pdfPages?: string[];
   treeData?: TreeNode[];
 }) {
   const { id: documentId } = useParams<{ id: string }>();
@@ -61,7 +59,7 @@ export default function PdfViewer({
   const pageTextCache = useRef<Map<number, string>>(new Map());
   const [locating, setLocating] = useState(false);
 
-  const [numPages, setNumPages] = useState<number>(pdfPages?.length || 1);
+  const [numPages, setNumPages] = useState<number>(1);
   const [drawing, setDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number, y: number } | null>(null);
   const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
@@ -534,10 +532,9 @@ export default function PdfViewer({
                 </Document>
              </div>
           ) : (
-            <div
-              className="py-[54px] px-[52px] font-serif text-[#181818] leading-[1.65] text-[11.5px] bg-[#fdfdfc]"
-              dangerouslySetInnerHTML={{ __html: pdfPages?.[pdfPage - 1] || '' }}
-            />
+            <div className="flex items-center justify-center h-full w-full text-t3 text-[10px] font-mono tracking-widest uppercase bg-[#fdfdfc]">
+              Aucun PDF associé
+            </div>
           )}
 
           <div className="absolute bottom-4 w-full text-center text-[10px] text-zinc-400 font-serif z-40 pointer-events-none select-none italic">

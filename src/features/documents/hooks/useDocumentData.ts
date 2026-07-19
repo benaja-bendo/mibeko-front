@@ -6,7 +6,6 @@ interface DocumentData {
   document: LegalDocument;
   tree: TreeNode[];
   pdfUrl?: string;
-  pdfPages?: string[]; // fallback
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

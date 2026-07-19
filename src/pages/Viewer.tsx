@@ -66,7 +66,7 @@ export default function Viewer() {
 
           <ResizablePanel defaultSize={80}>
             <div className="h-full flex flex-col overflow-hidden relative min-w-[200px]">
-              <PdfViewer pdfUrl={data.pdfUrl} pdfPages={data.pdfPages} treeData={data.tree} />
+              <PdfViewer pdfUrl={data.pdfUrl} treeData={data.tree} />
               <SidePanel />
             </div>
           </ResizablePanel>
