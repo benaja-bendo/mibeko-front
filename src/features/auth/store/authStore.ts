@@ -71,13 +71,24 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: TOKEN_KEY,
+      // Sécurité : le jeton de l'admin d'origine (`impersonator.token`) ne doit
+      // JAMAIS être écrit dans localStorage — une XSS exfiltrerait sinon une
+      // session admin en plus de la session incarnée. L'impersonation ne vit
+      // donc qu'en mémoire : après un rechargement de page, l'admin devra la
+      // relancer depuis /admin/utilisateurs.
       partialize: (state) => ({
         token: state.token,
         user: state.user,
-        impersonator: state.impersonator,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          // État hérité d'une ancienne version (ou entrée forgée) : une
+          // impersonation réhydratée sans jeton d'origine est inutilisable,
+          // on la nettoie sans toucher à la session courante. Le premier
+          // `set` (markInitialized) réécrit ensuite le storage sans elle.
+          if (state.impersonator && !state.impersonator.token) {
+            state.impersonator = null;
+          }
           state.isAuthenticated = !!state.token;
           state.markInitialized();
         }
