@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { RequireAuth, RedirectIfAuthenticated } from './guards';
+import { RequireAuth, RedirectIfAuthenticated, RootRedirect } from './guards';
 import {
   AcceptInvitationRoutePage,
   AdminDashboardRoutePage,
@@ -248,11 +248,12 @@ export const router = createBrowserRouter([
     ),
   },
 
+  // ─── Racine : redirection selon le rôle (admin/éditeur/pro) ───────────────
+  { path: '/', element: <RootRedirect /> },
+
   // ─── Legacy redirects (bookmarks / anciens liens) ─────────────────────────
-  { path: '/', element: <Navigate to="/editor" replace /> },
   { path: '/documents', element: <Navigate to="/editor/documents" replace /> },
   { path: '/ingestion', element: <Navigate to="/editor/ingestion" replace /> },
-  { path: '/settings', element: <Navigate to="/editor/settings" replace /> },
   { path: '/viewer', element: <Navigate to="/editor" replace /> },
   { path: '/viewer/:id', element: <LegacyViewerRedirectPage /> },
 

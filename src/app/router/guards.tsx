@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import UnauthorizedPage from '@/features/auth/components/UnauthorizedPage';
-import type { UserRole } from '@/shared/types/auth';
+import { hasRole, type UserRole } from '@/shared/types/auth';
 
 interface RequireAuthProps {
   children: React.ReactNode;
@@ -37,4 +37,21 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
   }
 
   return <>{children}</>;
+}
+
+/**
+ * Route racine « / » : oriente vers l'espace du rôle le plus élevé de
+ * l'utilisateur (admin → /admin, éditeur → /editor, sinon → /app) au lieu
+ * d'envoyer tout le monde sur /editor (un abonné Pro tombait sur une 403).
+ * Les visiteurs non connectés partent directement vers le login.
+ */
+export function RootRedirect() {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" replace />;
+  }
+  if (hasRole(user, 'admin')) return <Navigate to="/admin" replace />;
+  if (hasRole(user, 'editor')) return <Navigate to="/editor" replace />;
+  return <Navigate to="/app" replace />;
 }
