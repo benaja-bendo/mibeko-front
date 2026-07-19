@@ -7,6 +7,7 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData
 import { useParams } from 'react-router-dom';
 import type { TreeNode } from '@/shared/types/database';
 import { getStoredToken } from '@/features/auth/store/authStore';
+import { laravelClient } from '@/shared/api/laravelClient';
 
 // Imports nécessaires de react-pdf (le worker est configuré dans main.tsx)
 import { Document, Page } from 'react-pdf';
@@ -58,6 +59,12 @@ export default function PdfViewer({
   const pdfProxyRef = useRef<any>(null);
   const pageTextCache = useRef<Map<number, string>>(new Map());
   const [locating, setLocating] = useState(false);
+  // « Ouvrir en externe » : le PDF source d'un brouillon répond 404 sans jeton
+  // (garde des documents non publiés). Un window.open(pdfUrl) nu n'envoie pas
+  // l'Authorization → on télécharge via le client authentifié et on ouvre un
+  // blob object-URL.
+  const [openingExternal, setOpeningExternal] = useState(false);
+  const [openExternalError, setOpenExternalError] = useState(false);
 
   const [numPages, setNumPages] = useState<number>(1);
   const [drawing, setDrawing] = useState(false);
@@ -333,6 +340,29 @@ export default function PdfViewer({
     }
   };
 
+  // Ouvre le PDF source dans un nouvel onglet en passant par le client
+  // authentifié (l'intercepteur ajoute le Bearer) : indispensable pour un
+  // brouillon, dont la route publique répond 404 à un appel anonyme.
+  const handleOpenExternal = async () => {
+    if (!documentId || openingExternal) return;
+    setOpenExternalError(false);
+    setOpeningExternal(true);
+    try {
+      const { data } = await laravelClient.get<Blob>(
+        `/legal-documents/${documentId}/pdf`,
+        { responseType: 'blob' },
+      );
+      const blobUrl = URL.createObjectURL(data);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      // Laisse au navigateur le temps de charger le blob avant de révoquer.
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      setOpenExternalError(true);
+    } finally {
+      setOpeningExternal(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative bg-s1">
       {/* Topbar of PDF - Responsive Design */}
@@ -514,11 +544,16 @@ export default function PdfViewer({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(pdfUrl, '_blank')}
+                        onClick={handleOpenExternal}
+                        disabled={openingExternal}
                         className="text-red border-red/20 hover:bg-red/5"
                       >
-                        <Maximize className="w-3.5 h-3.5 mr-2" /> Ouvrir en externe
+                        <Maximize className="w-3.5 h-3.5 mr-2" />
+                        {openingExternal ? 'Ouverture…' : 'Ouvrir en externe'}
                       </Button>
+                      {openExternalError && (
+                        <p className="text-red/70 text-[10px] font-mono mt-3">Ouverture impossible.</p>
+                      )}
                     </div>
                   }
                 >
