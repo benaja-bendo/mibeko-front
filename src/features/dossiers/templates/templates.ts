@@ -32,7 +32,7 @@ export interface DocumentTemplate {
 }
 
 /** Échappe le HTML pour éviter toute injection depuis les saisies utilisateur. */
-function esc(value = ''): string {
+export function esc(value = ''): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

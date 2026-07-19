@@ -54,6 +54,7 @@ import {
 } from '@/features/dossiers/api/dossiersApi';
 import {
   DOC_PRINT_STYLES,
+  esc,
 } from '@/features/dossiers/templates/templates';
 import DocumentGeneratorModal from './DocumentGeneratorModal';
 import EcheanceModal from './EcheanceModal';
@@ -85,8 +86,9 @@ function formatSize(bytes: number): string {
 function printHtml(title: string, html: string) {
   const win = window.open('', '_blank', 'width=800,height=1000');
   if (!win) return;
+  // Le titre vient des saisies utilisateur : on l'échappe avant injection.
   win.document.write(
-    `<!doctype html><html><head><title>${title}</title><meta charset="utf-8"/>` +
+    `<!doctype html><html><head><title>${esc(title)}</title><meta charset="utf-8"/>` +
       `<style>body{margin:40px;background:#fff;}${DOC_PRINT_STYLES}</style></head>` +
       `<body>${html}</body></html>`,
   );
