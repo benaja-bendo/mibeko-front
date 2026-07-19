@@ -144,9 +144,13 @@ export interface FlagTarget {
   article_number: string | null;
 }
 
+export type FlagSeverity = 'blocking' | 'warning' | 'info';
+
 export interface CurationFlagRef {
   id: string;
+  source: string;
   type_probleme: string;
+  severity: FlagSeverity;
   description: string | null;
   resolved: boolean;
   created_at: string | null;
@@ -179,6 +183,20 @@ export const listFlags = (filters: FlagFilters = {}): Promise<FlagListResult> =>
 /** Résout (true) ou ré-ouvre (false) un signalement. */
 export const updateFlag = (id: string, resolved: boolean): Promise<CurationFlagRef> =>
   laravelClient.patch<Envelope<CurationFlagRef>>(`admin/flags/${id}`, { resolved }).then((r) => r.data.data);
+
+/**
+ * Requalifie la sévérité d'un signalement au triage (ex : un signalement
+ * public confirmé comme un vrai problème bloquant). Conserve son état de
+ * résolution courant.
+ */
+export const updateFlagSeverity = (
+  id: string,
+  resolved: boolean,
+  severity: FlagSeverity,
+): Promise<CurationFlagRef> =>
+  laravelClient
+    .patch<Envelope<CurationFlagRef>>(`admin/flags/${id}`, { resolved, severity })
+    .then((r) => r.data.data);
 
 export const deleteFlag = (id: string): Promise<Envelope<null>> =>
   laravelClient.delete<Envelope<null>>(`admin/flags/${id}`).then((r) => r.data);

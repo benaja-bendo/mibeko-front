@@ -15,6 +15,7 @@ import {
   deleteTag,
   listFlags,
   updateFlag,
+  updateFlagSeverity,
   deleteFlag,
   bulkFlags,
   type DocumentTypePayload,
@@ -22,6 +23,7 @@ import {
   type TagPayload,
   type FlagFilters,
   type FlagBulkAction,
+  type FlagSeverity,
 } from '@/features/admin/api/adminApi';
 
 const STALE = 60 * 1000;
@@ -168,6 +170,11 @@ export function useFlagMutations() {
     mutationFn: ({ id, resolved }: { id: string; resolved: boolean }) => updateFlag(id, resolved),
     onSuccess: invalidate,
   });
+  const setSeverity = useMutation({
+    mutationFn: ({ id, resolved, severity }: { id: string; resolved: boolean; severity: FlagSeverity }) =>
+      updateFlagSeverity(id, resolved, severity),
+    onSuccess: invalidate,
+  });
   const remove = useMutation({
     mutationFn: (id: string) => deleteFlag(id),
     onSuccess: invalidate,
@@ -177,5 +184,5 @@ export function useFlagMutations() {
     onSuccess: invalidate,
   });
 
-  return { resolve, remove, bulk };
+  return { resolve, setSeverity, remove, bulk };
 }
