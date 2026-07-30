@@ -13,7 +13,7 @@ export interface BillingPlan {
   /** Identifiant interne (ex: 'pro_monthly'). */
   id: string;
   name: string;
-  /** Prix affiché formaté (ex: '15 000 FC / mois'). */
+  /** Prix affiché formaté (ex: '15 000 FCFA / mois'). */
   price_label: string;
   features: string[];
   /** Price ID Stripe utilisé au checkout. */
@@ -38,7 +38,7 @@ export interface PaymentMethod {
 export interface Invoice {
   id: string;
   number: string | null;
-  /** Montant formaté (ex: '15 000 FC'). */
+  /** Montant formaté (ex: '15 000 FCFA'). */
   total: string;
   status: string;
   date: string;
@@ -46,7 +46,7 @@ export interface Invoice {
 
 export interface BillingInfo {
   company: string | null;
-  /** Registre du commerce (RCCM) — contexte RDC. */
+  /** Registre du commerce et du crédit mobilier (RCCM) — registre OHADA, République du Congo. */
   rccm: string | null;
   /** Numéro d'identification fiscale (NIF / TVA). */
   tax_id: string | null;

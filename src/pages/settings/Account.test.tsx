@@ -13,16 +13,16 @@ const ACCOUNT = {
   data: {
     id: 'usr_1',
     name: 'Me Tshala',
-    email: 'tshala@example.cd',
+    email: 'tshala@example.cg',
     email_verified: true,
     status: 'active',
-    profile: { phone: '+243810000000', profession: 'Avocat', company: 'Cabinet Mibeko' },
+    profile: { phone: '+242068000000', profession: 'Avocat', company: 'Cabinet Mibeko' },
     roles: ['user_pro'],
     permissions: ['library.read'],
     security: { two_factor_enabled: false, two_factor_confirmed: false },
     settings: {
       locale: 'fr',
-      timezone: 'Africa/Kinshasa',
+      timezone: 'Africa/Brazzaville',
       date_format: 'd/m/Y',
       notification_preferences: defaultMatrix(),
       consents: { marketing: false, marketing_at: null, analytics: false, analytics_at: null },
@@ -68,7 +68,7 @@ describe('Account page', () => {
 
     // Le nom et l'email du profil sont rendus dans le formulaire d'identité.
     expect(await screen.findByDisplayValue('Me Tshala')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('tshala@example.cd')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('tshala@example.cg')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Compte' })).toBeInTheDocument();
   });
 
