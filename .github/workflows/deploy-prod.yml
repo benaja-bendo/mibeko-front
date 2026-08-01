@@ -56,6 +56,8 @@ jobs:
           build-args: |
             VITE_LARAVEL_API_URL=${{ secrets.VITE_LARAVEL_API_URL }}
             VITE_PYTHON_API_URL=${{ secrets.VITE_PYTHON_API_URL }}
+            VITE_UMAMI_URL=${{ secrets.VITE_UMAMI_URL }}
+            VITE_UMAMI_WEBSITE_ID=${{ secrets.VITE_UMAMI_WEBSITE_ID }}
 
   deploy:
     name: Deploy to VPS
