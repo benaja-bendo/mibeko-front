@@ -16,6 +16,7 @@ import {
 } from '../api/pythonApi';
 import { RoleBadge, ScopeBadge, Spinner, StatusBadge } from './badges';
 import { formatDate } from '@/shared/lib/date';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 function formatDateTime(value?: string | null): string {
   if (!value) return '—';
@@ -383,7 +384,7 @@ export function DocumentDetailPanel({
                 <div key={a.id} className="px-3 py-2 bg-s2 border border-b1 rounded-md">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-gold text-[11px] font-mono font-semibold">
-                      Article {a.numero_article}
+                      Article {displayArticleNumber(a.numero_article)}
                     </span>
                     <span className="text-t4 text-[10px] font-mono">{a.validation_status}</span>
                   </div>

@@ -9,6 +9,7 @@
 import { Fragment } from 'react';
 import { FileText, FolderPlus, Check, Sparkles } from 'lucide-react';
 import { SCOPE_LABELS, type SearchResultItem } from '@/features/library/types';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 interface LibraryResultItemProps {
   item: SearchResultItem;
@@ -104,7 +105,7 @@ export default function LibraryResultItem({
           <span className="truncate">{item.document_title || 'Document'}</span>
           {item.number && (
             <span className="shrink-0 rounded bg-s3 px-1.5 py-0.5 font-mono text-[10px] text-t2">
-              Art. {item.number}
+              Art. {displayArticleNumber(item.number)}
             </span>
           )}
         </h3>

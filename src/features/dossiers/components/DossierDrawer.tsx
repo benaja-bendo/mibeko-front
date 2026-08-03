@@ -59,6 +59,7 @@ import {
 import DocumentGeneratorModal from './DocumentGeneratorModal';
 import EcheanceModal from './EcheanceModal';
 import AddReferenceModal from './AddReferenceModal';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 interface DossierDrawerProps {
   dossierId: string | null;
@@ -407,7 +408,7 @@ export default function DossierDrawer({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium text-t1">
                           {ref.title}
-                          {ref.number ? ` · Art. ${ref.number}` : ''}
+                          {ref.number ? ` · Art. ${displayArticleNumber(ref.number)}` : ''}
                         </p>
                         {ref.breadcrumb && (
                           <p className="truncate font-mono text-[10px] text-t3">

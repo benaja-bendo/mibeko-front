@@ -18,6 +18,7 @@ import {
 } from '@/shared/components/ui/Dialog';
 import { useLibrarySearch } from '@/features/library/hooks/useLibrary';
 import type { SearchResultItem } from '@/features/library/types';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
 import { useDossier } from '@/features/dossiers/hooks/useDossiers';
 
@@ -114,7 +115,7 @@ export default function AddReferenceModal({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-t1">
                       {item.document_title || 'Document'}
-                      {item.number ? ` · Art. ${item.number}` : ''}
+                      {item.number ? ` · Art. ${displayArticleNumber(item.number)}` : ''}
                     </p>
                     {item.breadcrumb && (
                       <p className="truncate font-mono text-[10px] text-t3">

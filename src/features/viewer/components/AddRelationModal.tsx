@@ -7,6 +7,7 @@ import { useParams } from 'react-router-dom';
 import { GitGraph, Search, Trash2, Calendar } from 'lucide-react';
 import type { TreeNode } from '@/shared/types/database';
 import { laravelClient } from '@/shared/api';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 interface AddRelationModalProps {
   open: boolean;
@@ -125,7 +126,7 @@ export default function AddRelationModal({ open, onOpenChange, article }: AddRel
                             {rel.relation_type}
                           </span>
                           <span className="text-[11px] text-t1 font-medium">
-                            {rel.target_article ? `Art. ${rel.target_article.numero_article}` : rel.target_document?.titre_officiel}
+                            {rel.target_article ? `Art. ${displayArticleNumber(rel.target_article.numero_article)}` : rel.target_document?.titre_officiel}
                           </span>
                         </div>
                         {rel.commentaire && <span className="text-[10px] text-t3 italic">{rel.commentaire}</span>}

@@ -35,6 +35,7 @@ import {
   HoverCardContent,
 } from '@/shared/components/ui/HoverCard';
 import type { AssistantSource } from '@/features/assistant/types';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 /** Poignée impérative : permet à un marqueur [n] de cibler une carte précise. */
 export interface SourceCitationsHandle {
@@ -182,7 +183,7 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
                   )}
                   {source.number && (
                     <span className="rounded bg-s3 px-1.5 py-0.5 font-mono text-[9px] text-t2">
-                      Art. {source.number}
+                      Art. {displayArticleNumber(source.number)}
                     </span>
                   )}
                   <ArrowUpRight className="ml-auto h-3.5 w-3.5 shrink-0 text-t3 transition-colors group-hover:text-gold" />

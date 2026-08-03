@@ -14,6 +14,7 @@ import {
 } from '@/shared/components/ui/HoverCard';
 import type { AssistantSource } from '@/features/assistant/types';
 import { BookOpenText, FileText, MapPin } from 'lucide-react';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 interface CitationPreviewProps {
   index: number;
@@ -56,7 +57,7 @@ export default function CitationPreview({
           )}
           {source.number && (
             <span className="rounded bg-s3 px-1.5 py-0.5 font-mono text-[9px] text-t2">
-              Art. {source.number}
+              Art. {displayArticleNumber(source.number)}
             </span>
           )}
         </div>

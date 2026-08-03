@@ -10,6 +10,7 @@ import { Button } from '@/shared/components/ui/Button';
 import ValidityModal from './ValidityModal';
 import AddRelationModal from './AddRelationModal';
 import type { ArticleVersionUI } from '@/shared/types/database';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 export default function SidePanel() {
   const { id: documentId } = useParams<{ id: string }>();
@@ -328,7 +329,7 @@ export default function SidePanel() {
                         <div key={rel.id} className="text-[10px] p-1.5 bg-s2 border border-b1 rounded flex items-center gap-2">
                           <span className="px-1 bg-gold/10 text-gold rounded text-[8px] font-bold uppercase">{rel.relation_type}</span>
                           <span className="text-t2 truncate flex-1">
-                            {rel.target_article ? `Art. ${rel.target_article.numero_article}` : rel.target_document?.titre_officiel}
+                            {rel.target_article ? `Art. ${displayArticleNumber(rel.target_article.numero_article)}` : rel.target_document?.titre_officiel}
                           </span>
                         </div>
                       ))}

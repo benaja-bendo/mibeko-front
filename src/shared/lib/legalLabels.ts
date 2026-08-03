@@ -1,4 +1,20 @@
 /**
+ * Numéro d'article tel qu'affiché à l'éditeur.
+ *
+ * L'ingestion suffixe en `_doublon_N` les numéros qui entrent en collision au
+ * sein d'un même document, pour satisfaire la contrainte d'unicité en base.
+ * Ces collisions sont presque toujours des actes distincts réunis dans un même
+ * document, pas de vraies duplications — le suffixe est un artefact technique
+ * de stockage, pas un numéro juridique. Reste dans la donnée et dans les URL
+ * (il identifie l'article) ; seul l'affichage est nettoyé. Même correctif que
+ * `mibeko-site/src/lib/sanitize.ts` (`displayArticleNumber`), appliqué ici
+ * côté éditeur.
+ */
+export function displayArticleNumber(numero: string | null | undefined): string {
+  return (numero ?? '').replace(/_doublon_\d+$/, '');
+}
+
+/**
  * Libellé lisible d'une feuille de contenu juridique.
  *
  * Certaines feuilles portent un `numero` technique plutôt qu'un vrai numéro
@@ -13,7 +29,7 @@ export function articleLeafLabel(
   numero: string | null | undefined,
   options: { short?: boolean } = {},
 ): string {
-  const value = (numero ?? '').trim();
+  const value = displayArticleNumber(numero).trim();
 
   if (value === 'PREAMBULE') {
     return 'Préambule';

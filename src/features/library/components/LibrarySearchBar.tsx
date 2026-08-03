@@ -25,6 +25,7 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { useLibrarySuggestions } from '@/features/library/hooks/useLibrary';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 import type {
   SuggestArticle,
   SuggestDocument,
@@ -312,7 +313,7 @@ export default function LibrarySearchBar({
                     <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-medium text-t1">
-                        Article {article.number} — {article.document_title}
+                        Article {displayArticleNumber(article.number)} — {article.document_title}
                       </span>
                     </span>
                   </button>
@@ -338,7 +339,7 @@ export default function LibrarySearchBar({
                     <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
                     <span className="min-w-0">
                       <span className="block truncate text-[10px] text-t3">
-                        Art. {passage.number} · {passage.document_title}
+                        Art. {displayArticleNumber(passage.number)} · {passage.document_title}
                       </span>
                       <span className="line-clamp-2 text-xs leading-snug text-t2">
                         <SnippetText snippet={passage.snippet} />

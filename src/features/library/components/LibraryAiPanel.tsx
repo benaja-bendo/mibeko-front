@@ -22,6 +22,7 @@ import {
 import MarkdownLite from '@/features/assistant/components/MarkdownLite';
 import type { LibraryAiState } from '@/features/library/hooks/useLibrary';
 import type { SearchResultItem } from '@/features/library/types';
+import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 interface LibraryAiPanelProps {
   state: LibraryAiState;
@@ -247,7 +248,7 @@ export default function LibraryAiPanel({
                       <FileText className="h-3.5 w-3.5 shrink-0 text-gold" />
                       <span className="truncate">
                         {source.document_title || 'Document'}
-                        {source.number ? ` · Art. ${source.number}` : ''}
+                        {source.number ? ` · Art. ${displayArticleNumber(source.number)}` : ''}
                       </span>
                       <ArrowUpRight className="ml-auto h-3.5 w-3.5 shrink-0 text-t3 opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
