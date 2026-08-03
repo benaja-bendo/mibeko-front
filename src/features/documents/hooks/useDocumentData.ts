@@ -128,6 +128,9 @@ export function useDocumentMutations(documentId: string) {
       date_signature?: string | null,
       date_publication?: string | null,
       date_entree_vigueur?: string | null,
+      // Assume explicitement l'absence de date d'entrée en vigueur : sans elle
+      // ni ce drapeau, l'API refuse la publication (gate éditorial).
+      date_entree_vigueur_inconnue?: boolean,
       statut?: 'vigueur' | 'abroge' | 'projet',
       legal_scope?: 'national' | 'ohada' | 'communautaire',
       type_code?: string,

@@ -18,7 +18,11 @@ import {
   reprocessDocument,
   type PythonDocumentSummary,
 } from '@/features/ingestion/api/pythonApi';
-import { bulkUpdateDocuments, bulkDeleteDocuments } from '@/features/documents/api/laravelApi';
+import {
+  bulkUpdateDocuments,
+  bulkDeleteDocuments,
+  type BulkSkippedDocument,
+} from '@/features/documents/api/laravelApi';
 import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
 import { IngestionStats, ServiceHealth, type QueueStage } from '@/features/ingestion/components/IngestionStats';
 import { ValidationQueue } from '@/features/ingestion/components/ValidationQueue';
@@ -28,6 +32,24 @@ import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { toast } from '@/shared/store/useToast';
 import { documentRoleLabel } from '@/shared/lib/labels';
+
+/**
+ * Résume les documents écartés par les garde-fous de l'API, en nommant le motif
+ * majoritaire — un simple compteur n'apprend rien à l'éditeur sur ce qu'il doit
+ * corriger.
+ */
+function resumeDesEcarts(ecartes: number, skipped: BulkSkippedDocument[]): string {
+  if (ecartes === 0) return 'Aucun document mis à jour.';
+
+  const parMotif = new Map<string, number>();
+  for (const { motif } of skipped) parMotif.set(motif, (parMotif.get(motif) ?? 0) + 1);
+
+  const majoritaire = [...parMotif.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return majoritaire
+    ? `${ecartes} document(s) écarté(s) — motif principal : ${majoritaire[0]}.`
+    : `${ecartes} document(s) écarté(s) par les garde-fous de publication.`;
+}
 
 export default function Ingestion() {
   const { user } = useAuthStore();
@@ -74,14 +96,54 @@ export default function Ingestion() {
   // ── Décisions de curation (API Laravel) ──────────────────────────────────
   const publishMutation = useMutation({
     mutationFn: (ids: string[]) =>
-      bulkUpdateDocuments({ ids, action: 'set_curation_status', value: 'published' }),
+      bulkUpdateDocuments({
+        ids,
+        action: 'set_curation_status',
+        value: 'published',
+        // Le pipeline ne renseigne jamais la date d'entrée en vigueur : sans ce
+        // drapeau, l'API écarte silencieusement l'intégralité du lot.
+        date_entree_vigueur_inconnue: true,
+      }),
     onSuccess: (res, ids) => {
-      toast.success(res.message || `${ids.length} document(s) publié(s)`);
+      // Un lot peut être intégralement écarté par les garde-fous : afficher un
+      // succès dans ce cas laissait croire à une publication qui n'a pas eu lieu.
+      const { updated_count: publies = 0, skipped_count: ecartes = 0, skipped = [] } = res.data ?? {};
+
+      if (publies === 0) {
+        toast.error(resumeDesEcarts(ecartes, skipped));
+      } else if (ecartes > 0) {
+        toast.info(`${publies} document(s) publié(s). ${resumeDesEcarts(ecartes, skipped)}`);
+      } else {
+        toast.success(res.message || `${ids.length} document(s) publié(s)`);
+      }
+
       setSelectedIds(new Set());
       if (detailId && ids.includes(detailId)) setDetailId(null);
       invalidateAll();
     },
     onError: (err) => toast.fromError(err, 'Erreur de publication'),
+  });
+
+  // Promotion `draft → review` : c'est la seule transition ouverte depuis un
+  // brouillon (machine à états côté Laravel), et elle manquait à cette file —
+  // les documents déposés n'avaient aucun moyen d'atteindre « À valider ».
+  const reviewMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      bulkUpdateDocuments({ ids, action: 'set_curation_status', value: 'review' }),
+    onSuccess: (res, ids) => {
+      const { updated_count: promus = 0, skipped_count: ecartes = 0, skipped = [] } = res.data ?? {};
+
+      if (promus === 0) {
+        toast.error(resumeDesEcarts(ecartes, skipped));
+      } else {
+        toast.success(`${promus} document(s) envoyé(s) en validation`);
+      }
+
+      setSelectedIds(new Set());
+      if (detailId && ids.includes(detailId)) setDetailId(null);
+      invalidateAll();
+    },
+    onError: (err) => toast.fromError(err, 'Erreur de mise en validation'),
   });
 
   const rejectMutation = useMutation({
@@ -95,7 +157,7 @@ export default function Ingestion() {
     onError: (err) => toast.fromError(err, 'Erreur de rejet'),
   });
 
-  const busy = publishMutation.isPending || rejectMutation.isPending;
+  const busy = publishMutation.isPending || rejectMutation.isPending || reviewMutation.isPending;
 
   // ── Pilotage du pipeline (API Python) ─────────────────────────────────────
   const handleParse = async (id: string, fmt: 'md' | 'json') => {
@@ -274,6 +336,15 @@ export default function Ingestion() {
                 {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
               </span>
               <div className="flex-1" />
+              {stage === 'draft' && (
+                <button
+                  disabled={busy}
+                  onClick={() => reviewMutation.mutate([...selectedIds])}
+                  className="h-8 px-3 text-xs font-mono font-semibold text-on-gold bg-gold rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  Envoyer en validation
+                </button>
+              )}
               {stage === 'review' && (
                 <button
                   disabled={busy}

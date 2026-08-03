@@ -193,14 +193,30 @@ export const getCatalog = (params?: CatalogFilters): Promise<CatalogResponse> =>
   return laravelClient.get<CatalogResponse>(path).then((r) => r.data);
 };
 
+/** Motif pour lequel un document a été écarté d'un lot (cf. bulkUpdate côté API). */
+export interface BulkSkippedDocument {
+  id: string;
+  titre: string | null;
+  motif: string;
+}
+
+export interface BulkUpdateResult {
+  data: {
+    updated_count: number;
+    skipped_count: number;
+    skipped: BulkSkippedDocument[];
+  };
+  message: string;
+}
+
 export const bulkUpdateDocuments = (payload: {
   ids: string[];
   action: 'set_curation_status' | 'set_statut';
   value: string;
-}): Promise<{ data: { updated_count: number }; message: string }> =>
-  laravelClient
-    .patch<{ data: { updated_count: number }; message: string }>('legal-documents/bulk', payload)
-    .then((r) => r.data);
+  /** Assume l'absence de date d'entrée en vigueur pour tout le lot. */
+  date_entree_vigueur_inconnue?: boolean;
+}): Promise<BulkUpdateResult> =>
+  laravelClient.patch<BulkUpdateResult>('legal-documents/bulk', payload).then((r) => r.data);
 
 export const bulkDeleteDocuments = (payload: {
   ids: string[];

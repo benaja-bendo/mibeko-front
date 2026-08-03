@@ -8,6 +8,9 @@ export interface LegalDocument {
   reference?: string | null;
   date_signature?: string | null;
   date_publication?: string | null;
+  date_entree_vigueur?: string | null;
+  /** Absence de date d'entrée en vigueur explicitement assumée (gate de publication). */
+  date_entree_vigueur_inconnue?: boolean | null;
   dates?: { signature: string | null; publication: string | null };
   statut?: 'vigueur' | 'abroge' | 'projet';
   status?: string;

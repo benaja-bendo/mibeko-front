@@ -87,9 +87,12 @@ export function IngestionStats({
         active={activeStage === 'review'}
         onClick={() => onSelectStage('review')}
       />
+      {/* « déposés — extraction / parsing » laissait croire à une attente
+          technique : ces documents sont pour l'essentiel déjà extraits et
+          n'attendent qu'une décision de curation. */}
       <StageCard
         label="À traiter"
-        sublabel="déposés — extraction / parsing"
+        sublabel="brouillons — invisibles du public"
         value={stats?.documents_draft ?? '—'}
         tone="amber"
         active={activeStage === 'draft' && !failedActive}

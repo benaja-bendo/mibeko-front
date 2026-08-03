@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
@@ -31,6 +32,7 @@ export default function PublishModal({ document }: { document?: LegalDocument })
   const { id: documentId } = useParams<{ id: string }>();
   const { publishModalOpen, setPublishModalOpen } = useViewerStore();
   const { updateDocument } = useDocumentMutations(documentId || '');
+  const [assumeDateInconnue, setAssumeDateInconnue] = useState(false);
 
   if (!document) return null;
 
@@ -38,12 +40,34 @@ export default function PublishModal({ document }: { document?: LegalDocument })
   const isPublished = current === 'published';
   const currentIndex = WORKFLOW.findIndex(s => s.id === current);
 
-  const handleAction = (target: 'published' | 'review', force = false) => {
-    updateDocument.mutate(
-      { curation_status: target, ...(force ? { force: true } : {}) },
-      { onSuccess: () => setPublishModalOpen(false) }
-    );
+  // L'API refuse de publier un document dont la date d'entrée en vigueur est
+  // simplement absente : il faut la renseigner (EditDocumentModal) ou assumer
+  // explicitement son ignorance. Le pipeline d'ingestion ne la renseigne jamais.
+  const dateManquante = !document.date_entree_vigueur && !document.date_entree_vigueur_inconnue;
+
+  const handleAction = async (target: 'published' | 'review', force = false) => {
+    try {
+      // La machine à états interdit le saut `draft → published` : on passe
+      // d'abord par la revue, en un enchaînement invisible pour l'éditeur.
+      if (target === 'published' && current === 'draft') {
+        await updateDocument.mutateAsync({ curation_status: 'review' });
+      }
+
+      await updateDocument.mutateAsync({
+        curation_status: target,
+        ...(force ? { force: true } : {}),
+        ...(target === 'published' && dateManquante && assumeDateInconnue
+          ? { date_entree_vigueur_inconnue: true }
+          : {}),
+      });
+
+      setPublishModalOpen(false);
+    } catch {
+      // L'erreur est rendue par `updateDocument.isError` juste en dessous.
+    }
   };
+
+  const publicationBloquee = !isPublished && dateManquante && !assumeDateInconnue;
 
   return (
     <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>
@@ -89,6 +113,27 @@ export default function PublishModal({ document }: { document?: LegalDocument })
           ))}
         </div>
 
+        {/* Gate éditorial : sans date d'entrée en vigueur, l'API refuse la
+            publication tant que l'éditeur n'a pas assumé cette absence. */}
+        {!isPublished && dateManquante && (
+          <label className="flex items-start gap-2.5 bg-s2 border border-b1 rounded px-3 py-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={assumeDateInconnue}
+              onChange={(e) => setAssumeDateInconnue(e.target.checked)}
+              className="mt-0.5 accent-gold shrink-0"
+            />
+            <span className="text-t2 text-[11px] leading-relaxed">
+              La date d'entrée en vigueur de ce texte est <strong>inconnue</strong> et
+              j'assume de le publier sans elle.
+              <span className="block text-t3 mt-1">
+                Si vous la connaissez, renseignez-la plutôt dans les métadonnées du
+                document : elle conditionne le raisonnement dans le temps.
+              </span>
+            </span>
+          </label>
+        )}
+
         {updateDocument.isError && (
           <div className="space-y-2">
             <p className="text-red text-[11px] font-mono bg-red-d border border-red/20 rounded px-3 py-2">
@@ -104,7 +149,7 @@ export default function PublishModal({ document }: { document?: LegalDocument })
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={updateDocument.isPending}
+                  disabled={updateDocument.isPending || publicationBloquee}
                   onClick={() => handleAction('published', true)}
                   className="w-full gap-2 border-amber/40 text-amber hover:bg-amber/10"
                 >
@@ -133,7 +178,8 @@ export default function PublishModal({ document }: { document?: LegalDocument })
           ) : (
             <Button
               variant="gold"
-              disabled={updateDocument.isPending}
+              disabled={updateDocument.isPending || publicationBloquee}
+              title={publicationBloquee ? "Confirmez d'abord que la date d'entrée en vigueur est inconnue." : undefined}
               onClick={() => handleAction('published')}
               className="gap-2"
             >
