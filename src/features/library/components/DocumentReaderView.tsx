@@ -46,6 +46,7 @@ import {
 import { SCOPE_LABELS, type LegalScope } from '@/features/library/types';
 import type { TreeNode } from '@/shared/types/database';
 import { articleLeafLabel } from '@/shared/lib/legalLabels';
+import { LegalArticleBody } from '@/shared/components/LegalArticleBody';
 
 interface DocumentReaderViewProps {
   documentId: string;
@@ -430,9 +431,10 @@ export default function DocumentReaderView({
                       </span>
                     ) : null}
                   </h3>
-                  <p className="whitespace-pre-wrap text-[15px] leading-7 text-t1/90">
-                    {currentArticle.content || '—'}
-                  </p>
+                  <LegalArticleBody
+                    content={currentArticle.content}
+                    tables={currentArticle.source_locator?.tables}
+                  />
 
                   {onExplainArticle && (
                     <button
@@ -571,9 +573,10 @@ export default function DocumentReaderView({
                               </span>
                             ) : null}
                           </h4>
-                          <p className="whitespace-pre-wrap text-[15px] leading-7 text-t1/90">
-                            {node.content || '—'}
-                          </p>
+                          <LegalArticleBody
+                            content={node.content}
+                            tables={node.source_locator?.tables}
+                          />
                         </section>
                       );
                     }

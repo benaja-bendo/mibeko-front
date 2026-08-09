@@ -1,4 +1,5 @@
 import { laravelClient, laravelBaseUrl as BASE } from '@/shared/api';
+import type { ArticleSourceLocator } from '@/shared/types/database';
 
 /**
  * laravelApi.ts — Client typé pour le backend Laravel 13 (mibeko-tableau-de-bord).
@@ -72,13 +73,7 @@ export interface LaravelArticleSummary {
   number?: string | null;
   validation_status?: string;
   content?: string;
-  source_locator?: {
-    page: number;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
+  source_locator?: ArticleSourceLocator | null;
   versions?: LaravelArticleVersion[];
   relations?: LaravelRelation[];
 }

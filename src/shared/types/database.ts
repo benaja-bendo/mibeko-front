@@ -1,3 +1,5 @@
+import type { ApiTable } from '@/shared/lib/tables';
+
 export interface LegalDocument {
   id: string;
   type_code?: string | null;
@@ -89,15 +91,28 @@ export interface TreeNode {
   // Specific to articles
   validity?: string;
   content?: string;
-  source_locator?: {
-    page: number;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
+  source_locator?: ArticleSourceLocator | null;
   versions?: ArticleVersionUI[];
   relations?: DocumentRelation[];
+}
+
+/**
+ * Ancrage d'une version d'article dans son PDF source, enrichi par l'ingestion.
+ *
+ * `content_format` et `tables` disent ce que le texte ne peut pas dire de
+ * lui-même : la nature de la feuille et la structure de ses tableaux — sans
+ * quoi une surface de lecture ne peut rendre qu'un mur de texte.
+ */
+export interface ArticleSourceLocator {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Feuille spéciale posée à l'ingestion : `preamble`, `signature`, `table`. */
+  content_format?: string | null;
+  /** Tableaux structurés de l'article (cf. `shared/lib/tables.ts`). */
+  tables?: ApiTable[] | null;
 }
 
 export interface ArticleVersionUI {
