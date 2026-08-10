@@ -63,6 +63,13 @@ export interface PythonExtractionRun {
 export interface PythonDocumentDetail extends PythonDocumentSummary {
   document_key?: string | null;
   statut?: string | null;
+  /**
+   * Vrai si un éditeur a réellement établi `statut`. La colonne vaut
+   * « vigueur » par défaut en base : sans confirmation, elle répète le défaut.
+   * Optionnel — le service Python ne l'expose pas encore, seule l'API Laravel
+   * le fait ; le panneau retombe alors sur l'affichage brut du statut.
+   */
+  statut_verifie?: boolean;
   date_publication?: string | null;
   date_signature?: string | null;
   consolidation_as_of?: string | null;

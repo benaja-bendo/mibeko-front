@@ -323,7 +323,14 @@ export function DocumentDetailPanel({
               <MetaItem label="Clé document" value={doc.document_key} />
               <MetaItem label="Code stock" value={doc.stock_code} />
               <MetaItem label="Type" value={doc.type_code} />
-              <MetaItem label="Statut juridique" value={doc.statut} />
+              <MetaItem
+                label="Statut juridique"
+                value={
+                  doc.statut === 'vigueur' && doc.statut_verifie === false
+                    ? 'vigueur (non vérifié)'
+                    : doc.statut
+                }
+              />
               <MetaItem label="Publication" value={formatDate(doc.date_publication)} />
               <MetaItem label="Signature" value={formatDate(doc.date_signature)} />
               <MetaItem label="Consolidé au" value={formatDate(doc.consolidation_as_of)} />

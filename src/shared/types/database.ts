@@ -15,6 +15,14 @@ export interface LegalDocument {
   date_entree_vigueur_inconnue?: boolean | null;
   dates?: { signature: string | null; publication: string | null };
   statut?: 'vigueur' | 'abroge' | 'projet';
+  /**
+   * Vrai si un éditeur a réellement établi `statut`. La colonne vaut
+   * « vigueur » par défaut en base : sans cette confirmation elle répète le
+   * défaut au lieu d'affirmer quoi que ce soit. Mesuré le 10/08/2026 : les 795
+   * documents publiés étaient dans ce cas.
+   */
+  statut_verifie?: boolean;
+  statut_verifie_le?: string | null;
   status?: string;
   curation_status?: string | null;
   legal_scope?: 'national' | 'ohada' | 'communautaire' | null;
