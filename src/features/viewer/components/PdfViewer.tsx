@@ -196,7 +196,11 @@ export default function PdfViewer({
 
     if (node.type === 'ARTICLE') {
       // Entête « Article N » (le plus fiable pour un article numéroté).
-      if (num && !['PREAMBULE', 'SIGNATURE'].includes(num) && !num.startsWith('TABLEAU')) {
+      if (
+        num &&
+        !['PREAMBULE', 'SIGNATURE'].includes(num) &&
+        !['TABLEAU', 'DISPOSITION', 'NOTE'].some((prefix) => num.startsWith(prefix))
+      ) {
         candidates.push(`ARTICLE ${num}`, `ART. ${num}`, `ART ${num}`);
       }
       // Repli universel : un extrait du contenu (couvre préambule/signature et

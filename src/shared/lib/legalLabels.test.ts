@@ -49,6 +49,16 @@ describe('articleLeafLabel', () => {
     expect(articleLeafLabel('TABLEAU_2', { short: true })).toBe('Tab. 2');
   });
 
+  it('libelle les dispositions sans faux numéro d’article', () => {
+    expect(articleLeafLabel('DISPOSITION_1')).toBe('Disposition 1');
+    expect(articleLeafLabel('DISPOSITION_2', { short: true })).toBe('Disp. 2');
+  });
+
+  it('libelle les notes', () => {
+    expect(articleLeafLabel('NOTE_1')).toBe('Note 1');
+    expect(articleLeafLabel('NOTE_2', { short: true })).toBe('Note 2');
+  });
+
   it('tolère null/undefined', () => {
     expect(articleLeafLabel(null)).toBe('Article ');
     expect(articleLeafLabel(undefined, { short: true })).toBe('Art. ');

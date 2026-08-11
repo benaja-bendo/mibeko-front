@@ -19,10 +19,11 @@ export function displayArticleNumber(numero: string | null | undefined): string 
  *
  * Certaines feuilles portent un `numero` technique plutôt qu'un vrai numéro
  * d'article : le préambule d'un acte (qualité du signataire, visas « Vu … »,
- * considérants), la formule finale (« Fait à … » + signataire) et les tableaux.
- * On évite ainsi d'afficher « Article PREAMBULE » ou « Article TABLEAU_1 ».
+ * considérants), la formule finale (« Fait à … » + signataire), les tableaux,
+ * les dispositions sans numéro d'article et les notes.
+ * On évite ainsi d'afficher « Article PREAMBULE » ou « Article DISPOSITION_1 ».
  *
- * @param numero  Le `numero` du nœud (ex. « 1er », « PREAMBULE », « TABLEAU_2 »).
+ * @param numero  Le `numero` du nœud (ex. « 1er », « PREAMBULE », « DISPOSITION_2 »).
  * @param options `short` pour la forme abrégée (table des matières) : « Art. 1er ».
  */
 export function articleLeafLabel(
@@ -42,6 +43,16 @@ export function articleLeafLabel(
   const table = /^TABLEAU_(\d+)$/.exec(value);
   if (table) {
     return options.short ? `Tab. ${table[1]}` : `Tableau ${table[1]}`;
+  }
+
+  const disposition = /^DISPOSITION_(\d+)$/.exec(value);
+  if (disposition) {
+    return options.short ? `Disp. ${disposition[1]}` : `Disposition ${disposition[1]}`;
+  }
+
+  const note = /^NOTE_(\d+)$/.exec(value);
+  if (note) {
+    return `Note ${note[1]}`;
   }
 
   return options.short ? `Art. ${value}` : `Article ${value}`;
