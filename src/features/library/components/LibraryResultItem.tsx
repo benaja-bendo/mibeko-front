@@ -9,7 +9,7 @@
 import { Fragment } from 'react';
 import { FileText, FolderPlus, Check, Sparkles } from 'lucide-react';
 import { SCOPE_LABELS, type SearchResultItem } from '@/features/library/types';
-import { displayArticleNumber } from '@/shared/lib/legalLabels';
+import { displayArticleNumber, documentLineLabel } from '@/shared/lib/legalLabels';
 
 interface LibraryResultItemProps {
   item: SearchResultItem;
@@ -102,7 +102,12 @@ export default function LibraryResultItem({
         {/* Titre */}
         <h3 className="flex items-center gap-2 text-sm font-semibold text-t1">
           <FileText className="h-3.5 w-3.5 shrink-0 text-gold" />
-          <span className="truncate">{item.document_title || 'Document'}</span>
+          {/* Titre officiel puis, sur un acte en abrégé, l'objet dérivé du
+              corps — le titre seul ne dirait que « Décret n° … du … ». Les
+              deux, jamais l'un à la place de l'autre. */}
+          <span className="truncate">
+            {documentLineLabel(item.document_title, item.document_descriptive_label) || 'Document'}
+          </span>
           {item.number && (
             <span className="shrink-0 rounded bg-s3 px-1.5 py-0.5 font-mono text-[10px] text-t2">
               Art. {displayArticleNumber(item.number)}

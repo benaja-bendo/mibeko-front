@@ -37,6 +37,9 @@ const SCOPES = [
   { value: 'communautaire', label: 'Communautaire' },
 ] as const;
 
+/** Même borne que `LibelleDescriptifExtractor::LONGUEUR_MAX` côté Laravel. */
+const LIBELLE_LONGUEUR_MAX = 160;
+
 /**
  * Édition des métadonnées du document (PATCH /legal-documents/{id}) :
  * titre officiel, référence NOR, statut juridique, périmètre et dates clés.
@@ -50,6 +53,7 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
   const suggest = useSuggestThemes();
 
   const [titre, setTitre] = React.useState('');
+  const [libelle, setLibelle] = React.useState('');
   const [nor, setNor] = React.useState('');
   const [typeCode, setTypeCode] = React.useState<string>('');
   const [statut, setStatut] = React.useState<string>('vigueur');
@@ -62,6 +66,7 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
   React.useEffect(() => {
     if (editDocModalOpen && document) {
       setTitre(document.titre_officiel || document.title || '');
+      setLibelle(document.libelle_descriptif || '');
       setNor(document.reference_nor || '');
       setTypeCode(document.type?.code || document.type_code || '');
       setStatut(document.statut || 'vigueur');
@@ -90,8 +95,25 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // La provenance suit la main qui écrit : dès que le texte diffère de celui
+    // qui était en base, c'est un juriste qui l'a rédigé (`manuel`). Inchangé,
+    // on conserve la provenance d'origine — repasser un libellé relu en
+    // `manuel` sans que personne n'y ait touché effacerait l'information.
+    const libelleSaisi = libelle.trim();
+    const libelleModifie = libelleSaisi !== (document.libelle_descriptif || '');
+    const libellePayload = libelleSaisi === ''
+      ? { libelle_descriptif: null }
+      : {
+          libelle_descriptif: libelleSaisi,
+          libelle_descriptif_source: libelleModifie
+            ? 'manuel'
+            : (document.libelle_descriptif_source ?? 'manuel'),
+        };
+
     updateDocument.mutate({
       titre_officiel: titre.trim(),
+      ...libellePayload,
       reference_nor: nor.trim() || null,
       // type_code est validé `exists:document_types,code` côté Laravel : on
       // n'envoie rien si vide pour ne pas déclencher d'erreur de validation.
@@ -126,6 +148,21 @@ export default function EditDocumentModal({ document }: { document?: LegalDocume
               onChange={(e) => setTitre(e.target.value)}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Objet (libellé descriptif)</Label>
+            <Input
+              placeholder="Ex : Nomination : président du Conseil supérieur de la liberté de communication"
+              value={libelle}
+              maxLength={LIBELLE_LONGUEUR_MAX}
+              onChange={(e) => setLibelle(e.target.value)}
+            />
+            <p className="text-[11px] text-t3 leading-snug">
+              Dérivé du texte de l'acte, affiché <strong>à côté</strong> du titre officiel dans les
+              listes et la recherche — jamais à sa place. À renseigner quand le Journal officiel a
+              publié l'acte en abrégé et que l'intitulé se réduit au type, au numéro et à la date.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

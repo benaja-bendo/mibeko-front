@@ -25,7 +25,7 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { useLibrarySuggestions } from '@/features/library/hooks/useLibrary';
-import { displayArticleNumber } from '@/shared/lib/legalLabels';
+import { displayArticleNumber, documentLineLabel } from '@/shared/lib/legalLabels';
 import type {
   SuggestArticle,
   SuggestDocument,
@@ -285,6 +285,15 @@ export default function LibrarySearchBar({
                     <span className="block truncate text-xs font-medium text-t1">
                       {doc.title}
                     </span>
+                    {/* Sur un acte en abrégé, le titre ci-dessus ne dit que
+                        « Décret n° … du … » : l'objet n'existe que dans le
+                        libellé descriptif. Il s'affiche SOUS le titre, jamais
+                        à sa place. */}
+                    {doc.descriptive_label && (
+                      <span className="block truncate text-[11px] text-t2">
+                        {doc.descriptive_label}
+                      </span>
+                    )}
                     {doc.type_name && (
                       <span className="block text-[10px] text-t3">
                         {doc.type_name}
@@ -313,7 +322,8 @@ export default function LibrarySearchBar({
                     <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-medium text-t1">
-                        Article {displayArticleNumber(article.number)} — {article.document_title}
+                        Article {displayArticleNumber(article.number)} —{' '}
+                        {documentLineLabel(article.document_title, article.document_descriptive_label)}
                       </span>
                     </span>
                   </button>
@@ -339,7 +349,8 @@ export default function LibrarySearchBar({
                     <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
                     <span className="min-w-0">
                       <span className="block truncate text-[10px] text-t3">
-                        Art. {displayArticleNumber(passage.number)} · {passage.document_title}
+                        Art. {displayArticleNumber(passage.number)} ·{' '}
+                        {documentLineLabel(passage.document_title, passage.document_descriptive_label)}
                       </span>
                       <span className="line-clamp-2 text-xs leading-snug text-t2">
                         <SnippetText snippet={passage.snippet} />

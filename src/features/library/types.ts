@@ -20,8 +20,15 @@ export interface SearchResultItem {
   content?: string | null;
   document_id?: string | null;
   document_title?: string | null;
+  /**
+   * Objet dérivé du corps du document parent, pour les « actes en abrégé » du
+   * JO dont le titre se réduit au type, au numéro et à la date. S'affiche à
+   * côté du titre, jamais à sa place (cf. `documentLineLabel`).
+   */
+  document_descriptive_label?: string | null;
   document_type?: string | null;
   node_title?: string | null;
+  /** Déjà composé côté serveur : type > titre officiel > libellé descriptif > nœud. */
   breadcrumb?: string | null;
   legal_scope?: LegalScope | null;
   institution_id?: string | null;
@@ -90,6 +97,8 @@ export interface LibraryHomeDocument {
 export interface SuggestDocument {
   id: string;
   title: string;
+  /** Objet dérivé du corps — affiché à côté du titre, jamais à sa place. */
+  descriptive_label?: string | null;
   type_code?: string | null;
   type_name?: string | null;
 }
@@ -100,6 +109,7 @@ export interface SuggestArticle {
   number: string;
   document_id: string;
   document_title: string;
+  document_descriptive_label?: string | null;
   type_code?: string | null;
 }
 
@@ -113,6 +123,7 @@ export interface SuggestPassage {
   number: string;
   document_id: string;
   document_title: string;
+  document_descriptive_label?: string | null;
   snippet: string;
 }
 

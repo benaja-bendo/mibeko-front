@@ -37,6 +37,19 @@ export default function DocumentInfoModal({ document }: { document?: LegalDocume
             <h3 className="text-[14px] font-display font-semibold text-t1 mb-1">
               {document.title || document.titre_officiel || 'Document sans titre'}
             </h3>
+            {/* Nommé explicitement, pour qu'un éditeur ne confonde jamais les
+                deux : ce libellé est dérivé du corps de l'acte, il n'a pas
+                l'autorité de l'intitulé ci-dessus. */}
+            {document.libelle_descriptif && (
+              <p className="text-[12px] text-t2 mb-1">
+                <span className="text-t3 font-mono text-[10px] uppercase tracking-wider">
+                  Objet (dérivé du texte
+                  {document.libelle_descriptif_source === 'manuel' ? ', rédigé' : ', automatique'})
+                  {' · '}
+                </span>
+                {document.libelle_descriptif}
+              </p>
+            )}
             <p className="text-[12px] text-t3 font-mono">ID: {document.id}</p>
           </div>
 

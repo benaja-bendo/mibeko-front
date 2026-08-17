@@ -120,6 +120,17 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
           <h1 className="text-[12px] sm:text-[14px] font-semibold text-t1 font-display truncate leading-tight mt-0.5 sm:-mt-0.5">
             {document.title || document.titre_officiel || 'Document sans titre'}
           </h1>
+          {/* Le titre officiel reste le H1 — c'est lui qui fait foi. Le libellé
+              descriptif, dérivé du corps, s'ajoute EN DESSOUS pour les actes en
+              abrégé dont l'intitulé se réduit au type, au numéro et à la date. */}
+          {document.libelle_descriptif && (
+            <p
+              className="text-[11px] text-t2 truncate leading-tight"
+              title={document.libelle_descriptif}
+            >
+              {document.libelle_descriptif}
+            </p>
+          )}
         </div>
       )}
 

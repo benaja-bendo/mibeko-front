@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { articleLeafLabel, displayArticleNumber } from './legalLabels';
+import { articleLeafLabel, displayArticleNumber, documentLineLabel } from './legalLabels';
 
 describe('displayArticleNumber', () => {
   it('retire le suffixe technique _doublon_N', () => {
@@ -62,5 +62,35 @@ describe('articleLeafLabel', () => {
   it('tolère null/undefined', () => {
     expect(articleLeafLabel(null)).toBe('Article ');
     expect(articleLeafLabel(undefined, { short: true })).toBe('Art. ');
+  });
+});
+
+describe('documentLineLabel', () => {
+  it("ajoute l'objet dérivé au titre officiel, sans jamais le remplacer", () => {
+    expect(
+      documentLineLabel(
+        'Décret n° 2025-240 du 20 juin 2025.',
+        'Nomination : président du Conseil supérieur',
+      ),
+    ).toBe('Décret n° 2025-240 du 20 juin 2025 — Nomination : président du Conseil supérieur');
+  });
+
+  it('retire le point final du titre pour la seule ligne affichée', () => {
+    // La donnée, elle, garde son point : c'est ce que le JO a imprimé.
+    expect(documentLineLabel('Arrêté n° 3583 du 4 septembre 2025.', 'Décoration')).toBe(
+      'Arrêté n° 3583 du 4 septembre 2025 — Décoration',
+    );
+  });
+
+  it("laisse le titre seul quand aucun libellé n'existe", () => {
+    expect(documentLineLabel('Code du travail')).toBe('Code du travail');
+    expect(documentLineLabel('Code du travail', null)).toBe('Code du travail');
+    expect(documentLineLabel('Code du travail', '   ')).toBe('Code du travail');
+  });
+
+  it('tolère un titre absent', () => {
+    expect(documentLineLabel(null, 'Nomination')).toBe('Nomination');
+    expect(documentLineLabel(undefined, null)).toBe('Document');
+    expect(documentLineLabel('', '')).toBe('Document');
   });
 });

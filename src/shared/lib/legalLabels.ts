@@ -57,3 +57,39 @@ export function articleLeafLabel(
 
   return options.short ? `Art. ${value}` : `Article ${value}`;
 }
+
+/**
+ * Intitulé d'un document tel qu'affiché sur UNE seule ligne (liste, résultat de
+ * recherche, fil d'Ariane).
+ *
+ * Le Journal officiel publie certaines décisions en « actes en abrégé » : son
+ * sommaire n'annonce que « Nomination. » et l'en-tête n'imprime aucun objet.
+ * L'intitulé du texte est alors littéralement « Décret n° 2025-240 du 20 juin
+ * 2025. » — fidèle à la source (vérifié le 16/08/2026 contre les markdowns
+ * MinerU), et parfaitement muet. `libelle_descriptif` porte l'objet DÉRIVÉ du
+ * corps de l'acte pour compenser ce silence.
+ *
+ * RÈGLE À NE PAS DÉFAIRE : le libellé descriptif n'est PAS le titre officiel.
+ * Cette fonction les concatène, elle ne substitue jamais l'un à l'autre — un
+ * client qui n'afficherait que le libellé présenterait comme intitulé officiel
+ * une paraphrase qui n'en est pas un.
+ */
+export function documentLineLabel(
+  titreOfficiel: string | null | undefined,
+  libelleDescriptif?: string | null,
+): string {
+  const titre = (titreOfficiel ?? '').trim();
+  const libelle = (libelleDescriptif ?? '').trim();
+
+  if (titre === '') {
+    return libelle || 'Document';
+  }
+
+  if (libelle === '') {
+    return titre;
+  }
+
+  // Le point final de « … du 20 juin 2025. » ferait une coupure bancale devant
+  // le tiret : on le retire de l'AFFICHAGE seulement, jamais de la donnée.
+  return `${titre.replace(/\s*[.,;]\s*$/, '')} — ${libelle}`;
+}

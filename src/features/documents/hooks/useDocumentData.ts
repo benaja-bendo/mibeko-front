@@ -124,6 +124,12 @@ export function useDocumentMutations(documentId: string) {
   const updateDocument = useMutation({
     mutationFn: async (data: {
       titre_officiel?: string,
+      // Objet dérivé du corps de l'acte (actes en abrégé du JO). L'API exige
+      // la provenance dès que le libellé a une valeur, et remet les deux à
+      // null ensemble — la contrainte CHECK en base refuse une provenance
+      // orpheline.
+      libelle_descriptif?: string | null,
+      libelle_descriptif_source?: 'article' | 'manuel',
       reference_nor?: string | null,
       date_signature?: string | null,
       date_publication?: string | null,

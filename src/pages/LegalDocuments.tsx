@@ -31,6 +31,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { toast } from '@/shared/store/useToast';
 import DeletionImpactPanel from '@/features/documents/components/DeletionImpactPanel';
 import { SEARCH_AI_LABEL } from '@/shared/lib/labels';
+import { documentLineLabel } from '@/shared/lib/legalLabels';
 import { hasRole } from '@/shared/types/auth';
 import {
   Dialog,
@@ -72,8 +73,15 @@ const STATUT_CFG: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Intitulé de la ligne : titre officiel, suivi de l'objet dérivé du corps
+ * quand le JO a publié l'acte en abrégé (« Décret n° 2025-240 du 20 juin
+ * 2025. » et rien d'autre). Les deux, jamais l'un à la place de l'autre.
+ */
 function docTitle(doc: LaravelDocument): string {
-  return doc.titre_officiel || doc.title || '';
+  const titre = doc.titre_officiel || doc.title || '';
+
+  return titre ? documentLineLabel(titre, doc.libelle_descriptif) : '';
 }
 
 function formatDate(iso?: string | null): string {

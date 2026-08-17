@@ -19,6 +19,13 @@ export interface LaravelDocument {
   // Titre — canonical DB field (Resource retourne aussi `title` comme alias mobile)
   titre_officiel: string;
   title?: string;
+  /**
+   * Objet dérivé du corps de l'acte, pour les « actes en abrégé » du JO dont
+   * l'intitulé se réduit au type, au numéro et à la date. S'affiche à côté du
+   * titre officiel, jamais à sa place (cf. `documentLineLabel`).
+   */
+  libelle_descriptif?: string | null;
+  libelle_descriptif_source?: 'article' | 'manuel' | null;
   // Référence & classification
   type_code?: string | null;
   type?: { code: string; nom?: string; name?: string } | null;

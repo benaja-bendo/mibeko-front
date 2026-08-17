@@ -6,6 +6,19 @@ export interface LegalDocument {
   type?: { code: string; name?: string; nom?: string } | null;
   titre_officiel?: string;
   title?: string;
+  /**
+   * Objet de l'acte DÉRIVÉ de son corps, pour les intitulés que le Journal
+   * officiel réduit au type, au numéro et à la date (« actes en abrégé » :
+   * « Décret n° 2025-240 du 20 juin 2025. »). Ces intitulés sont fidèles à la
+   * source, il n'y a rien à y corriger — c'est le JO qui n'imprime aucun objet.
+   *
+   * À AFFICHER À CÔTÉ DU TITRE OFFICIEL, JAMAIS À SA PLACE : utiliser
+   * `documentLineLabel()` (shared/lib/legalLabels) plutôt que de choisir l'un
+   * des deux.
+   */
+  libelle_descriptif?: string | null;
+  /** `article` = tiré du premier article puis relu ; `manuel` = écrit par un juriste. */
+  libelle_descriptif_source?: 'article' | 'manuel' | null;
   reference_nor?: string | null;
   reference?: string | null;
   date_signature?: string | null;
