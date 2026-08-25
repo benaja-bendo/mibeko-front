@@ -4,6 +4,7 @@
 export * from './types';
 export * from './hooks/useSettings';
 
+export { PlanCard } from './components/PlanCard';
 export { IdentityCard } from './components/IdentityCard';
 export { OrganisationCard } from './components/OrganisationCard';
 export { PreferencesCard } from './components/PreferencesCard';

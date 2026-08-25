@@ -3,15 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { login } from '@/features/auth/api/authApi';
-import { isEditorOrAbove, isProOrAbove } from '@/shared/types/auth';
+import { defaultRedirectFor } from '@/features/auth/redirect';
 import logoMibeko from '@/assets/logo_mibeko.svg';
-
-function getDefaultRedirect(user: ReturnType<typeof useAuthStore.getState>['user']): string {
-  if (!user) return '/auth/login';
-  if (isEditorOrAbove(user)) return '/editor';
-  if (isProOrAbove(user)) return '/app/library';
-  return '/app/library';
-}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -34,7 +27,7 @@ export default function LoginPage() {
       const { token, user } = await login({ email, password });
       setAuth(user, token);
 
-      const destination = from ?? getDefaultRedirect(user);
+      const destination = from ?? defaultRedirectFor(user);
       navigate(destination, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de connexion');

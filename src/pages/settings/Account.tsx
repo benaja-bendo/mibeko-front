@@ -4,6 +4,7 @@ import {
   IdentityCard,
   OrganisationCard,
   PasswordCard,
+  PlanCard,
   PreferencesCard,
   PrivacyCard,
   SessionsCard,
@@ -46,6 +47,8 @@ export default function Account() {
 
       {account && (
         <div className="space-y-6">
+          <PlanCard />
+
           <GroupTitle>Profil</GroupTitle>
           <IdentityCard account={account} />
           <OrganisationCard account={account} />

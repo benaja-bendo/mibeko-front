@@ -1,7 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import UnauthorizedPage from '@/features/auth/components/UnauthorizedPage';
-import { hasRole, type UserRole } from '@/shared/types/auth';
+import { type UserRole } from '@/shared/types/auth';
+import { defaultRedirectFor } from '@/features/auth/redirect';
 
 interface RequireAuthProps {
   children: React.ReactNode;
@@ -32,8 +33,7 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
   const { isAuthenticated, user } = useAuthStore();
 
   if (isAuthenticated && user) {
-    const isEditor = user.roles?.includes('admin') || user.roles?.includes('editor');
-    return <Navigate to={isEditor ? '/editor' : '/app'} replace />;
+    return <Navigate to={defaultRedirectFor(user)} replace />;
   }
 
   return <>{children}</>;
@@ -41,9 +41,10 @@ export function RedirectIfAuthenticated({ children }: { children: React.ReactNod
 
 /**
  * Route racine « / » : oriente vers l'espace du rôle le plus élevé de
- * l'utilisateur (admin → /admin, éditeur → /editor, sinon → /app) au lieu
- * d'envoyer tout le monde sur /editor (un abonné Pro tombait sur une 403).
- * Les visiteurs non connectés partent directement vers le login.
+ * l'utilisateur. La règle est partagée avec la connexion et l'inscription
+ * (`defaultRedirectFor`) pour qu'une même personne n'atterrisse pas à deux
+ * endroits différents selon le chemin emprunté. Les visiteurs non connectés
+ * partent directement vers le login.
  */
 export function RootRedirect() {
   const { isAuthenticated, user } = useAuthStore();
@@ -51,7 +52,5 @@ export function RootRedirect() {
   if (!isAuthenticated) {
     return <Navigate to="/auth/login" replace />;
   }
-  if (hasRole(user, 'admin')) return <Navigate to="/admin" replace />;
-  if (hasRole(user, 'editor')) return <Navigate to="/editor" replace />;
-  return <Navigate to="/app" replace />;
+  return <Navigate to={defaultRedirectFor(user)} replace />;
 }
