@@ -10,6 +10,28 @@ export const handlers = [
       data: { documents: [], articles: [], passages: [] },
     })
   ),
+  // Authentification : les écrans d'inscription et de réinitialisation appellent
+  // ces routes au montage d'un formulaire soumis. Réponses neutres par défaut,
+  // les tests qui vérifient un cas précis les surchargent avec server.use().
+  http.post('*/api/v1/register', () =>
+    HttpResponse.json({
+      success: true,
+      data: {
+        token: 'jeton-de-test',
+        user: { id: 'u1', name: 'Test', email: 'test@exemple.com', roles: ['mobile_user'], permissions: [] },
+      },
+    })
+  ),
+  http.post('*/api/v1/forgot-password', () =>
+    HttpResponse.json({
+      success: true,
+      message: 'Si un compte existe pour cette adresse, un code de réinitialisation a été envoyé.',
+      data: null,
+    })
+  ),
+  http.post('*/api/v1/reset-password', () =>
+    HttpResponse.json({ success: true, message: 'Mot de passe réinitialisé.', data: null })
+  ),
   http.get('*/py/api/v1/health', () => HttpResponse.json({ status: 'ok' })),
   http.get('*/api/v1/institutions', () => HttpResponse.json({ data: [] })),
   http.get('*/api/v1/document-types', () => HttpResponse.json({ data: [] })),

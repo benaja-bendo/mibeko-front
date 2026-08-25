@@ -33,6 +33,9 @@ export function LegacyViewerRedirectPage() {
 
 const LoginPage = lazy(() => import('@/features/auth/components/LoginPage'));
 const AcceptInvitationPage = lazy(() => import('@/features/auth/components/AcceptInvitationPage'));
+const RegisterPage = lazy(() => import('@/features/auth/components/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/components/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/features/auth/components/ResetPasswordPage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
 const Journals = lazy(() => import('@/pages/Journals'));
@@ -62,6 +65,18 @@ const SettingsSupport = lazy(() => import('@/pages/settings/Support'));
  */
 export function LoginRoutePage() {
   return <LazyPage Component={LoginPage} />;
+}
+
+export function RegisterRoutePage() {
+  return <LazyPage Component={RegisterPage} />;
+}
+
+export function ForgotPasswordRoutePage() {
+  return <LazyPage Component={ForgotPasswordPage} />;
+}
+
+export function ResetPasswordRoutePage() {
+  return <LazyPage Component={ResetPasswordPage} />;
 }
 
 /**

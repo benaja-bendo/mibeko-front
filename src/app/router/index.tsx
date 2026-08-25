@@ -25,6 +25,9 @@ import {
   SettingsBillingRoutePage,
   SettingsNotificationsRoutePage,
   SettingsSupportRoutePage,
+  RegisterRoutePage,
+  ForgotPasswordRoutePage,
+  ResetPasswordRoutePage,
   UpgradeRoutePage,
   ViewerRoutePage,
 } from './routeElements';
@@ -36,6 +39,30 @@ export const router = createBrowserRouter([
     element: (
       <RedirectIfAuthenticated>
         <LoginRoutePage />
+      </RedirectIfAuthenticated>
+    ),
+  },
+  {
+    path: '/auth/register',
+    element: (
+      <RedirectIfAuthenticated>
+        <RegisterRoutePage />
+      </RedirectIfAuthenticated>
+    ),
+  },
+  {
+    path: '/auth/mot-de-passe-oublie',
+    element: (
+      <RedirectIfAuthenticated>
+        <ForgotPasswordRoutePage />
+      </RedirectIfAuthenticated>
+    ),
+  },
+  {
+    path: '/auth/reinitialiser',
+    element: (
+      <RedirectIfAuthenticated>
+        <ResetPasswordRoutePage />
       </RedirectIfAuthenticated>
     ),
   },
