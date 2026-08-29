@@ -8,6 +8,18 @@ interface DocumentData {
   pdfUrl?: string;
 }
 
+/**
+ * `validation_status` (API : pending/validated/error/draft) → code UI `vs`.
+ * Un seul endroit qui connaît cette correspondance : la dupliquer (comme
+ * avant) fait diverger silencieusement les copies dès qu'un statut change.
+ */
+export function toVs(status?: string | null): TreeNode['vs'] {
+  if (status === 'validated') return 'ok';
+  if (status === 'error') return 'err';
+  if (status === 'draft') return 'draft';
+  return 'pend';
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildTree(flatNodes: any[]): TreeNode[] {
   const nodeMap = new Map<string, TreeNode>();
@@ -29,7 +41,7 @@ function buildTree(flatNodes: any[]): TreeNode[] {
         numero: n.number || n.numero_article || null,
         label: n.title || null,
         sort_order: n.order || 0,
-        vs: n.validation_status === 'validated' ? 'ok' : n.validation_status === 'error' ? 'err' : 'pend',
+        vs: toVs(n.validation_status),
         content: n.content || '',
         source_locator: n.source_locator || null,
         validity: n.validity || '—',
@@ -46,7 +58,7 @@ function buildTree(flatNodes: any[]): TreeNode[] {
       numero: n.number || n.numero || null,
       label: n.title || n.titre || null,
       sort_order: n.order || 0,
-      vs: n.validation_status === 'validated' ? 'ok' : n.validation_status === 'error' ? 'err' : 'pend',
+      vs: toVs(n.validation_status),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       children: n.articles ? n.articles.map((a: any) => ({
         id: a.id.toLowerCase(),
@@ -55,7 +67,7 @@ function buildTree(flatNodes: any[]): TreeNode[] {
         numero: a.number || a.numero_article || null,
         label: a.title || null,
         sort_order: a.order || 0,
-        vs: a.validation_status === 'validated' ? 'ok' : a.validation_status === 'error' ? 'err' : 'pend',
+        vs: toVs(a.validation_status),
         content: a.content || '',
         source_locator: a.source_locator || null,
         validity: a.validity || '—',

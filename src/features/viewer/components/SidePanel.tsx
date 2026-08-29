@@ -381,11 +381,13 @@ export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'ove
                       { id: 'pending', label: 'Attente', icon: Clock, color: 'text-amber bg-amber-d' },
                       { id: 'draft', label: 'Brouillon', icon: Edit2, color: 'text-t3 bg-s3' },
                     ].map(status => {
-                      // Normalize the API value to match the buttons
+                      // 'draft' est une intention à part entière, distincte de
+                      // 'pend' (pending) — les confondre affichait toujours
+                      // « Attente » comme actif pour un article en brouillon.
                       const currentStatus = selectedNode.vs === 'ok' ? 'validated' :
                                             selectedNode.vs === 'err' ? 'error' :
-                                            selectedNode.vs === 'pend' ? 'pending' :
-                                            selectedNode.vs || 'draft'; // fallback
+                                            selectedNode.vs === 'draft' ? 'draft' :
+                                            'pending';
 
                       return (
                         <button

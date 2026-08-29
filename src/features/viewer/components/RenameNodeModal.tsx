@@ -29,13 +29,13 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: 'Brouillon', icon: Edit2, className: 'text-t3' },
 ] as const;
 
-/** Convertit le code UI (vs) vers la valeur API. */
+/** Convertit le code UI (vs) vers la valeur API — les 4 cas sont exhaustifs. */
 function vsToApiStatus(vs?: string | null): string {
   switch (vs) {
     case 'ok': return 'validated';
     case 'err': return 'error';
-    case 'pend': return 'pending';
-    default: return vs || 'pending';
+    case 'draft': return 'draft';
+    case 'pend': default: return 'pending';
   }
 }
 

@@ -106,7 +106,10 @@ export interface TreeNode {
   numero: string | null;
   label: string | null;
   sort_order: number;
-  vs: 'ok' | 'err' | 'pend'; // Simplified validation status
+  // Code UI simplifié de `validation_status` (API : pending/validated/error/draft).
+  // 'draft' est une intention de curation à part entière, PAS un synonyme de
+  // 'pend' — les confondre affiche/écrase silencieusement le mauvais statut.
+  vs: 'ok' | 'err' | 'pend' | 'draft';
   children?: TreeNode[];
   
   // Specific to articles

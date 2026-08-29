@@ -30,17 +30,16 @@ export default function ValidityModal({ open, onOpenChange, node }: { open: bool
     e.preventDefault();
     if (!node) return;
 
-    updateArticle.mutate({
-      id: node.id,
-      // In a real app, this might be a date range or specific field
-      // For now, we'll assume we can pass it as part of update
-      validation_status: node.vs === 'ok' ? 'validated' : node.vs === 'err' ? 'error' : 'pending'
-    }, {
-      onSuccess: () => onOpenChange(false)
-    });
-    
-    // Note: The API might need a specific field for validity range.
-    // For this simulation, we just close the modal.
+    // TODO(#validité-non-persistée) : ce formulaire ne sauvegarde encore rien.
+    // La période de validité vit sur `ArticleVersion.validity_period` (daterange
+    // Postgres, voir Article::activeVersion), pas sur l'article lui-même — un
+    // simple PATCH articles/{id} ne peut pas l'écrire. Il manque une route
+    // dédiée (ou de réutiliser `articles/{id}/versions`) et une décision produit
+    // sur ce qui arrive à la version courante quand la période change.
+    // En attendant, on ferme sans rien envoyer plutôt que d'écrire un
+    // `validation_status` sans rapport — cette ligne, avant, renvoyait
+    // silencieusement « pending » pour un article en brouillon à chaque
+    // ouverture de ce formulaire.
     onOpenChange(false);
   };
 

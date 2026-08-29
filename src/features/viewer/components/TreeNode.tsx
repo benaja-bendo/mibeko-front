@@ -282,8 +282,10 @@ function TreeNode({ node, depth, comfort = false }: { node: TreeNodeType; depth:
             ? "bg-green-d text-green border-[rgba(86,160,122,.2)]"
             : node.vs === 'err'
               ? "bg-red-d text-red border-[rgba(196,97,78,.2)]"
-              : "bg-amber-d text-amber border-[rgba(196,144,58,.2)]";
-          const vsSymbol = node.vs === 'ok' ? '✓' : node.vs === 'err' ? '✗' : '~';
+              : node.vs === 'draft'
+                ? "bg-s3 text-t3 border-b1"
+                : "bg-amber-d text-amber border-[rgba(196,144,58,.2)]";
+          const vsSymbol = node.vs === 'ok' ? '✓' : node.vs === 'err' ? '✗' : node.vs === 'draft' ? '–' : '~';
 
           if (node.type !== 'ARTICLE') {
             return <span className={cn("text-[8.5px] font-mono px-1 py-[1px] rounded-[3px] shrink-0 ml-[2px] border", vsClass)}>{vsSymbol}</span>;
