@@ -173,7 +173,7 @@ Chaque règle répond à une façon connue de se tromper :
 
 ## Limites connues au 29 août 2026
 
-- **Le contrôle de page dépend d'une mesure préalable.** Un repère hors du PDF est refusé, mais seulement si le nombre de pages du fichier source est connu. Il l'est pour tout PDF ingéré depuis le 29/08/2026 ; pour les plus anciens, il se remplit par `python main.py backfill-page-count --execute` côté `mibeko-python`. Tant qu'il est inconnu, le contrôle se tait plutôt que de bloquer.
+- **Le contrôle de page est actif sur tout le corpus de production** depuis le 29/08/2026 : les 141 PDF source y ont été mesurés, aucun n'est resté illisible. Il reste conditionné à cette mesure — un PDF dont le nombre de pages serait inconnu ne ferait rien échouer, le contrôle se tairait. Sur une base restaurée ou un environnement neuf, le remplir par `python main.py backfill-page-count --execute` côté `mibeko-python`.
 - **Pas de contrôle du rectangle** : ses dimensions ne sont pas stockées, et le rectangle reste facultatif. N'en demandez pas à l'IA.
 - **Pas d'export partiel** : le fichier porte toujours le document entier ([`mibeko-dashboard#71`](https://github.com/benaja-bendo/mibeko-dashboard/issues/71)).
 - **Pas de rectangle affiché sur le PDF** : le lecteur a un référentiel de coordonnées à corriger avant ([`mibeko-front#9`](https://github.com/benaja-bendo/mibeko-front/issues/9)).
