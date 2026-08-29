@@ -14,7 +14,7 @@ import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
 export default function SidePanel() {
   const { id: documentId } = useParams<{ id: string }>();
-  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, startSelection, setDeleteModal, setRenameModal } = useViewerStore();
+  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, selectNode, startSelection, setDeleteModal, setRenameModal } = useViewerStore();
   const { updateArticle } = useDocumentMutations(documentId || '');
 
   const [content, setContent] = React.useState('');
@@ -27,9 +27,44 @@ export default function SidePanel() {
     target_document?: { titre_officiel?: string | null } | null;
   }>>([]);
 
+  // Détection d'édition non sauvegardée : `contentRef` suit chaque frappe (pas
+  // seulement l'état, pour être lu sans devenir une dépendance de l'effet
+  // ci-dessous — sinon il se redéclencherait à chaque caractère tapé et
+  // écraserait la saisie). `originalContentRef` retient la version chargée
+  // (ou sauvegardée) de l'article affiché, pour comparer.
+  const contentRef = React.useRef('');
+  const originalContentRef = React.useRef('');
+  const previousNodeRef = React.useRef<typeof selectedNode>(null);
+
   React.useEffect(() => {
-    setContent(selectedNode?.content || '');
-  }, [selectedNode?.id, selectedNode?.content]);
+    const prevNode = previousNodeRef.current;
+
+    // Retour sur le même nœud (notamment après un refus de quitter ci-dessous) :
+    // rien à recharger, l'édition en cours reste intacte.
+    if (prevNode && selectedNode && prevNode.id === selectedNode.id) {
+      return;
+    }
+
+    if (prevNode && selectedNode && prevNode.type === 'ARTICLE') {
+      const isDirty = contentRef.current !== originalContentRef.current;
+      if (isDirty) {
+        const discard = window.confirm(
+          `Modifications non enregistrées sur l'article ${prevNode.numero || ''} — les abandonner ?`
+        );
+        if (!discard) {
+          // L'utilisateur reste sur l'article en cours d'édition.
+          selectNode(prevNode.id, prevNode);
+          return;
+        }
+      }
+    }
+
+    const freshContent = selectedNode?.content || '';
+    setContent(freshContent);
+    contentRef.current = freshContent;
+    originalContentRef.current = freshContent;
+    previousNodeRef.current = selectedNode;
+  }, [selectedNode, selectNode]);
 
   React.useEffect(() => {
     // Fetch relations if activeTab is meta
@@ -52,10 +87,13 @@ export default function SidePanel() {
 
   const handleSave = () => {
     if (isArticle) {
-      updateArticle.mutate({
-        id: selectedNode.id,
-        content: content,
-      });
+      updateArticle.mutate(
+        { id: selectedNode.id, content },
+        // Marque la version affichée comme « propre » : sans ça, changer de
+        // sélection juste après une sauvegarde réussie redéclencherait quand
+        // même la confirmation d'abandon.
+        { onSuccess: () => { originalContentRef.current = content; } },
+      );
     }
   };
 
@@ -143,10 +181,13 @@ export default function SidePanel() {
                   <span>Texte en vigueur — édition rapide</span>
                   {updateArticle.isPending && <Clock className="w-3 h-3 animate-spin" />}
                 </div>
-                <textarea 
+                <textarea
                   className="w-full bg-s2 border border-b1 rounded-md text-t1 text-[12px] font-serif p-2.5 leading-[1.7] resize-y outline-none min-h-[200px] transition-colors focus:border-b3"
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    contentRef.current = e.target.value;
+                  }}
                 />
                 <Button 
                   onClick={handleSave}
