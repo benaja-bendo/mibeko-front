@@ -78,7 +78,19 @@ export default function AnomaliesPanel({ treeData }: { treeData: TreeNode[] }) {
 
   if (!anomaliesPanelOpen) return null;
 
-  const flags = data ?? [];
+  // Triées par sévérité (bloquant d'abord — l'ordre de `SEVERITY` fait foi,
+  // pas besoin d'une deuxième table de correspondance) puis non résolues
+  // avant résolues, sinon un bloquant déjà traité peut passer devant un
+  // avertissement encore ouvert.
+  const severityRank = Object.keys(SEVERITY);
+  const rankOf = (s: string) => {
+    const i = severityRank.indexOf(s);
+    return i === -1 ? severityRank.length : i;
+  };
+  const flags = [...(data ?? [])].sort((a, b) => {
+    if (a.resolved !== b.resolved) return a.resolved ? 1 : -1;
+    return rankOf(a.severity) - rankOf(b.severity);
+  });
   const open = flags.filter((f) => !f.resolved);
   const counts = {
     blocking: open.filter((f) => f.severity === 'blocking').length,
