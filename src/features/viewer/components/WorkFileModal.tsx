@@ -14,7 +14,8 @@ import {
   type WorkFileTarget,
 } from '@/features/documents/api/laravelApi';
 import {
-  buildWorkFileDiff, extractTarget, validateWorkFile, type ArticleDiff, type WorkFileDiff,
+  buildWorkFileDiff, extractTarget, validateWorkFile,
+  type ArticleDiff, type NodeDiff, type WorkFileDiff,
 } from '@/features/viewer/lib/workFileDiff';
 import { workFileName } from '@/features/viewer/lib/workFileName';
 import {
@@ -25,6 +26,14 @@ import { cn } from '@/shared/lib/utils';
 import type { LegalDocument } from '@/shared/types/database';
 
 const MOTIF_MIN = 20;
+
+/**
+ * Un dossier de travail reste un fichier JSON de texte : même un code de
+ * plusieurs milliers d'articles pèse quelques mégaoctets. Au-delà, c'est qu'on
+ * dépose autre chose — et `file.text()` chargerait le tout en mémoire avant
+ * qu'aucun contrôle n'ait pu s'exercer.
+ */
+const TAILLE_MAX = 25 * 1024 * 1024;
 
 /**
  * Dossier de travail : sortir l'état structuré du document, le faire corriger
@@ -91,8 +100,18 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
 
   const handleFile = async (file: File) => {
     if (!documentId) return;
+    // Tout l'arbitrage repart de zéro : le motif décrit LA proposition qu'on
+    // applique, et il part dans le journal d'audit. Le laisser en place ferait
+    // appliquer un dossier sous la justification écrite pour le précédent.
     setBusy('dry-run'); setError(null); setPreview(null); setProposal(null); setApplied(null);
-    setConfirmedDeletions('');
+    setConfirmedDeletions(''); setMotif(''); setExpanded(null);
+
+    if (file.size > TAILLE_MAX) {
+      setError(`Ce fichier pèse ${Math.round(file.size / 1024 / 1024)} Mo : ce n’est pas un dossier de travail.`);
+      setBusy(null);
+
+      return;
+    }
 
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
@@ -102,10 +121,9 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
       if (invalide) { setError(invalide); return; }
 
       const target = extractTarget(parsed);
-      // L'empreinte du fichier fait foi quand il en porte une : c'est elle qui
-      // détecte qu'un tiers a modifié le document depuis l'export.
-      const fingerprint =
-        (parsed as Partial<WorkFileSnapshot>).expected_fingerprint ?? snapshot.expected_fingerprint;
+      // `validateWorkFile` impose l'enveloppe complète : l'empreinte vient
+      // toujours de l'export d'origine, jamais de l'état courant du serveur.
+      const fingerprint = (parsed as WorkFileSnapshot).expected_fingerprint;
 
       const result = await submitWorkFile(documentId, {
         execute: false, expected_fingerprint: fingerprint, target,
@@ -243,6 +261,7 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
 
                 <PlanSummary diff={diff} removals={removals} />
                 <WarningList result={preview} />
+                <NodeChangeList changes={diff.nodes.filter((node) => node.status !== 'inchange')} />
                 <ChangeList changes={changed} expanded={expanded} onToggle={setExpanded} />
 
                 <label className="block space-y-1.5">
@@ -295,6 +314,9 @@ function PlanSummary({ diff, removals }: { diff: WorkFileDiff; removals: number 
     ['Articles renumérotés', diff.renumberedArticles, false],
     ['Textes modifiés', diff.contentChanges, false],
     ['Repères de page modifiés', diff.locatorChanges, false],
+    ['Articles déplacés/réordonnés', diff.articleStructureChanges, false],
+    ['Divisions déplacées/réordonnées', diff.nodeStructureChanges, false],
+    ['Divisions ajoutées', diff.nodes.filter((n) => n.status === 'ajoute').length, false],
     ['Divisions retirées', diff.nodes.filter((n) => n.status === 'retire').length, false],
   ];
 
@@ -317,6 +339,40 @@ function PlanSummary({ diff, removals }: { diff: WorkFileDiff; removals: number 
           {diff.charactersBefore.toLocaleString('fr-FR')} → {diff.charactersAfter.toLocaleString('fr-FR')} caractères
         </p>
       </div>
+    </section>
+  );
+}
+
+function NodeChangeList({ changes }: { changes: NodeDiff[] }) {
+  if (changes.length === 0) return null;
+
+  return (
+    <section className="border border-b1 rounded divide-y divide-b1">
+      <p className="px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-t3">
+        Divisions modifiées
+      </p>
+      {changes.map((node, index) => (
+        <div
+          key={`${node.status}-${node.number ?? node.titleAfter ?? node.titleBefore ?? index}`}
+          className="px-2.5 py-1.5 text-[11px]"
+        >
+          <p className="flex items-center gap-2">
+            <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-s3 text-t2">
+              {node.status}
+            </span>
+            <span className="text-t1 font-mono">
+              {node.type} {node.number ?? ''} · {node.titleAfter ?? node.titleBefore ?? 'sans titre'}
+            </span>
+          </p>
+          {(node.parentChanged || node.orderChanged) && (
+            <p className="mt-1 text-t3 font-mono text-[10px]">
+              {node.parentChanged && `parent ${node.parentBefore ?? 'racine'} → ${node.parentAfter ?? 'racine'}`}
+              {node.parentChanged && node.orderChanged && ' · '}
+              {node.orderChanged && `ordre ${node.orderBefore ?? '—'} → ${node.orderAfter ?? '—'}`}
+            </p>
+          )}
+        </div>
+      ))}
     </section>
   );
 }
@@ -375,6 +431,13 @@ function ChangeList({
               {a.pageBefore !== a.pageAfter && ` · p. ${a.pageBefore ?? '—'} → ${a.pageAfter ?? '—'}`}
             </span>
           </button>
+          {(a.parentChanged || a.orderChanged) && (
+            <p className="px-2.5 pb-1.5 text-t3 font-mono text-[10px]">
+              {a.parentChanged && `parent ${a.parentBefore ?? 'racine'} → ${a.parentAfter ?? 'racine'}`}
+              {a.parentChanged && a.orderChanged && ' · '}
+              {a.orderChanged && `ordre ${a.orderBefore ?? '—'} → ${a.orderAfter ?? '—'}`}
+            </p>
+          )}
           {expanded === a.number && (
             <div className="grid sm:grid-cols-2 gap-2 px-2.5 pb-2.5">
               <TextPane label="Avant" text={a.contentBefore} />
@@ -416,7 +479,7 @@ function AppliedSummary({ result, onRestart }: { result: WorkFileResult; onResta
       </ul>
       <p className="text-t2 text-[11px] leading-relaxed">
         La publication reste une étape distincte : ce document n’a pas été publié par cette
-        opération. Relancez la détection d’anomalies avant de le proposer à la publication.
+        opération. La détection structurelle d’anomalies a été relancée automatiquement.
       </p>
       <Button variant="outline" onClick={onRestart} className="gap-2">
         <ArrowRight className="w-3.5 h-3.5" /> Déposer une autre proposition

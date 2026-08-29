@@ -64,9 +64,9 @@ L'écran affiche, dans cet ordre :
 
 Écrivez un **motif** (20 caractères minimum — il est audité) puis *Appliquer la proposition*.
 
-Après application sur un document jamais publié : un document `validated` **repasse en `review`**, et les articles dont le texte a changé repassent en `pending`. C'est voulu : une proposition appliquée n'a été relue par personne.
+Après application sur un document jamais publié : un document `validated` **repasse en `review`**, et chaque article ou division effectivement touché — texte, numéro, repère, parent ou ordre — repasse en `pending`. C'est voulu : une proposition appliquée n'a été relue par personne.
 
-**La publication reste une étape distincte**, par le bouton habituel. Relancez la détection d'anomalies avant de proposer le document à la publication.
+**La publication reste une étape distincte**, par le bouton habituel. La détection structurelle d'anomalies est relancée automatiquement dans la même transaction que l'application ; les nouveaux signalements apparaissent dans le panneau de contrôle.
 
 ## La garde sur les suppressions
 
@@ -163,6 +163,7 @@ Chaque règle répond à une façon connue de se tromper :
 | Refus | Cause | Ce qu'il faut faire |
 | --- | --- | --- |
 | « appartient à un autre document » | le fichier vient d'un autre texte | reprendre le bon export |
+| « L'empreinte d'origine […] est absente ou invalide » | l'IA a rendu seulement `target` ou a retiré l'enveloppe de l'export | redemander le fichier JSON complet, empreintes comprises |
 | « Le PDF de référence du fichier ne correspond pas » | le PDF rattaché a changé depuis l'export | réexporter |
 | « L'extraction publiée a changé depuis la mesure préparatoire » | quelqu'un a modifié le document entre-temps | réexporter et refaire corriger |
 | « Cette cible retire N article(s) » | suppressions non confirmées | recopier le nombre, ou refuser |

@@ -116,7 +116,7 @@ describe('WorkFileModal', () => {
     monterHandlers(0);
     renderWithProviders(<WorkFileModal document={{ id: 'doc-1', titre_officiel: 'Code de test' } as never} />);
 
-    await deposer({ ...snapshot.target, document_id: 'doc-2' });
+    await deposer({ ...snapshot, target: { ...snapshot.target, document_id: 'doc-2' } });
 
     expect(await screen.findByText(/appartient à un autre document/i)).toBeInTheDocument();
     expect(dernierCorps).toBeNull();
@@ -126,9 +126,53 @@ describe('WorkFileModal', () => {
     monterHandlers(0);
     renderWithProviders(<WorkFileModal document={{ id: 'doc-1', titre_officiel: 'Code de test' } as never} />);
 
-    await deposer({ ...snapshot.target, source_pdf: { sha256: 'b'.repeat(64) } });
+    await deposer({
+      ...snapshot,
+      target: { ...snapshot.target, source_pdf: { sha256: 'b'.repeat(64) } },
+    });
 
     expect(await screen.findByText(/PDF de référence/i)).toBeInTheDocument();
+    expect(dernierCorps).toBeNull();
+  });
+
+  it('refuse une cible sans empreinte d origine au lieu d utiliser l état courant', async () => {
+    monterHandlers(0);
+    renderWithProviders(<WorkFileModal document={{ id: 'doc-1', titre_officiel: 'Code de test' } as never} />);
+
+    await deposer({ target: snapshot.target });
+
+    expect(await screen.findByText(/empreinte d’origine/i)).toBeInTheDocument();
+    expect(dernierCorps).toBeNull();
+  });
+  it('repart d un motif vierge à chaque dépôt, pour que l audit décrive la bonne proposition', async () => {
+    monterHandlers(1);
+    renderWithProviders(<WorkFileModal document={{ id: 'doc-1', titre_officiel: 'Code de test' } as never} />);
+
+    await deposer(propositionTronquee);
+    await screen.findByText(/1 article disparaîtrait du document/i);
+
+    const motif = screen.getByLabelText(/Motif de la correction/i);
+    await userEvent.type(motif, 'Correction des visas contre le PDF source officiel.');
+    expect(motif).toHaveValue('Correction des visas contre le PDF source officiel.');
+
+    // Un second dépôt décrit un autre changement : la justification du premier
+    // ne doit pas lui survivre — c'est elle qui part dans le journal d'audit.
+    await deposer(propositionTronquee);
+    await screen.findByText(/1 article disparaîtrait du document/i);
+
+    expect(screen.getByLabelText(/Motif de la correction/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Nombre d’articles retirés/i)).toHaveValue('');
+  });
+
+  it('refuse un fichier manifestement trop gros sans le lire ni appeler le serveur', async () => {
+    monterHandlers(0);
+    renderWithProviders(<WorkFileModal document={{ id: 'doc-1', titre_officiel: 'Code de test' } as never} />);
+
+    const enorme = new File(['x'.repeat(1024)], 'enorme.json', { type: 'application/json' });
+    Object.defineProperty(enorme, 'size', { value: 30 * 1024 * 1024 });
+    await userEvent.upload(screen.getByLabelText(/Déposer la proposition corrigée/i), enorme);
+
+    expect(await screen.findByText(/ce n’est pas un dossier de travail/i)).toBeInTheDocument();
     expect(dernierCorps).toBeNull();
   });
 });
