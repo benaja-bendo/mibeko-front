@@ -1,6 +1,6 @@
 # Documentation — mibeko-front
 
-> Statut : à jour au 2 juillet 2026 · index de la documentation du dashboard React (`mibeko-front`).
+> Statut : à jour au 29 août 2026 · index de la documentation du dashboard React (`mibeko-front`).
 
 `mibeko-front` est le dashboard React 19 de Mibeko (SaaS LegalTech, droit du
 Congo-Brazzaville) : Vite, Tailwind v4, TanStack Query et zustand, en
@@ -46,6 +46,7 @@ facturation, support).
 
 | Document | Description |
 | --- | --- |
+| [dossier-de-travail.md](./dossier-de-travail.md) | Mode d'emploi de la correction d'un document par une IA extérieure depuis le lecteur éditorial : le parcours export → correction → dépôt → arbitrage, le prompt à donner à l'IA, ce que le serveur refuse et les limites connues. |
 | [design-system.md](./design-system.md) | Design system à jour : contrat de tokens, moteur de thèmes, thème par défaut « Lex Gold » (bronze) et thème clair « Mibeko Classique », polices Fraunces / Instrument Sans / DM Mono. |
 | [_archive/design-foret-obsolete.md](./_archive/design-foret-obsolete.md) | Ancien thème forêt (vert / crème) du dashboard, conservé pour historique. Obsolète — ne pas s'en servir pour de nouvelles valeurs. |
 
