@@ -33,3 +33,16 @@ window.ResizeObserver = window.ResizeObserver ?? ResizeObserverMock;
 Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => {});
 Element.prototype.scrollIntoView =
   Element.prototype.scrollIntoView ?? (() => {});
+
+// jsdom n'implémente pas `Blob.prototype.text()` (dépôt de fichier : dossier de
+// travail du viewer). `FileReader` existe, lui — on s'en sert pour combler.
+if (typeof Blob.prototype.text !== 'function') {
+  Blob.prototype.text = function readAsText(this: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(this);
+    });
+  };
+}

@@ -1,7 +1,7 @@
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import {
   Download, PanelRight, ArrowLeft, MoreHorizontal, FileJson, FileText,
-  Trash2, Info, FilePen, ListTree, CheckCircle2, AlertTriangle,
+  Trash2, Info, FilePen, ListTree, CheckCircle2, AlertTriangle, FileUp,
 } from 'lucide-react';
 import type { LegalDocument } from '@/shared/types/database';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,7 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
   const {
     sidePanelOpen, closeSidePanel, openSidePanel, selectedNode,
     setInfoModalOpen, setDeleteModal, setEditDocModalOpen,
-    setPublishModalOpen, setStructureDrawerOpen, setAnomaliesPanel,
+    setPublishModalOpen, setStructureDrawerOpen, setAnomaliesPanel, setWorkFileModalOpen,
   } = useViewerStore();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -219,10 +219,22 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
             <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleDownload('json')}>
               <FileJson className="w-4 h-4 text-t3" />
               <div className="flex flex-col">
-                <span>Format JSON</span>
-                <span className="text-[10px] text-t3 font-mono">Structure de données</span>
+                <span>JSON hors ligne</span>
+                <span className="text-[10px] text-t3 font-mono">Synchronisation des clients</span>
               </div>
             </DropdownMenuItem>
+            {isAdminOrEditor && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setWorkFileModalOpen(true)}>
+                  <FileUp className="w-4 h-4 text-gold" />
+                  <div className="flex flex-col">
+                    <span>Dossier de travail</span>
+                    <span className="text-[10px] text-t3 font-mono">Corriger via une IA, puis arbitrer</span>
+                  </div>
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -270,8 +282,14 @@ export default function Topbar({ document }: { document?: LegalDocument }) {
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleDownload('json')}>
                 <FileJson className="w-4 h-4 text-t3" />
-                <span>Format JSON</span>
+                <span>JSON hors ligne</span>
               </DropdownMenuItem>
+              {isAdminOrEditor && (
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setWorkFileModalOpen(true)}>
+                  <FileUp className="w-4 h-4 text-gold" />
+                  <span>Dossier de travail</span>
+                </DropdownMenuItem>
+              )}
             </div>
 
             {isAdminOrEditor && (

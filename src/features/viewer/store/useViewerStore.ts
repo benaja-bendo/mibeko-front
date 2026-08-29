@@ -114,6 +114,10 @@ interface ViewerState {
   publishModalOpen: boolean;
   setPublishModalOpen: (open: boolean) => void;
 
+  // Dossier de travail (export → correction externe → dépôt → arbitrage)
+  workFileModalOpen: boolean;
+  setWorkFileModalOpen: (open: boolean) => void;
+
   // Panneau des anomalies de curation (vue Contrôle / validation humaine)
   anomaliesPanelOpen: boolean;
   setAnomaliesPanel: (open: boolean) => void;
@@ -261,6 +265,9 @@ export const useViewerStore = create<ViewerState>((set) => ({
 
   publishModalOpen: false,
   setPublishModalOpen: (open) => set({ publishModalOpen: open }),
+
+  workFileModalOpen: false,
+  setWorkFileModalOpen: (open) => set({ workFileModalOpen: open }),
 
   anomaliesPanelOpen: false,
   setAnomaliesPanel: (open) => set({ anomaliesPanelOpen: open }),

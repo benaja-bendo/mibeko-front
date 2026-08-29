@@ -430,3 +430,126 @@ export const getDocumentTypes = () => laravelClient.get('document-types').then((
 // ---------------------------------------------------------------------------
 export const getHomeStats = (): Promise<CatalogStats> =>
   laravelClient.get<CatalogStats>('home').then((r) => r.data);
+
+// ---------------------------------------------------------------------------
+// Dossier de travail — échange de curation avec une IA extérieure
+//
+// Le PDF officiel fait foi, Mibeko reste le système de référence : le fichier
+// n'est qu'une PROPOSITION. Rien ne s'écrit tant qu'un humain n'a pas appliqué
+// explicitement. Voir docs/pipeline/plan-dossier-de-travail-2026-08.md.
+// ---------------------------------------------------------------------------
+
+export interface WorkFileNode {
+  key: string;
+  id?: string;
+  parent: string | null;
+  type: string;
+  number: string | null;
+  title: string | null;
+  order: number;
+}
+
+/**
+ * Repère de source d'un dossier de travail. Volontairement plus permissif que
+ * `ArticleSourceLocator` : le serveur exige la page et rend le rectangle
+ * facultatif, parce qu'une IA sait presque toujours désigner la bonne page mais
+ * rarement restituer une géométrie fiable.
+ */
+export interface WorkFileLocator {
+  page?: number;
+  page_end?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
+
+export interface WorkFileArticle {
+  id?: string;
+  number: string;
+  parent: string | null;
+  order: number;
+  content: string;
+  source_locator?: WorkFileLocator;
+}
+
+export interface WorkFileTarget {
+  schema_version: number;
+  document_id: string;
+  source_pdf: { filename?: string | null; sha256: string; size?: number | null };
+  nodes: WorkFileNode[];
+  articles: WorkFileArticle[];
+}
+
+/** Ce que rend l'endpoint snapshot : la cible courante et ses empreintes. */
+export interface WorkFileSnapshot {
+  expected_fingerprint: string;
+  semantic_fingerprint: string;
+  target: WorkFileTarget;
+  counts: { nodes: number; articles: number; characters: number };
+}
+
+/** Compteurs du plan — ce que l'application fera, tel que le serveur l'annonce. */
+export interface WorkFilePlan {
+  nodes_soft_deleted: number;
+  nodes_target: number;
+  articles_soft_deleted: number;
+  articles_added_or_restored: number;
+  articles_reparented_and_reordered: number;
+  article_contents_updated: number;
+  article_locators_updated: number;
+  target_articles: number;
+}
+
+export interface WorkFileWarning {
+  number: string;
+  kind: 'contenu_vide' | 'contenu_raccourci';
+  characters_before: number;
+  characters_after: number;
+}
+
+export interface WorkFileResult {
+  dry_run?: boolean;
+  executed?: boolean;
+  already_applied: boolean;
+  plan: WorkFilePlan;
+  warnings: WorkFileWarning[];
+  actual?: Record<string, number>;
+  before_fingerprint?: string;
+  after_fingerprint?: string;
+}
+
+export const getWorkFileSnapshot = (id: string): Promise<WorkFileSnapshot> =>
+  laravelClient
+    .get<{ data: WorkFileSnapshot }>(`legal-documents/${id}/extraction-snapshot`)
+    .then((r) => r.data.data);
+
+/**
+ * Simulation ou application d'une proposition.
+ *
+ * `confirmDeletions` doit répéter le nombre exact d'articles retirés qu'annonce
+ * le plan : sans lui le serveur répond 409. C'est un nombre et non une case à
+ * cocher, parce qu'on coche sans lire mais qu'on ne recopie pas un compte sans
+ * le voir — une réponse d'IA tronquée ressemble en tout point à une suppression
+ * délibérée.
+ */
+export const submitWorkFile = (
+  id: string,
+  payload: {
+    execute: boolean;
+    expected_fingerprint: string;
+    motif: string;
+    target: WorkFileTarget;
+    confirmDeletions?: number;
+  },
+): Promise<WorkFileResult> => {
+  const { confirmDeletions, ...rest } = payload;
+
+  return laravelClient
+    .post<{ data: WorkFileResult }>(`legal-documents/${id}/replace-extraction`, {
+      ...rest,
+      ...(confirmDeletions === undefined ? {} : { confirm_deletions: confirmDeletions }),
+    })
+    .then((r) => r.data.data);
+};

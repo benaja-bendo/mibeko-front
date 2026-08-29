@@ -13,6 +13,7 @@ import DeleteConfirmModal from '@/features/viewer/components/DeleteConfirmModal'
 import DocumentInfoModal from '@/features/viewer/components/DocumentInfoModal';
 import EditDocumentModal from '@/features/viewer/components/EditDocumentModal';
 import PublishModal from '@/features/viewer/components/PublishModal';
+import WorkFileModal from '@/features/viewer/components/WorkFileModal';
 import AnomaliesPanel from '@/features/viewer/components/AnomaliesPanel';
 import Toaster from '@/shared/components/ui/Toaster';
 
@@ -122,6 +123,7 @@ export default function Viewer() {
       <DocumentInfoModal document={data.document} />
       <EditDocumentModal document={data.document} />
       <PublishModal document={data.document} />
+      <WorkFileModal document={data.document} />
       <Toaster />
     </div>
   );
