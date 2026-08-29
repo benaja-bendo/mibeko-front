@@ -314,61 +314,110 @@ export default function PdfViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNode?.id]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!selectionMode || !ppRef.current) return;
-    e.preventDefault();
-    const r = ppRef.current.getBoundingClientRect();
-    const x = (e.clientX - r.left) / pdfZoom;
-    const y = (e.clientY - r.top) / pdfZoom;
-    setDrawStart({ x, y });
-    setDrawing(true);
-    setCurrentRect({ x, y, w: 0, h: 0 });
+  // Convertit un point écran (souris ou doigt) en coordonnées de la page, non
+  // mises à l'échelle — factorisé pour que souris et tactile partagent
+  // exactement le même calcul.
+  const getPointFromClient = (clientX: number, clientY: number) => {
+    const r = ppRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    return { x: (clientX - r.left) / pdfZoom, y: (clientY - r.top) / pdfZoom };
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drawing || !drawStart || !ppRef.current) return;
-    const r = ppRef.current.getBoundingClientRect();
-    const cx = (e.clientX - r.left) / pdfZoom;
-    const cy = (e.clientY - r.top) / pdfZoom;
+  // Termine le tracé d'une zone (relâchement souris ou fin de contact
+  // tactile) : persiste si la zone a une taille significative, puis
+  // réinitialise l'état de dessin dans tous les cas.
+  const commitZone = (endPoint: { x: number; y: number }) => {
+    if (drawStart && selectionTarget) {
+      const x = Math.min(drawStart.x, endPoint.x);
+      const y = Math.min(drawStart.y, endPoint.y);
+      const w = Math.abs(endPoint.x - drawStart.x);
+      const h = Math.abs(endPoint.y - drawStart.y);
 
-    setCurrentRect({
-      x: Math.min(drawStart.x, cx),
-      y: Math.min(drawStart.y, cy),
-      w: Math.abs(cx - drawStart.x),
-      h: Math.abs(cy - drawStart.y)
-    });
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!drawing || !drawStart || !selectionTarget || !ppRef.current) return;
-
-    const r = ppRef.current.getBoundingClientRect();
-    const cx = (e.clientX - r.left) / pdfZoom;
-    const cy = (e.clientY - r.top) / pdfZoom;
-
-    const x = Math.min(drawStart.x, cx);
-    const y = Math.min(drawStart.y, cy);
-    const w = Math.abs(cx - drawStart.x);
-    const h = Math.abs(cy - drawStart.y);
-
-    if (w > 5 && h > 5) {
-      // Persist to backend
-      updateArticle.mutate({
-        id: selectionTarget.id,
-        source_locator: {
-          page: pdfPage,
-          x: Math.round(x),
-          y: Math.round(y),
-          width: Math.round(w),
-          height: Math.round(h)
-        }
-      });
+      if (w > 5 && h > 5) {
+        updateArticle.mutate({
+          id: selectionTarget.id,
+          source_locator: {
+            page: pdfPage,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: Math.round(w),
+            height: Math.round(h)
+          }
+        });
+      }
     }
 
     setDrawing(false);
     setDrawStart(null);
     setCurrentRect(null);
     stopSelection();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!selectionMode || !ppRef.current) return;
+    e.preventDefault();
+    const p = getPointFromClient(e.clientX, e.clientY);
+    if (!p) return;
+    setDrawStart(p);
+    setDrawing(true);
+    setCurrentRect({ ...p, w: 0, h: 0 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!drawing || !drawStart) return;
+    const p = getPointFromClient(e.clientX, e.clientY);
+    if (!p) return;
+    setCurrentRect({
+      x: Math.min(drawStart.x, p.x),
+      y: Math.min(drawStart.y, p.y),
+      w: Math.abs(p.x - drawStart.x),
+      h: Math.abs(p.y - drawStart.y)
+    });
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!drawing || !drawStart || !selectionTarget) return;
+    const p = getPointFromClient(e.clientX, e.clientY);
+    if (p) commitZone(p);
+  };
+
+  // Équivalents tactiles (tablette) — même logique que la souris, un seul
+  // point de contact. `touch-action: none` sur l'élément (posé plus bas,
+  // actif seulement en mode sélection) empêche déjà le geste natif de
+  // défilement pendant le tracé, donc pas besoin de préventDefault ici (les
+  // écouteurs tactiles React sont passifs par défaut : preventDefault y est
+  // silencieusement ignoré).
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!selectionMode || !ppRef.current) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const p = getPointFromClient(t.clientX, t.clientY);
+    if (!p) return;
+    setDrawStart(p);
+    setDrawing(true);
+    setCurrentRect({ ...p, w: 0, h: 0 });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!drawing || !drawStart) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const p = getPointFromClient(t.clientX, t.clientY);
+    if (!p) return;
+    setCurrentRect({
+      x: Math.min(drawStart.x, p.x),
+      y: Math.min(drawStart.y, p.y),
+      w: Math.abs(p.x - drawStart.x),
+      h: Math.abs(p.y - drawStart.y)
+    });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!drawing || !drawStart || !selectionTarget) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const p = getPointFromClient(t.clientX, t.clientY);
+    if (p) commitZone(p);
   };
 
   const handleZoneClick = (nodeId: string) => {
@@ -521,6 +570,9 @@ export default function PdfViewer({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           className={cn(
             "bg-white rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative origin-top-left overflow-hidden transition-transform duration-200",
             selectionMode && "cursor-crosshair"
@@ -529,6 +581,9 @@ export default function PdfViewer({
             width: pageSize.width,
             height: pageSize.height,
             transform: `scale(${pdfZoom})`,
+            // Coupe le geste tactile natif (défiler/zoomer) pendant le tracé
+            // d'une zone, pour que le doigt ne fasse que dessiner.
+            touchAction: selectionMode ? 'none' : undefined,
           }}
         >
           {/* Active drawing rect */}
