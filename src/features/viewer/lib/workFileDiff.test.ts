@@ -85,6 +85,20 @@ describe('buildWorkFileDiff', () => {
     expect(buildWorkFileDiff(cible([avant]), cible([apres])).locatorChanges).toBe(0);
   });
 
+  it('traite un repère vide stocké en tableau comme un repère absent', () => {
+    // Forme réelle mesurée en production : PHP sérialise `{}` en `[]`, et 7
+    // articles sur 23 d'un document réel arrivent ainsi.
+    const vide = article({ source_locator: [] });
+
+    const inchange = buildWorkFileDiff(cible([vide]), cible([article({ source_locator: [] })]));
+    expect(inchange.locatorChanges).toBe(0);
+    expect(inchange.articles[0].pageBefore).toBeNull();
+
+    const renseigne = buildWorkFileDiff(cible([vide]), cible([article({ source_locator: { page: 4 } })]));
+    expect(renseigne.locatorChanges).toBe(1);
+    expect(renseigne.articles[0]).toMatchObject({ pageBefore: null, pageAfter: 4 });
+  });
+
   it('ne compte pas comme retirée une division dont la cible reprend l identifiant', () => {
     const noeud = { key: 'n1', id: 'node-1', parent: null, type: 'TITRE', number: 'I', title: 'Ancien', order: 0 };
     const diff = buildWorkFileDiff(

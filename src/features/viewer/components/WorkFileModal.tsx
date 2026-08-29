@@ -16,6 +16,7 @@ import {
 import {
   buildWorkFileDiff, extractTarget, validateWorkFile, type ArticleDiff, type WorkFileDiff,
 } from '@/features/viewer/lib/workFileDiff';
+import { workFileName } from '@/features/viewer/lib/workFileName';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/shared/components/ui/Dialog';
@@ -43,7 +44,6 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
 
   const [busy, setBusy] = useState<'export' | 'dry-run' | 'apply' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filename, setFilename] = useState<string | null>(null);
   const [proposal, setProposal] = useState<{
     target: WorkFileTarget;
     fingerprint: string;
@@ -61,7 +61,7 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
   );
 
   const reset = () => {
-    setBusy(null); setError(null); setFilename(null); setProposal(null);
+    setBusy(null); setError(null); setProposal(null);
     setPreview(null); setApplied(null); setMotif(''); setConfirmedDeletions(''); setExpanded(null);
     if (fileInput.current) fileInput.current.value = '';
   };
@@ -76,11 +76,10 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
     setBusy('export'); setError(null);
     try {
       const snapshot = await getWorkFileSnapshot(documentId);
-      const safeTitle = (doc?.titre_officiel || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
       const link = window.document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
-      link.download = `${safeTitle}_dossier-de-travail.json`;
+      link.download = workFileName(doc?.titre_officiel);
       link.click();
       window.URL.revokeObjectURL(link.href);
     } catch (e) {
@@ -115,7 +114,6 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
 
       setProposal({ target, fingerprint, snapshot });
       setPreview(result);
-      setFilename(file.name);
     } catch (e) {
       setError(
         e instanceof SyntaxError
@@ -200,9 +198,6 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }}
                 disabled={busy !== null}
               />
-              {filename && !error && (
-                <p className="text-t3 text-[10px] font-mono">{filename}</p>
-              )}
               {busy === 'dry-run' && (
                 <p className="text-t3 text-[11px] flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Simulation en cours, aucune écriture…
@@ -224,10 +219,6 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
 
             {preview && diff && !preview.already_applied && (
               <>
-                <PlanSummary diff={diff} removals={removals} />
-                <WarningList result={preview} />
-                <ChangeList changes={changed} expanded={expanded} onToggle={setExpanded} />
-
                 {removals > 0 && (
                   <label className="block bg-red-d border border-red/30 rounded px-3 py-2.5 space-y-2">
                     <span className="flex items-center gap-2 text-red text-[11px] font-bold">
@@ -249,6 +240,10 @@ export default function WorkFileModal({ document: doc }: { document?: LegalDocum
                     />
                   </label>
                 )}
+
+                <PlanSummary diff={diff} removals={removals} />
+                <WarningList result={preview} />
+                <ChangeList changes={changed} expanded={expanded} onToggle={setExpanded} />
 
                 <label className="block space-y-1.5">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-t3">

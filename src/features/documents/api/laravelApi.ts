@@ -465,13 +465,21 @@ export interface WorkFileLocator {
   [key: string]: unknown;
 }
 
+/**
+ * En base, un repère absent est stocké `{}` — que PHP sérialise en `[]`. Mesuré
+ * le 29/08/2026 sur un document de production : 7 articles sur 23 arrivent avec
+ * un tableau vide, et un autre avec le seul `content_format`. Le type doit
+ * l'admettre, sinon il ment sur ce que le fichier contient vraiment.
+ */
+export type WorkFileSourceLocator = WorkFileLocator | unknown[];
+
 export interface WorkFileArticle {
   id?: string;
   number: string;
   parent: string | null;
   order: number;
   content: string;
-  source_locator?: WorkFileLocator;
+  source_locator?: WorkFileSourceLocator;
 }
 
 export interface WorkFileTarget {
