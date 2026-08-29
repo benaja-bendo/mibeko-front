@@ -23,7 +23,9 @@ function resetViewerStore() {
     renameNode: null,
     deleteModalOpen: false,
     deleteNode: null,
+    sidePanelPinned: false,
   });
+  localStorage.removeItem('mibeko_viewer_side_panel_pinned');
 }
 
 describe('useViewerStore', () => {
@@ -67,6 +69,36 @@ describe('useViewerStore', () => {
     expect(useViewerStore.getState().sidePanelOpen).toBe(true);
     expect(useViewerStore.getState().selectedId).toBe('a2');
     expect(useViewerStore.getState().selectedNode?.id).toBe('a2');
+  });
+
+  it('toggleSidePanelPinned épingle, ouvre le panneau et retient la préférence', () => {
+    useViewerStore.getState().toggleSidePanelPinned();
+
+    expect(useViewerStore.getState().sidePanelPinned).toBe(true);
+    // Épingler une colonne fermée n'aurait aucun effet visible : on l'ouvre.
+    expect(useViewerStore.getState().sidePanelOpen).toBe(true);
+    expect(localStorage.getItem('mibeko_viewer_side_panel_pinned')).toBe('true');
+  });
+
+  it('closeSidePanel désépingle aussi (sinon le bouton de fermeture reste sans effet)', () => {
+    useViewerStore.getState().toggleSidePanelPinned();
+    expect(useViewerStore.getState().sidePanelPinned).toBe(true);
+
+    useViewerStore.getState().closeSidePanel();
+
+    expect(useViewerStore.getState().sidePanelOpen).toBe(false);
+    expect(useViewerStore.getState().sidePanelPinned).toBe(false);
+    expect(localStorage.getItem('mibeko_viewer_side_panel_pinned')).toBe('false');
+  });
+
+  it('resetForDocument conserve l’épingle (préférence d’outil, pas état de document)', () => {
+    useViewerStore.getState().toggleSidePanelPinned();
+
+    useViewerStore.getState().resetForDocument();
+
+    expect(useViewerStore.getState().sidePanelPinned).toBe(true);
+    // …mais aucun article n'est sélectionné : la colonne montre son état vide.
+    expect(useViewerStore.getState().selectedNode).toBeNull();
   });
 
   it('expandNodes retire les ancêtres de collapsedNodes (déplie la branche)', () => {

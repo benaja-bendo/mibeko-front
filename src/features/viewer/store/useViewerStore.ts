@@ -1,6 +1,30 @@
 import { create } from 'zustand';
 import type { TreeNode } from '@/shared/types/database';
 
+// Épinglage du panneau article : préférence d'OUTIL (pas un état de document),
+// conservée d'une session à l'autre. Lue/écrite à la main plutôt qu'avec le
+// middleware `persist` de zustand : celui-ci sérialiserait tout le store, or
+// `collapsedNodes` est un Set que JSON.stringify réduit silencieusement à `{}`.
+const PIN_STORAGE_KEY = 'mibeko_viewer_side_panel_pinned';
+
+const readPinned = (): boolean => {
+  try {
+    return localStorage.getItem(PIN_STORAGE_KEY) === 'true';
+  } catch {
+    // Stockage indisponible (navigation privée, quota) : l'épingle vaut alors
+    // pour la session seulement — pas de raison de casser le viewer pour ça.
+    return false;
+  }
+};
+
+const writePinned = (value: boolean) => {
+  try {
+    localStorage.setItem(PIN_STORAGE_KEY, String(value));
+  } catch {
+    /* voir readPinned */
+  }
+};
+
 interface ViewerState {
   // Tree state
   collapsedNodes: Set<string>;
@@ -46,6 +70,10 @@ interface ViewerState {
 
   // Side panel state
   sidePanelOpen: boolean;
+  // Épinglé : la colonne article reste réservée même sans article sélectionné
+  // (desktop uniquement — voir SidePanel/Viewer).
+  sidePanelPinned: boolean;
+  toggleSidePanelPinned: () => void;
   activeTab: 'content' | 'versions' | 'meta';
   openSidePanel: (node: TreeNode) => void;
   closeSidePanel: () => void;
@@ -175,11 +203,24 @@ export const useViewerStore = create<ViewerState>((set) => ({
   stopSelection: () => set({ selectionMode: false, selectionTarget: null }),
 
   sidePanelOpen: false,
+  sidePanelPinned: readPinned(),
+  toggleSidePanelPinned: () => set((s) => {
+    const next = !s.sidePanelPinned;
+    writePinned(next);
+    // Épingler ouvre le panneau dans la foulée : épingler une colonne fermée
+    // n'aurait aucun effet visible.
+    return { sidePanelPinned: next, sidePanelOpen: next ? true : s.sidePanelOpen };
+  }),
   activeTab: 'content',
   // Le panneau article (bord droit) et le panneau anomalies (bord bas) occupent
   // des bords différents : ils coexistent sans se chevaucher.
   openSidePanel: (node) => set({ sidePanelOpen: true, selectedId: node.id, selectedNode: node, structureDrawerOpen: false }),
-  closeSidePanel: () => set({ sidePanelOpen: false }),
+  // Fermer désépingle aussi : sinon la colonne resterait réservée alors que
+  // l'utilisateur vient de demander à la faire disparaître (bouton sans effet).
+  closeSidePanel: () => {
+    writePinned(false);
+    set({ sidePanelOpen: false, sidePanelPinned: false });
+  },
   setActiveTab: (activeTab) => set({ activeTab }),
 
   versionModalOpen: false,

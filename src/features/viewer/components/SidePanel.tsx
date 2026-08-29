@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { cn } from '@/shared/lib/utils';
-import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, AlertCircle, Clock, Trash2, Edit2 } from 'lucide-react';
+import { X, AlignLeft, History, Info, Target, GitGraph, Save, CheckCircle2, AlertCircle, Clock, Trash2, Edit2, Pin, PinOff, FileText } from 'lucide-react';
 import { apiErrorMessage } from '@/features/documents/api/laravelApi';
 import { laravelClient } from '@/shared/api';
 import { Button } from '@/shared/components/ui/Button';
@@ -12,9 +12,33 @@ import AddRelationModal from './AddRelationModal';
 import type { ArticleVersionUI } from '@/shared/types/database';
 import { displayArticleNumber } from '@/shared/lib/legalLabels';
 
-export default function SidePanel() {
+/**
+ * Panneau article. Deux dispositions :
+ * - `docked` (desktop) : colonne à part entière du viewer, à CÔTÉ du PDF.
+ *   C'est le positionnement par défaut sur grand écran — l'ancien panneau
+ *   flottant recouvrait le scan qu'on est justement en train de relire.
+ * - `overlay` (sous 1024px) : recouvrement plein écran, faute de place pour
+ *   une troisième colonne.
+ */
+export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'overlay' }) {
   const { id: documentId } = useParams<{ id: string }>();
-  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, selectNode, startSelection, setDeleteModal, setRenameModal } = useViewerStore();
+  const { sidePanelOpen, closeSidePanel, activeTab, setActiveTab, selectedNode, selectNode, startSelection, setDeleteModal, setRenameModal, sidePanelPinned, toggleSidePanelPinned } = useViewerStore();
+  const isDocked = mode === 'docked';
+
+  // Conteneur commun aux deux dispositions (et aux deux états, avec ou sans
+  // article sélectionné) : en docké la colonne remplit son panneau redimensionnable,
+  // en overlay elle glisse par-dessus le PDF.
+  const shellClass = cn(
+    'bg-s1 border-l border-b1 flex flex-col',
+    isDocked
+      ? 'h-full w-full'
+      : cn(
+          'absolute right-0 top-0 bottom-0 w-full sm:w-[320px] z-[200] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+          sidePanelOpen ? 'translate-x-0' : 'translate-x-full',
+        ),
+  );
+
+  const iconButtonClass = 'w-8 h-8 rounded flex items-center justify-center transition-colors';
   const { updateArticle } = useDocumentMutations(documentId || '');
 
   const [content, setContent] = React.useState('');
@@ -80,7 +104,35 @@ export default function SidePanel() {
     }
   }, [activeTab, selectedNode?.id, selectedNode?.type]);
 
-  if (!selectedNode) return null;
+  // Sans article sélectionné : en overlay il n'y a rien à montrer ; en docké la
+  // colonne (épinglée) garde sa place et invite à en choisir un.
+  if (!selectedNode) {
+    if (!isDocked) return null;
+    return (
+      <div className={shellClass}>
+        <div className="h-[44px] border-b border-b1 flex items-center px-3.5 gap-2 shrink-0">
+          <span className="text-[13px] font-medium font-display text-t3 flex-1">Article</span>
+          <button
+            onClick={toggleSidePanelPinned}
+            className={cn(iconButtonClass, sidePanelPinned ? 'text-gold bg-gold/10' : 'text-t3 hover:bg-s3')}
+            title={sidePanelPinned ? 'Détacher le panneau' : 'Épingler le panneau'}
+            aria-pressed={sidePanelPinned}
+          >
+            {sidePanelPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+          </button>
+          <Button variant="ghost" size="icon" onClick={closeSidePanel} className="w-8 h-8 hover:bg-s3">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <FileText className="w-7 h-7 text-t4" />
+          <p className="text-[12.5px] text-t3 leading-[1.6]">
+            Sélectionnez un article dans la structure pour le relire et le corriger ici.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const isArticle = selectedNode.type === 'ARTICLE';
   const versions = selectedNode.versions || [];
@@ -113,12 +165,7 @@ export default function SidePanel() {
   };
 
   return (
-    <div 
-      className={cn(
-        "absolute right-0 top-0 bottom-0 w-full sm:w-[320px] bg-s1 border-l border-b1 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-[200]",
-        sidePanelOpen ? "translate-x-0" : "translate-x-full"
-      )}
-    >
+    <div className={shellClass}>
       <div className="h-[44px] border-b border-b1 flex items-center px-3.5 gap-2 shrink-0">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -128,10 +175,22 @@ export default function SidePanel() {
         <span className="text-[13px] font-medium font-display text-gold flex-1">
           {isArticle ? 'Art. ' : ''}{selectedNode.numero}
         </span>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={closeSidePanel} 
+        {/* Épingle : garde la colonne réservée même sans article sélectionné.
+            Sans objet en overlay, qui occupe déjà tout l'écran. */}
+        {isDocked && (
+          <button
+            onClick={toggleSidePanelPinned}
+            className={cn(iconButtonClass, sidePanelPinned ? 'text-gold bg-gold/10' : 'text-t3 hover:bg-s3')}
+            title={sidePanelPinned ? 'Détacher le panneau' : 'Épingler le panneau'}
+            aria-pressed={sidePanelPinned}
+          >
+            {sidePanelPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+          </button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={closeSidePanel}
           className="w-8 h-8 hover:bg-s3"
         >
           <X className="w-4 h-4" />

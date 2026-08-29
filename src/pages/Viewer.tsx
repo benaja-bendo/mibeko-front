@@ -18,12 +18,22 @@ import Toaster from '@/shared/components/ui/Toaster';
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/shared/components/ui/Resizable';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/shared/components/ui/Sheet';
+import { useIsDesktop } from '@/shared/hooks/useMediaQuery';
 
 export default function Viewer() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useDocumentData(id || '');
   const { structureDrawerOpen, setStructureDrawerOpen } = useViewerStore();
   const resetForDocument = useViewerStore((s) => s.resetForDocument);
+  const sidePanelOpen = useViewerStore((s) => s.sidePanelOpen);
+  const sidePanelPinned = useViewerStore((s) => s.sidePanelPinned);
+
+  // Trois colonnes (structure · PDF · article) seulement à partir de 1024px :
+  // en dessous, le panneau article reste un recouvrement plein écran, faute de
+  // largeur pour que les trois restent lisibles. Épinglé, il garde sa colonne
+  // même sans article sélectionné.
+  const isDesktop = useIsDesktop();
+  const showArticleColumn = isDesktop && (sidePanelOpen || sidePanelPinned);
 
   // Le store du viewer est un singleton qui survit à la navigation SPA : on
   // réinitialise l'état propre au document (page PDF, zoom, sélection, replis…)
@@ -57,19 +67,36 @@ export default function Viewer() {
       <Topbar document={data.document} />
 
       <div className="flex-1 flex overflow-hidden relative">
+        {/* `id`+`order` sont requis par react-resizable-panels dès qu'un panneau
+            est conditionnel : sans eux, la colonne article apparaissant en cours
+            de session ferait perdre à la bibliothèque le suivi des tailles. */}
         <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={40} className="hidden md:block">
+          <ResizablePanel id="tree" order={1} defaultSize={20} minSize={15} maxSize={40} className="hidden md:block">
             <TreeView treeData={data.tree} />
           </ResizablePanel>
-          
+
           <ResizableHandle withHandle className="hidden md:flex" />
 
-          <ResizablePanel defaultSize={80}>
+          {/* `defaultSize` ne vaut qu'au montage : quand la colonne article
+              apparaît, react-resizable-panels redistribue lui-même les largeurs. */}
+          <ResizablePanel id="pdf" order={2} defaultSize={80}>
             <div className="h-full flex flex-col overflow-hidden relative min-w-[200px]">
               <PdfViewer pdfUrl={data.pdfUrl} treeData={data.tree} />
-              <SidePanel />
+              {/* Sous 1024px seulement : le panneau recouvre le PDF. Au-delà, il
+                  vit dans sa propre colonne (ci-dessous) — jamais les deux, pour
+                  ne pas dupliquer l'état d'édition en cours. */}
+              {!isDesktop && <SidePanel mode="overlay" />}
             </div>
           </ResizablePanel>
+
+          {showArticleColumn && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel id="article" order={3} defaultSize={24} minSize={18} maxSize={45}>
+                <SidePanel mode="docked" />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </div>
 

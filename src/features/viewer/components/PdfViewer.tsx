@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/shared/components/ui/Button';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { cn } from '@/shared/lib/utils';
@@ -9,12 +10,12 @@ import type { TreeNode } from '@/shared/types/database';
 import { getStoredToken } from '@/features/auth/store/authStore';
 import { laravelClient } from '@/shared/api/laravelClient';
 
-// Imports nécessaires de react-pdf (le worker est configuré dans main.tsx)
-import { Document, Page } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+// Le worker pdf.js est configuré dans main.tsx. `<Page>` vit désormais dans
+// PdfPage.tsx (une page du défilement continu), pas ici.
+import { Document } from 'react-pdf';
 
 import { PDF_OPTIONS } from '@/shared/lib/pdfOptions';
+import PdfPage from './PdfPage';
 
 interface Zone {
   id: string;
@@ -26,6 +27,12 @@ interface Zone {
   h: number;
   page: number;
 }
+
+// Espace vertical entre deux pages dans le défilement continu.
+const PAGE_GAP = 24;
+// Taille de repli tant qu'aucune page n'a encore été mesurée par pdf.js (au
+// tout premier rendu seulement — chaque page corrige ensuite sa propre taille).
+const FALLBACK_SIZE = { width: 580, height: 820 };
 
 export default function PdfViewer({
   pdfUrl,
@@ -50,7 +57,6 @@ export default function PdfViewer({
 
   const { updateArticle } = useDocumentMutations(documentId || '');
 
-  const ppRef = useRef<HTMLDivElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   // Proxy pdf.js (capté au chargement) + cache du texte normalisé par page :
   // permet de retrouver la page d'un élément EN CHERCHANT dans le texte du PDF
@@ -67,30 +73,40 @@ export default function PdfViewer({
   const [openExternalError, setOpenExternalError] = useState(false);
 
   const [numPages, setNumPages] = useState<number>(1);
-  const [drawing, setDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState<{ x: number, y: number } | null>(null);
-  const [currentRect, setCurrentRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   // Mode « ajuster à la largeur » : actif par défaut pour que la page tienne
   // dans le conteneur (essentiel sur mobile/tablette). Désactivé dès que
   // l'utilisateur règle le zoom manuellement.
   const [fitMode, setFitMode] = useState(true);
-  // Taille réelle de la page courante, en points PDF (mesurée via pdf.js) —
-  // remplace une ancienne boîte 580×820 codée en dur qui ne correspondait à
-  // aucun format réel (ni A4, ni Letter) et décalait les zones cliquables dès
-  // qu'un scan avait une autre taille. 580×820 reste ici en valeur de repli,
-  // le temps que la première page soit mesurée.
-  const [pageSize, setPageSize] = useState<{ width: number; height: number }>({ width: 580, height: 820 });
+  // Taille réelle de chaque page, mesurée par pdf.js au fil du défilement
+  // (chaque PdfPage rapporte la sienne à son chargement) — remplace une
+  // ancienne boîte 580×820 codée en dur qui ne correspondait à aucun format
+  // réel et décalait les zones cliquables dès qu'un scan avait une autre taille.
+  const [pageSizes, setPageSizes] = useState<Map<number, { width: number; height: number }>>(new Map());
   // Champ de saisie du numéro de page : état local pour ne naviguer qu'une
   // fois la frappe terminée (sinon taper « 12 » saute transitoirement page 1).
   const [pageInputValue, setPageInputValue] = useState('1');
 
-  // Extract all zones from treeData
-  const zones = useMemo(() => {
-    const extracted: Zone[] = [];
+  // Sert de référence pour le zoom « ajuster » et de repli pour les pages pas
+  // encore mesurées — la page 1 est la première rendue, donc mesurée quasi
+  // immédiatement après le chargement du document.
+  const referencePageSize = pageSizes.get(1) ?? FALLBACK_SIZE;
+
+  const handleMeasuredSize = (page: number, size: { width: number; height: number }) => {
+    setPageSizes((prev) => {
+      const existing = prev.get(page);
+      if (existing && existing.width === size.width && existing.height === size.height) return prev;
+      return new Map(prev).set(page, size);
+    });
+  };
+
+  // Zones extraites de l'arbre et groupées par page (accès O(1) depuis chaque
+  // PdfPage) — un document peut compter plusieurs milliers d'articles.
+  const zonesByPage = useMemo(() => {
+    const map = new Map<number, Zone[]>();
     const walk = (nodes: TreeNode[]) => {
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         if (node.type === 'ARTICLE' && node.source_locator) {
-          extracted.push({
+          const zone: Zone = {
             id: node.id,
             nodeId: node.id,
             lbl: `Art. ${node.numero}`,
@@ -98,14 +114,17 @@ export default function PdfViewer({
             y: node.source_locator.y,
             w: node.source_locator.width,
             h: node.source_locator.height,
-            page: node.source_locator.page
-          });
+            page: node.source_locator.page,
+          };
+          const arr = map.get(zone.page) ?? [];
+          arr.push(zone);
+          map.set(zone.page, arr);
         }
         if (node.children) walk(node.children);
       });
     };
     walk(treeData);
-    return extracted;
+    return map;
   }, [treeData]);
 
   const token = getStoredToken();
@@ -119,31 +138,36 @@ export default function PdfViewer({
     };
   }, [pdfUrl, token]);
 
-  // Mesure la taille réelle (points PDF) de la page `n` via le proxy pdf.js
-  // capté à `onLoadSuccess`, et met à jour `pageSize`. Sans ça, la boîte de
-  // rendu et les zones cliquables restent calées sur la taille de repli.
-  const updatePageSize = React.useCallback((n: number) => {
-    const pdf = pdfProxyRef.current;
-    if (!pdf) return;
-    pdf
-      .getPage(n)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((page: any) => {
-        const viewport = page.getViewport({ scale: 1 });
-        setPageSize({ width: viewport.width, height: viewport.height });
-      })
-      .catch(() => {});
-  }, []);
+  // Défilement continu virtualisé (même principe que l'arbre du viewer, voir
+  // TreeView) : seules les pages proches de l'écran sont montées.
+  // `estimateSize` sert de repli avant mesure réelle ; `measureElement`
+  // (posé sur chaque ligne dans le rendu plus bas) corrige ensuite la
+  // position des pages suivantes. `overscan: 2` précharge gratuitement les
+  // pages voisines (±2) pendant les temps morts.
+  const rowVirtualizer = useVirtualizer({
+    count: numPages,
+    getScrollElement: () => pdfContainerRef.current,
+    estimateSize: (index) => (pageSizes.get(index + 1)?.height ?? referencePageSize.height) * pdfZoom + PAGE_GAP,
+    overscan: 2,
+  });
 
-  // Recharge la taille dès que la page affichée change (une fois le document
-  // chargé — avant ça, `pdfProxyRef` est vide et l'appel ne fait rien).
+  // Le zoom change la taille RENDUE de chaque page : redemande une mesure
+  // (même logique que TreeView quand la densité de l'arbre change).
   useEffect(() => {
-    updatePageSize(pdfPage);
-  }, [pdfPage, updatePageSize]);
+    rowVirtualizer.measure();
+  }, [pdfZoom, rowVirtualizer]);
+
+  // Fait défiler jusqu'à la page `n` et met à jour l'indicateur tout de
+  // suite ; le défilement lui-même le confirmera ensuite via `handleScroll`.
+  const scrollToPage = (n: number, behavior: 'smooth' | 'auto' = 'smooth') => {
+    const target = Math.max(1, Math.min(numPages, n));
+    setPdfPage(target);
+    rowVirtualizer.scrollToIndex(target - 1, { align: 'start', behavior });
+  };
 
   // Garde le champ de saisie synchro avec la page réelle (bouton, clavier,
-  // localisation automatique…) sans écraser une frappe en cours : seule la
-  // validation (Entrée/perte de focus) navigue, voir `commitPageInput`.
+  // défilement manuel, localisation automatique…) sans écraser une frappe en
+  // cours : seule la validation (Entrée/perte de focus) navigue.
   useEffect(() => {
     setPageInputValue(String(pdfPage || 1));
   }, [pdfPage]);
@@ -151,10 +175,24 @@ export default function PdfViewer({
   const commitPageInput = () => {
     const val = parseInt(pageInputValue, 10);
     if (!isNaN(val) && val >= 1 && val <= numPages) {
-      setPdfPage(val);
+      scrollToPage(val);
     } else {
       setPageInputValue(String(pdfPage || 1));
     }
+  };
+
+  // Déduit la page « courante » du défilement (la première ligne dont le bas
+  // dépasse le haut du conteneur) pour garder l'indicateur à jour pendant un
+  // défilement manuel — pas seulement lors d'une navigation explicite.
+  const handleScroll = () => {
+    const el = pdfContainerRef.current;
+    if (!el) return;
+    const items = rowVirtualizer.getVirtualItems();
+    if (items.length === 0) return;
+    const scrollTop = el.scrollTop;
+    const current = items.find((it) => it.start + it.size > scrollTop) ?? items[0];
+    const n = current.index + 1;
+    if (n !== pdfPage) setPdfPage(n);
   };
 
   // Calcule le zoom qui fait tenir la feuille (à sa taille réelle) dans la
@@ -163,12 +201,12 @@ export default function PdfViewer({
     const el = pdfContainerRef.current;
     if (!el) return;
     const available = el.clientWidth - 32; // px-4 de chaque côté
-    const z = Math.min(2, Math.max(0.4, available / pageSize.width));
+    const z = Math.min(2, Math.max(0.4, available / referencePageSize.width));
     setPdfZoom(Number(z.toFixed(3)));
-  }, [setPdfZoom, pageSize.width]);
+  }, [setPdfZoom, referencePageSize.width]);
 
   // En mode « ajuster », recalcule au montage, à chaque redimensionnement, et
-  // quand la taille réelle de la page change (page suivante d'un format différent).
+  // dès que la page de référence est mesurée.
   useEffect(() => {
     if (!fitMode) return;
     applyFit();
@@ -179,13 +217,14 @@ export default function PdfViewer({
     return () => ro.disconnect();
   }, [fitMode, applyFit]);
 
-  // Nouveau document : on rétablit le mode « ajuster à la largeur ». `fitMode`
-  // est un état LOCAL : comme la route n'est pas keyée, ce composant n'est pas
-  // remonté au changement de document, donc le store ne peut pas le remettre à
-  // zéro — sans ça, un zoom manuel sur le document précédent persisterait.
+  // Nouveau document : on rétablit le mode « ajuster à la largeur » et on
+  // oublie les tailles mesurées du document précédent. `fitMode`/`pageSizes`
+  // sont des états LOCAUX : comme la route n'est pas keyée, ce composant
+  // n'est pas remonté au changement de document, donc le store ne peut pas
+  // les remettre à zéro lui-même.
   useEffect(() => {
     setFitMode(true);
-    setPageSize({ width: 580, height: 820 });
+    setPageSizes(new Map());
   }, [documentId]);
 
   // Réglage manuel du zoom : sort du mode « ajuster ».
@@ -200,19 +239,17 @@ export default function PdfViewer({
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === 'ArrowLeft') {
-        setPdfPage(Math.max(1, pdfPage - 1));
+        scrollToPage(pdfPage - 1);
       } else if (e.key === 'ArrowRight') {
-        setPdfPage(Math.min(numPages, pdfPage + 1));
+        scrollToPage(pdfPage + 1);
       } else if (e.key === 'Escape' && selectionMode) {
         stopSelection();
-        setDrawing(false);
-        setDrawStart(null);
-        setCurrentRect(null);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [pdfPage, numPages, setPdfPage, selectionMode, stopSelection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfPage, numPages, selectionMode, stopSelection]);
 
   // Normalise un texte pour la comparaison (sans accents, majuscules, espaces compactés).
   const normalizeText = (s: string) =>
@@ -290,10 +327,10 @@ export default function PdfViewer({
 
     const loc = selectedNode.source_locator;
     if (loc && typeof loc.page === 'number') {
-      if (loc.page !== pdfPage) setPdfPage(loc.page);
+      scrollToPage(loc.page, 'auto');
       const timer = setTimeout(() => {
         document.getElementById(`zone-${selectedNode.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
+      }, 400);
       return () => clearTimeout(timer);
     }
 
@@ -302,7 +339,7 @@ export default function PdfViewer({
     setLocating(true);
     findPageForNode(selectedNode)
       .then((p) => {
-        if (!cancelled && p && p !== pdfPage) setPdfPage(p);
+        if (!cancelled && p) scrollToPage(p, 'auto');
       })
       .finally(() => {
         if (!cancelled) setLocating(false);
@@ -313,112 +350,6 @@ export default function PdfViewer({
     // On ne dépend QUE de l'élément sélectionné (pas de pdfPage : éviter les boucles).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNode?.id]);
-
-  // Convertit un point écran (souris ou doigt) en coordonnées de la page, non
-  // mises à l'échelle — factorisé pour que souris et tactile partagent
-  // exactement le même calcul.
-  const getPointFromClient = (clientX: number, clientY: number) => {
-    const r = ppRef.current?.getBoundingClientRect();
-    if (!r) return null;
-    return { x: (clientX - r.left) / pdfZoom, y: (clientY - r.top) / pdfZoom };
-  };
-
-  // Termine le tracé d'une zone (relâchement souris ou fin de contact
-  // tactile) : persiste si la zone a une taille significative, puis
-  // réinitialise l'état de dessin dans tous les cas.
-  const commitZone = (endPoint: { x: number; y: number }) => {
-    if (drawStart && selectionTarget) {
-      const x = Math.min(drawStart.x, endPoint.x);
-      const y = Math.min(drawStart.y, endPoint.y);
-      const w = Math.abs(endPoint.x - drawStart.x);
-      const h = Math.abs(endPoint.y - drawStart.y);
-
-      if (w > 5 && h > 5) {
-        updateArticle.mutate({
-          id: selectionTarget.id,
-          source_locator: {
-            page: pdfPage,
-            x: Math.round(x),
-            y: Math.round(y),
-            width: Math.round(w),
-            height: Math.round(h)
-          }
-        });
-      }
-    }
-
-    setDrawing(false);
-    setDrawStart(null);
-    setCurrentRect(null);
-    stopSelection();
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!selectionMode || !ppRef.current) return;
-    e.preventDefault();
-    const p = getPointFromClient(e.clientX, e.clientY);
-    if (!p) return;
-    setDrawStart(p);
-    setDrawing(true);
-    setCurrentRect({ ...p, w: 0, h: 0 });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drawing || !drawStart) return;
-    const p = getPointFromClient(e.clientX, e.clientY);
-    if (!p) return;
-    setCurrentRect({
-      x: Math.min(drawStart.x, p.x),
-      y: Math.min(drawStart.y, p.y),
-      w: Math.abs(p.x - drawStart.x),
-      h: Math.abs(p.y - drawStart.y)
-    });
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!drawing || !drawStart || !selectionTarget) return;
-    const p = getPointFromClient(e.clientX, e.clientY);
-    if (p) commitZone(p);
-  };
-
-  // Équivalents tactiles (tablette) — même logique que la souris, un seul
-  // point de contact. `touch-action: none` sur l'élément (posé plus bas,
-  // actif seulement en mode sélection) empêche déjà le geste natif de
-  // défilement pendant le tracé, donc pas besoin de préventDefault ici (les
-  // écouteurs tactiles React sont passifs par défaut : preventDefault y est
-  // silencieusement ignoré).
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!selectionMode || !ppRef.current) return;
-    const t = e.touches[0];
-    if (!t) return;
-    const p = getPointFromClient(t.clientX, t.clientY);
-    if (!p) return;
-    setDrawStart(p);
-    setDrawing(true);
-    setCurrentRect({ ...p, w: 0, h: 0 });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!drawing || !drawStart) return;
-    const t = e.touches[0];
-    if (!t) return;
-    const p = getPointFromClient(t.clientX, t.clientY);
-    if (!p) return;
-    setCurrentRect({
-      x: Math.min(drawStart.x, p.x),
-      y: Math.min(drawStart.y, p.y),
-      w: Math.abs(p.x - drawStart.x),
-      h: Math.abs(p.y - drawStart.y)
-    });
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!drawing || !drawStart || !selectionTarget) return;
-    const t = e.changedTouches[0];
-    if (!t) return;
-    const p = getPointFromClient(t.clientX, t.clientY);
-    if (p) commitZone(p);
-  };
 
   const handleZoneClick = (nodeId: string) => {
     // Find the node in treeData
@@ -437,6 +368,16 @@ export default function PdfViewer({
     if (node) {
       selectNode(node.id, node);
     }
+  };
+
+  // Persiste une zone tracée sur une page (voir PdfPage) et referme le mode sélection.
+  const handleZoneDrawn = (page: number, rect: { x: number; y: number; w: number; h: number }) => {
+    if (!selectionTarget) return;
+    updateArticle.mutate({
+      id: selectionTarget.id,
+      source_locator: { page, x: rect.x, y: rect.y, width: rect.w, height: rect.h },
+    });
+    stopSelection();
   };
 
   // Ouvre le PDF source dans un nouvel onglet en passant par le client
@@ -513,7 +454,7 @@ export default function PdfViewer({
         <div className="w-px h-[18px] bg-b2 mx-1 hidden xs:block" />
 
         <div className="flex items-center gap-1">
-          <button onClick={() => setPdfPage(Math.max(1, pdfPage - 1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Page précédente">
+          <button onClick={() => scrollToPage(pdfPage - 1)} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Page précédente">
             <ChevronLeft className="w-[14px] h-[14px]" />
           </button>
           <div className="flex items-center gap-1">
@@ -533,17 +474,20 @@ export default function PdfViewer({
             />
             <span className="text-[10px] text-t3 font-mono">/ {numPages}</span>
           </div>
-          <button onClick={() => setPdfPage(Math.min(numPages, pdfPage + 1))} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Page suivante">
+          <button onClick={() => scrollToPage(pdfPage + 1)} className="w-[28px] h-[28px] rounded border border-b1 bg-transparent text-t2 flex items-center justify-center hover:bg-s3 hover:border-b2 hover:text-t1 transition-colors" title="Page suivante">
             <ChevronRight className="w-[14px] h-[14px]" />
           </button>
         </div>
       </div>
 
-      {/* PDF Content Area */}
+      {/* PDF Content Area — défilement continu virtualisé : toutes les pages
+          dans un même flux, seules celles proches de l'écran sont montées
+          (@tanstack/react-virtual, comme l'arbre du viewer). */}
       <div
         ref={pdfContainerRef}
+        onScroll={handleScroll}
         className={cn(
-          "flex-1 overflow-auto bg-bg flex justify-center py-6 px-4 relative custom-scrollbar scroll-smooth",
+          "flex-1 overflow-auto bg-bg py-6 px-4 relative custom-scrollbar scroll-smooth",
           selectionMode && "cursor-crosshair"
         )}
       >
@@ -556,138 +500,84 @@ export default function PdfViewer({
           </div>
         )}
 
-        {/* Conteneur d'échelle : sa boîte de layout vaut la taille MISE À L'ÉCHELLE
-            de la feuille, ce qui supprime le débordement horizontal (mobile) et
-            l'espace vertical fantôme. La feuille interne est mise à l'échelle via
-            transform avec origine top-left (la géométrie des zones, calculée par
-            getBoundingClientRect ÷ zoom, reste exacte quelle que soit l'origine). */}
-        <div
-          className="shrink-0"
-          style={{ width: pageSize.width * pdfZoom, height: pageSize.height * pdfZoom, marginBottom: 40 }}
-        >
-        <div
-          ref={ppRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className={cn(
-            "bg-white rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative origin-top-left overflow-hidden transition-transform duration-200",
-            selectionMode && "cursor-crosshair"
-          )}
-          style={{
-            width: pageSize.width,
-            height: pageSize.height,
-            transform: `scale(${pdfZoom})`,
-            // Coupe le geste tactile natif (défiler/zoomer) pendant le tracé
-            // d'une zone, pour que le doigt ne fasse que dessiner.
-            touchAction: selectionMode ? 'none' : undefined,
-          }}
-        >
-          {/* Active drawing rect */}
-          {currentRect && (
-            <div
-              className="absolute border-2 border-gold bg-gold/10 rounded-sm pointer-events-none z-[60] shadow-[0_0_0_1px_rgba(0,0,0,0.2)]"
-              style={{ left: currentRect.x, top: currentRect.y, width: currentRect.w, height: currentRect.h }}
-            />
-          )}
+        {!fileOptions && (
+          <div className="flex items-center justify-center h-full w-full text-t3 text-[10px] font-mono tracking-widest uppercase">
+            Aucun PDF associé
+          </div>
+        )}
 
-          {/* Existing zones for current page */}
-          {zones.filter(z => z.page === pdfPage).map(z => {
-            const isActive = selectedNode?.id === z.nodeId;
-            return (
-              <div
-                key={z.id}
-                id={`zone-${z.nodeId}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleZoneClick(z.nodeId);
-                }}
-                className={cn(
-                  "absolute border-2 rounded-[2px] cursor-pointer z-50 transition-all group",
-                  isActive ? "border-gold bg-gold/15 shadow-[0_0_15px_rgba(200,168,106,0.4)] z-[55]" : "border-teal-500/40 bg-teal-500/5 hover:border-teal-500 hover:bg-teal-500/10"
-                )}
-                style={{
-                  left: z.x, top: z.y, width: z.w, height: z.h,
-                }}
-              >
-                <div
-                  className={cn(
-                    "absolute -top-[18px] left-0 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-t-[3px] whitespace-nowrap tracking-wider uppercase transition-colors",
-                    isActive ? "bg-gold text-bg" : "bg-teal-500 text-bg opacity-0 group-hover:opacity-100"
-                  )}
+        {fileOptions && (
+          <Document
+            file={fileOptions}
+            options={PDF_OPTIONS}
+            onLoadSuccess={(pdf) => {
+              // On capte le proxy pdf.js pour la recherche de page par texte,
+              // et on vide le cache (nouveau document chargé).
+              pdfProxyRef.current = pdf;
+              pageTextCache.current.clear();
+              setNumPages(pdf.numPages);
+            }}
+            loading={
+              <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3 py-20">
+                <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                <span className="text-[10px] font-mono tracking-widest uppercase">Chargement</span>
+              </div>
+            }
+            error={
+              <div className="flex flex-col items-center justify-center h-full w-full p-10 text-center">
+                <LucideAlertCircle className="w-8 h-8 text-red mb-4 opacity-50" />
+                <p className="text-red text-[11px] font-mono mb-4">Erreur de chargement du PDF.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenExternal}
+                  disabled={openingExternal}
+                  className="text-red border-red/20 hover:bg-red/5"
                 >
-                  {z.lbl}
-                </div>
-                {isActive && (
-                  <div className="absolute -right-1 -top-1 w-2 h-2 bg-gold rounded-full animate-ping" />
+                  <Maximize className="w-3.5 h-3.5 mr-2" />
+                  {openingExternal ? 'Ouverture…' : 'Ouvrir en externe'}
+                </Button>
+                {openExternalError && (
+                  <p className="text-red/70 text-[10px] font-mono mt-3">Ouverture impossible.</p>
                 )}
               </div>
-            );
-          })}
-
-          {/* PDF Rendering */}
-          {fileOptions ? (
-             <div className="w-full h-full flex justify-center bg-white absolute inset-0 overflow-auto no-scrollbar">
-                <Document
-                  file={fileOptions}
-                  options={PDF_OPTIONS}
-                  onLoadSuccess={(pdf) => {
-                    // On capte le proxy pdf.js pour la recherche de page par texte,
-                    // et on vide le cache (nouveau document chargé).
-                    pdfProxyRef.current = pdf;
-                    pageTextCache.current.clear();
-                    setNumPages(pdf.numPages);
-                    updatePageSize(pdfPage);
-                  }}
-                  loading={
-                    <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3">
-                      <div className="w-6 h-6 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
-                      <span className="text-[10px] font-mono tracking-widest uppercase">Chargement</span>
-                    </div>
-                  }
-                  error={
-                    <div className="flex flex-col items-center justify-center h-full w-full p-10 text-center">
-                      <LucideAlertCircle className="w-8 h-8 text-red mb-4 opacity-50" />
-                      <p className="text-red text-[11px] font-mono mb-4">Erreur de chargement du PDF.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleOpenExternal}
-                        disabled={openingExternal}
-                        className="text-red border-red/20 hover:bg-red/5"
-                      >
-                        <Maximize className="w-3.5 h-3.5 mr-2" />
-                        {openingExternal ? 'Ouverture…' : 'Ouvrir en externe'}
-                      </Button>
-                      {openExternalError && (
-                        <p className="text-red/70 text-[10px] font-mono mt-3">Ouverture impossible.</p>
-                      )}
-                    </div>
-                  }
-                >
-                  <Page
-                    pageNumber={pdfPage}
-                    scale={1}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-inner"
-                  />
-                </Document>
-             </div>
-          ) : (
-            <div className="flex items-center justify-center h-full w-full text-t3 text-[10px] font-mono tracking-widest uppercase bg-[#fdfdfc]">
-              Aucun PDF associé
+            }
+          >
+            <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const pageNumber = virtualRow.index + 1;
+                return (
+                  <div
+                    key={pageNumber}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                      paddingBottom: PAGE_GAP,
+                    }}
+                  >
+                    <PdfPage
+                      pageNumber={pageNumber}
+                      zoom={pdfZoom}
+                      size={pageSizes.get(pageNumber) ?? referencePageSize}
+                      zones={zonesByPage.get(pageNumber) ?? []}
+                      selectedNodeId={selectedNode?.id ?? null}
+                      selectionMode={selectionMode}
+                      selectionTarget={selectionTarget}
+                      onZoneClick={handleZoneClick}
+                      onZoneDrawn={handleZoneDrawn}
+                      onMeasuredSize={handleMeasuredSize}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          )}
-
-          <div className="absolute bottom-4 w-full text-center text-[10px] text-zinc-400 font-serif z-40 pointer-events-none select-none italic">
-            — {pdfPage} —
-          </div>
-        </div>
-        </div>
+          </Document>
+        )}
       </div>
 
       {/* Footer / Shortcut info — aide clavier/souris, pertinente sur desktop seulement */}
