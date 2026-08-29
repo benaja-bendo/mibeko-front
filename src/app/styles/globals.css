@@ -157,3 +157,18 @@
   background: var(--s4);
   border-radius: 2px;
 }
+
+/* Utilisées par plusieurs écrans (viewer, panneaux) sans avoir jamais été
+   définies : le reset ::-webkit-scrollbar ci-dessus s'appliquait déjà partout
+   par défaut sur Chromium/Safari, mais Firefox n'a pas d'équivalent
+   ::-webkit-* et affichait une scrollbar native épaisse. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--s4) transparent;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

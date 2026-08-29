@@ -74,6 +74,15 @@ export default function PdfViewer({
   // dans le conteneur (essentiel sur mobile/tablette). Désactivé dès que
   // l'utilisateur règle le zoom manuellement.
   const [fitMode, setFitMode] = useState(true);
+  // Taille réelle de la page courante, en points PDF (mesurée via pdf.js) —
+  // remplace une ancienne boîte 580×820 codée en dur qui ne correspondait à
+  // aucun format réel (ni A4, ni Letter) et décalait les zones cliquables dès
+  // qu'un scan avait une autre taille. 580×820 reste ici en valeur de repli,
+  // le temps que la première page soit mesurée.
+  const [pageSize, setPageSize] = useState<{ width: number; height: number }>({ width: 580, height: 820 });
+  // Champ de saisie du numéro de page : état local pour ne naviguer qu'une
+  // fois la frappe terminée (sinon taper « 12 » saute transitoirement page 1).
+  const [pageInputValue, setPageInputValue] = useState('1');
 
   // Extract all zones from treeData
   const zones = useMemo(() => {
@@ -110,20 +119,56 @@ export default function PdfViewer({
     };
   }, [pdfUrl, token]);
 
-  // Largeur de référence de la « feuille » (le système de coordonnées des zones
-  // PDF est exprimé dans cette base ; on ne fait que la mettre à l'échelle).
-  const PAPER_W = 580;
+  // Mesure la taille réelle (points PDF) de la page `n` via le proxy pdf.js
+  // capté à `onLoadSuccess`, et met à jour `pageSize`. Sans ça, la boîte de
+  // rendu et les zones cliquables restent calées sur la taille de repli.
+  const updatePageSize = React.useCallback((n: number) => {
+    const pdf = pdfProxyRef.current;
+    if (!pdf) return;
+    pdf
+      .getPage(n)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((page: any) => {
+        const viewport = page.getViewport({ scale: 1 });
+        setPageSize({ width: viewport.width, height: viewport.height });
+      })
+      .catch(() => {});
+  }, []);
 
-  // Calcule le zoom qui fait tenir la feuille dans la largeur disponible.
+  // Recharge la taille dès que la page affichée change (une fois le document
+  // chargé — avant ça, `pdfProxyRef` est vide et l'appel ne fait rien).
+  useEffect(() => {
+    updatePageSize(pdfPage);
+  }, [pdfPage, updatePageSize]);
+
+  // Garde le champ de saisie synchro avec la page réelle (bouton, clavier,
+  // localisation automatique…) sans écraser une frappe en cours : seule la
+  // validation (Entrée/perte de focus) navigue, voir `commitPageInput`.
+  useEffect(() => {
+    setPageInputValue(String(pdfPage || 1));
+  }, [pdfPage]);
+
+  const commitPageInput = () => {
+    const val = parseInt(pageInputValue, 10);
+    if (!isNaN(val) && val >= 1 && val <= numPages) {
+      setPdfPage(val);
+    } else {
+      setPageInputValue(String(pdfPage || 1));
+    }
+  };
+
+  // Calcule le zoom qui fait tenir la feuille (à sa taille réelle) dans la
+  // largeur disponible.
   const applyFit = React.useCallback(() => {
     const el = pdfContainerRef.current;
     if (!el) return;
     const available = el.clientWidth - 32; // px-4 de chaque côté
-    const z = Math.min(2, Math.max(0.4, available / PAPER_W));
+    const z = Math.min(2, Math.max(0.4, available / pageSize.width));
     setPdfZoom(Number(z.toFixed(3)));
-  }, [setPdfZoom]);
+  }, [setPdfZoom, pageSize.width]);
 
-  // En mode « ajuster », recalcule au montage et à chaque redimensionnement.
+  // En mode « ajuster », recalcule au montage, à chaque redimensionnement, et
+  // quand la taille réelle de la page change (page suivante d'un format différent).
   useEffect(() => {
     if (!fitMode) return;
     applyFit();
@@ -140,6 +185,7 @@ export default function PdfViewer({
   // zéro — sans ça, un zoom manuel sur le document précédent persisterait.
   useEffect(() => {
     setFitMode(true);
+    setPageSize({ width: 580, height: 820 });
   }, [documentId]);
 
   // Réglage manuel du zoom : sort du mode « ajuster ».
@@ -424,11 +470,14 @@ export default function PdfViewer({
           <div className="flex items-center gap-1">
             <input
               type="text"
-              value={pdfPage || 1}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                if (!isNaN(val) && val >= 1 && val <= numPages) {
-                  setPdfPage(val);
+              inputMode="numeric"
+              value={pageInputValue}
+              onChange={(e) => setPageInputValue(e.target.value)}
+              onBlur={commitPageInput}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  commitPageInput();
+                  (e.target as HTMLInputElement).blur();
                 }
               }}
               className="w-[30px] h-[24px] bg-s2 border border-b1 rounded text-t1 text-[11px] font-mono text-center outline-none transition-colors focus:border-b3"
@@ -465,7 +514,7 @@ export default function PdfViewer({
             getBoundingClientRect ÷ zoom, reste exacte quelle que soit l'origine). */}
         <div
           className="shrink-0"
-          style={{ width: PAPER_W * pdfZoom, height: 820 * pdfZoom, marginBottom: 40 }}
+          style={{ width: pageSize.width * pdfZoom, height: pageSize.height * pdfZoom, marginBottom: 40 }}
         >
         <div
           ref={ppRef}
@@ -473,10 +522,12 @@ export default function PdfViewer({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           className={cn(
-            "bg-white w-[580px] h-[820px] rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative origin-top-left overflow-hidden transition-transform duration-200",
+            "bg-white rounded shadow-[0_20px_80px_rgba(0,0,0,0.8)] relative origin-top-left overflow-hidden transition-transform duration-200",
             selectionMode && "cursor-crosshair"
           )}
           style={{
+            width: pageSize.width,
+            height: pageSize.height,
             transform: `scale(${pdfZoom})`,
           }}
         >
@@ -534,6 +585,7 @@ export default function PdfViewer({
                     pdfProxyRef.current = pdf;
                     pageTextCache.current.clear();
                     setNumPages(pdf.numPages);
+                    updatePageSize(pdfPage);
                   }}
                   loading={
                     <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3">
