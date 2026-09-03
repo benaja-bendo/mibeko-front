@@ -135,6 +135,7 @@ export interface StreamChatParams {
  *
  * Le backend Laravel émet des trames de la forme :
  *   event: sources\n data: [...]\n\n
+ *   event: no_result\n data: {"reason":"aucun_extrait"}\n\n
  *   data: {"type":"text_delta","delta":"..."}\n\n   (évènement par défaut "message")
  *   data: [DONE]\n\n
  *
@@ -189,6 +190,10 @@ export async function streamChat(
           case 'sources': {
             const sources = JSON.parse(data);
             if (Array.isArray(sources)) callbacks.onSources?.(sources);
+            break;
+          }
+          case 'no_result': {
+            callbacks.onNoResult?.();
             break;
           }
           case 'error': {

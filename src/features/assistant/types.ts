@@ -79,6 +79,14 @@ export interface ChatMessage {
   /** `true` si la génération a échoué. */
   error?: boolean;
   /**
+   * `true` quand l'assistant a interrogé le corpus et n'y a trouvé aucun
+   * extrait : la réponse est une non-réponse assumée, pas un texte tronqué.
+   * Le backend le dit explicitement (évènement SSE `no_result`, champ
+   * `no_result` en JSON) — le front ne le déduit jamais de l'absence de source,
+   * qui vaudrait aussi pour une salutation.
+   */
+  noResult?: boolean;
+  /**
    * Identifiant backend du message (table `agent_conversation_messages`).
    * Pour une réponse fraîchement streamée, `id` est local : le backend renvoie
    * son identifiant réel en fin de flux afin de pouvoir noter la réponse.
@@ -105,6 +113,8 @@ export interface PersistedMessage {
   meta?: {
     sources?: AssistantSource[];
     cached?: boolean;
+    /** Non-réponse assumée (corpus interrogé, aucun extrait). */
+    no_result?: boolean;
     /** Références épinglées au moment de l'envoi (messages utilisateur). */
     references?: AssistantReference[];
     /** Mode demandé (absent si concise). */
@@ -140,6 +150,8 @@ export interface StreamCallbacks {
   onSources?: (sources: AssistantSource[]) => void;
   /** Fragment de texte de la réponse (effet machine à écrire). */
   onDelta?: (delta: string) => void;
+  /** Le corpus a été interrogé sans rien rendre : non-réponse assumée. */
+  onNoResult?: () => void;
   /** Erreur de génération côté serveur. */
   onError?: (message: string) => void;
   /** Identifiant de conversation (créé si premier message). */

@@ -41,6 +41,7 @@ export function persistedToChatMessages(
     role: m.role,
     content: m.content,
     sources: m.meta?.sources ?? undefined,
+    noResult: m.meta?.no_result ?? undefined,
     references: m.meta?.references ?? undefined,
     mode: m.meta?.mode ?? undefined,
     // Message d'historique : `id` est déjà l'identifiant backend.
@@ -195,6 +196,9 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
               buffer += delta;
               setStatus(null);
               patchMessage(assistantId, { content: buffer });
+            },
+            onNoResult: () => {
+              patchMessage(assistantId, { noResult: true });
             },
             onError: (msg) => {
               patchMessage(assistantId, {

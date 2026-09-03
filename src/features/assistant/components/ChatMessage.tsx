@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   BookMarked,
   Layers,
+  SearchX,
 } from 'lucide-react';
 import type {
   AssistantSource,
@@ -217,6 +218,36 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
             {showTypingCursor && (
               <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-gold align-text-bottom" />
             )}
+          </div>
+        )}
+
+        {/* Non-réponse assumée : le corpus a été interrogé et n'a rien rendu.
+            L'état est explicite plutôt que déduit d'une réponse courte — c'est
+            la contrepartie visible de la règle qui interdit à l'assistant de
+            compléter de mémoire (mibeko-dashboard#15). */}
+        {message.noResult && !message.pending && !message.error && (
+          <div className="mt-3 rounded-lg border border-b1 bg-s2 px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <SearchX className="mt-0.5 h-3.5 w-3.5 shrink-0 text-t3" />
+              <div className="min-w-0 space-y-1.5">
+                <p className="text-xs font-medium text-t2">
+                  Aucun texte du corpus Mibeko ne répond à cette question
+                </p>
+                <p className="text-xs leading-relaxed text-t3">
+                  La recherche n'a rien trouvé, et l'assistant ne complète jamais
+                  de mémoire. Essayez les mots exacts du texte plutôt que la
+                  notion, ou vérifiez dans la Bibliothèque que le texte visé y
+                  est déjà publié.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/app/library')}
+                  className="text-xs font-medium text-gold transition-colors hover:text-t1"
+                >
+                  Parcourir la Bibliothèque
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
