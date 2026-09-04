@@ -213,9 +213,12 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    // mibeko-front#7 : la garde descend de la route à la fonctionnalité —
+    // tout compte authentifié ouvre l'assistant, différencié par quota
+    // (lu depuis /me/entitlements, cf. AssistantPage), jamais par rôle.
     path: '/app/assistant',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <AssistantRoutePage />
       </RequireAuth>
     ),

@@ -43,8 +43,10 @@ import ChatComposer from '@/features/assistant/components/ChatComposer';
 import ConversationSidebar from '@/features/assistant/components/ConversationSidebar';
 import ConversationSkeleton from '@/features/assistant/components/ConversationSkeleton';
 import AssistantHomeView from '@/features/assistant/components/AssistantHomeView';
-import { useLibraryHome } from '@/features/library/hooks/useLibrary';
 import type { SendMessageOptions } from '@/features/assistant/types';
+import { useEntitlements } from '@/features/entitlements/hooks/useEntitlements';
+import AssistantQuotaBadge from '@/features/entitlements/components/AssistantQuotaBadge';
+import AssistantQuotaExhausted from '@/features/entitlements/components/AssistantQuotaExhausted';
 
 /** Suggestions affichées sur l'écran d'accueil (vide). */
 const SUGGESTIONS = [
@@ -67,8 +69,16 @@ export default function AssistantPage() {
   // « @ » ni le mode ne doivent fuiter d'une conversation vers la suivante.
   const [composerResetSignal, setComposerResetSignal] = useState(0);
 
-  // Statistiques du fonds documentaire (mêmes données que l'accueil Bibliothèque).
-  const { data: libraryHome, isLoading: isLoadingHome } = useLibraryHome();
+  // mibeko-front#7 : trois états dérivés du quota assistant, jamais recalculés
+  // localement — « disponible » (rien encore consommé), « compté » (quota
+  // entamé, ce qu'il reste s'affiche) et « hors de votre offre » (épuisé,
+  // le composer cède la place au chemin vers Pro). Tant que la requête
+  // charge, on se comporte comme « disponible » : ne jamais bloquer l'accès
+  // sur un état transitoire.
+  const { data: entitlements } = useEntitlements();
+  const assistantQuota = entitlements?.quotas.assistant;
+  const isQuotaExhausted = !!assistantQuota && assistantQuota.used >= assistantQuota.limit;
+  const isQuotaCounted = !!assistantQuota && assistantQuota.used > 0 && !isQuotaExhausted;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -226,7 +236,7 @@ export default function AssistantPage() {
                     <PanelLeftOpen className="h-4 w-4" />
                   )}
                 </button>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h1 className="truncate font-display text-base font-semibold text-t1">
                     Assistant Mibeko IA
                   </h1>
@@ -234,6 +244,9 @@ export default function AssistantPage() {
                     Recherche augmentée sur le droit congolais et l'espace OHADA
                   </p>
                 </div>
+                {isQuotaCounted && assistantQuota && (
+                  <AssistantQuotaBadge used={assistantQuota.used} limit={assistantQuota.limit} />
+                )}
               </header>
 
               {/* Fil de discussion */}
@@ -264,8 +277,6 @@ export default function AssistantPage() {
                   <AssistantHomeView
                     onAsk={(question) => handleSend(question)}
                     suggestions={SUGGESTIONS}
-                    stats={libraryHome?.stats}
-                    isLoadingStats={isLoadingHome}
                   />
                 ) : (
                   /* key = identité du fil affiché. Stable ('live') tant qu'on
@@ -291,14 +302,20 @@ export default function AssistantPage() {
                 )}
               </div>
 
-              {/* Composer (inactif le temps de charger la conversation cliquée) */}
-              <ChatComposer
-                onSend={handleSend}
-                onStop={chat.stop}
-                isStreaming={chat.isStreaming}
-                disabled={isLoadingSelection || showLoadError}
-                resetSignal={composerResetSignal}
-              />
+              {/* Composer — cède la place au chemin vers Pro une fois le quota
+                  épuisé (inactif, sinon, le temps de charger la conversation
+                  cliquée). */}
+              {isQuotaExhausted ? (
+                <AssistantQuotaExhausted resetsAt={assistantQuota?.resets_at ?? null} />
+              ) : (
+                <ChatComposer
+                  onSend={handleSend}
+                  onStop={chat.stop}
+                  isStreaming={chat.isStreaming}
+                  disabled={isLoadingSelection || showLoadError}
+                  resetSignal={composerResetSignal}
+                />
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
