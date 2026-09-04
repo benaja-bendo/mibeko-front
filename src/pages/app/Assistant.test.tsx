@@ -247,7 +247,11 @@ describe('Assistant', () => {
   });
 
   // mibeko-front#7 : trois états dérivés des entitlements, jamais d'un rôle.
-  it('affiche le quota restant une fois le compte entamé (état « compté »)', async () => {
+  // L'affichage du quota restant (« compté ») est porté par l'indicateur
+  // permanent de la coquille (Sidebar → QuotaIndicator, mibeko-front#8),
+  // testé séparément dans Sidebar.test.tsx — cette page ne s'occupe que de
+  // ne jamais bloquer l'accès avant l'épuisement réel.
+  it('laisse le composer disponible tant que le quota entamé n\'est pas épuisé', async () => {
     server.use(
       http.get('*/api/v1/me/entitlements', () =>
         HttpResponse.json({
@@ -264,9 +268,12 @@ describe('Assistant', () => {
 
     renderWithProviders(<Assistant />, { route: '/app/assistant' });
 
-    expect(await screen.findByText('47 questions restantes')).toBeInTheDocument();
-    // Le composer reste disponible : l'accès n'est jamais bloqué avant l'épuisement.
-    expect(screen.getByPlaceholderText(/Posez une question juridique/)).toBeInTheDocument();
+    expect(
+      await screen.findByPlaceholderText(/Posez une question juridique/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Vous avez atteint votre quota de questions.'),
+    ).not.toBeInTheDocument();
   });
 
   it('remplace le composer par le chemin vers Pro une fois le quota épuisé, sans masquer le reste', async () => {
