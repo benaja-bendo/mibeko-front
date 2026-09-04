@@ -48,7 +48,7 @@ describe('Library', () => {
   // NB : la colonne gauche est rendue deux fois (variante desktop + mobile,
   // départagées en CSS que jsdom n'applique pas) → requêtes `AllBy`.
 
-  it("affiche l'accueil vivant (récents, fondamentaux, stats) sans recherche", async () => {
+  it("affiche l'accueil vivant (récents, fondamentaux) sans recherche", async () => {
     renderWithProviders(<Library />, { route: '/app/library' });
 
     await waitFor(() => {
@@ -59,8 +59,6 @@ describe('Library', () => {
     ).toBeGreaterThan(0);
     expect(screen.getAllByText('Textes fondamentaux').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Ajoutés récemment').length).toBeGreaterThan(0);
-    // Stat du fonds (format compact fr-FR : 14 532 → « 14,5 k »)
-    expect(screen.getAllByText(/14,5/).length).toBeGreaterThan(0);
   });
 
   it('garde les filtres fermés par défaut', async () => {

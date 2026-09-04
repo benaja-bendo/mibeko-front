@@ -2,9 +2,14 @@
  * Dashboard.tsx — Page d'accueil de l'espace Pro (tableau de bord + veille).
  *
  * Agrège :
+ *  - le fonds documentaire en un coup d'œil (textes/articles/institutions) ;
  *  - des raccourcis vers les outils (Assistant, Bibliothèque, Dossiers) ;
  *  - une veille juridique (derniers textes intégrés à la base — via Laravel) ;
  *  - les dossiers récents (local) et les dernières conversations IA (Laravel).
+ *
+ * Les statistiques du fonds vivaient auparavant en double, répétées à
+ * l'identique sur les accueils de l'Assistant et de la Bibliothèque —
+ * déplacées ici le 04/09/2026 comme endroit canonique de vue d'ensemble.
  */
 
 import { useMemo } from 'react';
@@ -16,9 +21,11 @@ import {
   FolderKanban,
   ArrowRight,
   FileText,
+  Landmark,
   MessageSquare,
   Newspaper,
   Clock,
+  ScrollText,
 } from 'lucide-react';
 import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -26,7 +33,9 @@ import { getCatalog } from '@/features/documents/api/laravelApi';
 import { useJournalsList } from '@/features/journals/hooks/useJournals';
 import { useConversations } from '@/features/assistant/hooks/useConversations';
 import { useDossiers } from '@/features/dossiers/hooks/useDossiers';
+import { useLibraryHome } from '@/features/library/hooks/useLibrary';
 import StatusBadge from '@/features/dossiers/components/StatusBadge';
+import { formatCompactNumber } from '@/shared/lib/formatNumber';
 
 /** Formate une date ISO en jj/mm/aaaa (ou tiret si absente). */
 function fmtDate(iso?: string | null): string {
@@ -92,6 +101,10 @@ export default function AppDashboard() {
   const user = useAuthStore((s) => s.user);
   const { data: dossiers = [] } = useDossiers();
 
+  // Fonds documentaire en un coup d'œil — endroit canonique depuis le
+  // 04/09/2026 (auparavant répété sur les accueils Assistant et Bibliothèque).
+  const { data: libraryHome, isLoading: isLoadingLibraryHome } = useLibraryHome();
+
   // Veille juridique : derniers textes intégrés à la base.
   const { data: catalog, isLoading: loadingCatalog } = useQuery({
     queryKey: ['veille', 'recent-docs'],
@@ -145,6 +158,34 @@ export default function AppDashboard() {
               Votre espace de travail juridique — droit congolais & OHADA.
             </p>
           </header>
+
+          {/* Fonds documentaire, en un coup d'œil */}
+          <div className="mb-6 flex flex-wrap gap-2">
+            {(
+              [
+                { icon: ScrollText, label: 'Textes', value: libraryHome?.stats.documents },
+                { icon: FileText, label: 'Articles', value: libraryHome?.stats.articles },
+                { icon: Landmark, label: 'Institutions', value: libraryHome?.stats.institutions },
+              ] as const
+            ).map(({ icon: Icon, label, value }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-lg border border-b1 bg-s1 px-3 py-2"
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0 text-gold" />
+                {isLoadingLibraryHome ? (
+                  <div className="h-4 w-10 animate-pulse rounded bg-s2" />
+                ) : (
+                  <span className="font-display text-sm font-semibold text-t1">
+                    {formatCompactNumber(value)}
+                  </span>
+                )}
+                <span className="text-[10px] uppercase tracking-wide text-t4">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
 
           {/* Raccourcis */}
           <div className="mb-8 grid gap-3 sm:grid-cols-3">

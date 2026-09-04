@@ -4,45 +4,24 @@
  * Même esprit que l'accueil vivant de la Bibliothèque : au lieu d'un simple
  * écran vide, la page se présente et montre immédiatement sa valeur pour un
  * professionnel du droit :
- *  - identité + fonds documentaire chiffré (ce que l'IA interroge réellement) ;
+ *  - identité de l'outil (ce que l'IA interroge, en une phrase) ;
  *  - les trois promesses de l'outil (réponses courtes, sources cliquables,
  *    recherche ciblée par texte) qui doublent de mode d'emploi ;
  *  - questions d'exemple cliquables pour démarrer en un geste.
+ *
+ * Le fonds documentaire chiffré (textes/articles/institutions) ne vit plus
+ * ici : il était répété à l'identique sur cette page et sur l'accueil de la
+ * Bibliothèque, sans jamais faire l'objet d'un endroit canonique — déplacé
+ * sur le Tableau de bord (Dashboard.tsx), sa place naturelle de vue
+ * d'ensemble. Décision du 04/09/2026.
  */
 
-import {
-  AtSign,
-  FileText,
-  Landmark,
-  Layers,
-  Link2,
-  ScrollText,
-  Search,
-  Sparkles,
-  Zap,
-} from 'lucide-react';
-
-interface AssistantHomeStats {
-  documents: number;
-  articles: number;
-  institutions: number;
-}
+import { AtSign, Layers, Link2, Search, Sparkles, Zap } from 'lucide-react';
 
 interface AssistantHomeViewProps {
   /** Lance une question (suggestion cliquée). */
   onAsk: (question: string) => void;
   suggestions: string[];
-  /** Statistiques du fonds documentaire (mêmes données que la Bibliothèque). */
-  stats?: AssistantHomeStats;
-  isLoadingStats?: boolean;
-}
-
-/** Compteur compact (14 532 → « 14,5 k »). */
-function compact(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(n);
 }
 
 const CAPABILITIES = [
@@ -69,12 +48,10 @@ const CAPABILITIES = [
 export default function AssistantHomeView({
   onAsk,
   suggestions,
-  stats,
-  isLoadingStats,
 }: AssistantHomeViewProps) {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6 px-6 py-8">
-      {/* En-tête : identité + fonds documentaire interrogé */}
+      {/* En-tête : identité de l'outil */}
       <div className="rounded-2xl border border-gold/15 bg-gold/[0.05] p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/20 bg-gold/10">
@@ -89,36 +66,6 @@ export default function AssistantHomeView({
               congolais et de l'espace OHADA.
             </p>
           </div>
-        </div>
-
-        {/* Le fonds réellement interrogé : gage de fiabilité, pas une boîte noire */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {(
-            [
-              { icon: ScrollText, label: 'Textes', value: stats?.documents },
-              { icon: FileText, label: 'Articles', value: stats?.articles },
-              { icon: Landmark, label: 'Institutions', value: stats?.institutions },
-            ] as const
-          ).map(({ icon: Icon, label, value }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 rounded-lg border border-b1 bg-s1/60 px-2.5 py-2"
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0 text-gold" />
-              <div className="min-w-0">
-                {isLoadingStats ? (
-                  <div className="h-4 w-10 animate-pulse rounded bg-s2" />
-                ) : (
-                  <p className="font-display text-sm font-semibold leading-none text-t1">
-                    {compact(value ?? 0)}
-                  </p>
-                )}
-                <p className="mt-0.5 text-[9px] uppercase tracking-wide text-t4">
-                  {label}
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
