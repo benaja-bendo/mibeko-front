@@ -3,23 +3,18 @@
  *
  * Remplace l'ancien état vide statique : dès l'arrivée sur la page, le fonds
  * documentaire est visible et exploitable sans taper une seule lettre :
- *  - statistiques du fonds (textes, articles, institutions) ;
  *  - reprise des recherches récentes (localStorage) ;
  *  - textes fondamentaux (constitution, codes) ouvrables en un clic ;
  *  - derniers textes publiés ;
  *  - suggestions de recherche cliquables.
+ *
+ * Les statistiques chiffrées du fonds (textes/articles/institutions) ne
+ * vivent plus ici : répétées à l'identique sur l'accueil de l'Assistant,
+ * elles ont un endroit canonique depuis le 04/09/2026, le Tableau de bord
+ * (Dashboard.tsx).
  */
 
-import {
-  BookMarked,
-  Clock3,
-  FileText,
-  Landmark,
-  Scale,
-  ScrollText,
-  Search,
-  X,
-} from 'lucide-react';
+import { BookMarked, Clock3, Scale, ScrollText, Search, X } from 'lucide-react';
 import { useLibraryHome } from '@/features/library/hooks/useLibrary';
 import {
   SCOPE_LABELS,
@@ -126,36 +121,6 @@ export default function LibraryHomeView({
               Recherchez par notion, numéro d'article ou question.
             </p>
           </div>
-        </div>
-
-        {/* Stats du fonds — la bibliothèque montre qu'elle « vit » */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {(
-            [
-              { icon: ScrollText, label: 'Textes', value: data?.stats.documents },
-              { icon: FileText, label: 'Articles', value: data?.stats.articles },
-              { icon: Landmark, label: 'Institutions', value: data?.stats.institutions },
-            ] as const
-          ).map(({ icon: Icon, label, value }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 rounded-lg border border-b1 bg-s1/60 px-2.5 py-2"
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0 text-gold" />
-              <div className="min-w-0">
-                {isLoading ? (
-                  <div className="h-4 w-10 animate-pulse rounded bg-s2" />
-                ) : (
-                  <p className="font-display text-sm font-semibold leading-none text-t1">
-                    {compact(value ?? 0)}
-                  </p>
-                )}
-                <p className="mt-0.5 text-[9px] uppercase tracking-wide text-t4">
-                  {label}
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
