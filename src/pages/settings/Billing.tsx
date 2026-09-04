@@ -124,7 +124,11 @@ function BillingContent({ data }: { data: BillingOverview }) {
           {data.plans.map((plan) => (
             <div key={plan.id} className="bg-s1 border border-b1 rounded-xl p-5 flex flex-col">
               <div className="text-sm font-semibold text-t1">{plan.name}</div>
-              <div className="text-xl font-display text-gold mt-1">{plan.price_label}</div>
+              {data.stripe_enabled ? (
+                <div className="text-xl font-display text-gold mt-1">{plan.price_label}</div>
+              ) : (
+                <div className="text-sm text-t2 mt-1">Tarif confirmé par échange avec notre équipe.</div>
+              )}
               <ul className="mt-4 space-y-2 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-t2">
@@ -132,15 +136,24 @@ function BillingContent({ data }: { data: BillingOverview }) {
                   </li>
                 ))}
               </ul>
-              <Button
-                variant="gold"
-                size="sm"
-                className="mt-5"
-                disabled={!data.stripe_enabled || checkout.isPending}
-                onClick={() => checkout.mutate(plan.id)}
-              >
-                Choisir {plan.name}
-              </Button>
+              {data.stripe_enabled ? (
+                <Button
+                  variant="gold"
+                  size="sm"
+                  className="mt-5"
+                  disabled={checkout.isPending}
+                  onClick={() => checkout.mutate(plan.id)}
+                >
+                  Choisir {plan.name}
+                </Button>
+              ) : (
+                <a
+                  href="mailto:facturation@mibeko.fr"
+                  className="mt-5 inline-flex h-8 items-center justify-center rounded-md border border-b1 bg-transparent px-3 text-xs font-medium text-t2 transition-all hover:bg-s2 hover:text-t1"
+                >
+                  Nous contacter
+                </a>
+              )}
             </div>
           ))}
           {checkout.isError && <Feedback kind="error" message={checkout.error.message} />}
