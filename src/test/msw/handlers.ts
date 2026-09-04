@@ -47,4 +47,18 @@ export const handlers = [
   http.get('*/api/v1/dossiers', () =>
     HttpResponse.json({ success: true, data: [] })
   ),
+  // Entitlements (mibeko-dashboard#63) : compte libre, quota entamé mais loin
+  // d'être épuisé par défaut — les tests des trois états de mibeko-front#7
+  // la surchargent avec server.use().
+  http.get('*/api/v1/me/entitlements', () =>
+    HttpResponse.json({
+      success: true,
+      data: {
+        plan: 'libre',
+        features: { assistant: true, library: true, export: false },
+        quotas: { assistant: { used: 0, limit: 50, resets_at: null } },
+        credits: null,
+      },
+    })
+  ),
 ];
