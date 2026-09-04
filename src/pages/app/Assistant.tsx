@@ -45,7 +45,6 @@ import ConversationSkeleton from '@/features/assistant/components/ConversationSk
 import AssistantHomeView from '@/features/assistant/components/AssistantHomeView';
 import type { SendMessageOptions } from '@/features/assistant/types';
 import { useEntitlements } from '@/features/entitlements/hooks/useEntitlements';
-import AssistantQuotaBadge from '@/features/entitlements/components/AssistantQuotaBadge';
 import AssistantQuotaExhausted from '@/features/entitlements/components/AssistantQuotaExhausted';
 
 /** Suggestions affichées sur l'écran d'accueil (vide). */
@@ -69,16 +68,16 @@ export default function AssistantPage() {
   // « @ » ni le mode ne doivent fuiter d'une conversation vers la suivante.
   const [composerResetSignal, setComposerResetSignal] = useState(0);
 
-  // mibeko-front#7 : trois états dérivés du quota assistant, jamais recalculés
-  // localement — « disponible » (rien encore consommé), « compté » (quota
-  // entamé, ce qu'il reste s'affiche) et « hors de votre offre » (épuisé,
-  // le composer cède la place au chemin vers Pro). Tant que la requête
-  // charge, on se comporte comme « disponible » : ne jamais bloquer l'accès
-  // sur un état transitoire.
+  // mibeko-front#7 : le composer cède la place au chemin vers Pro une fois
+  // le quota épuisé, jamais recalculé localement. L'état « compté » (ce
+  // qu'il reste) est désormais porté par l'indicateur permanent de la
+  // coquille (Sidebar → QuotaIndicator, mibeko-front#8), pas ici — sinon
+  // même répétition que celle déjà corrigée sur le Tableau de bord. Tant
+  // que la requête charge, on se comporte comme si le quota était
+  // disponible : ne jamais bloquer l'accès sur un état transitoire.
   const { data: entitlements } = useEntitlements();
   const assistantQuota = entitlements?.quotas.assistant;
   const isQuotaExhausted = !!assistantQuota && assistantQuota.used >= assistantQuota.limit;
-  const isQuotaCounted = !!assistantQuota && assistantQuota.used > 0 && !isQuotaExhausted;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -244,9 +243,6 @@ export default function AssistantPage() {
                     Recherche augmentée sur le droit congolais et l'espace OHADA
                   </p>
                 </div>
-                {isQuotaCounted && assistantQuota && (
-                  <AssistantQuotaBadge used={assistantQuota.used} limit={assistantQuota.limit} />
-                )}
               </header>
 
               {/* Fil de discussion */}

@@ -23,6 +23,7 @@ import {
 import { Button } from '@/shared/components/ui/Button';
 import { Settings, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
 
 // ---------------------------------------------------------------------------
 // Nav definitions
@@ -330,6 +331,10 @@ export default function Sidebar({ space }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Quota assistant — indicateur permanent (mibeko-front#8), présent sur
+          toutes les pages de l'espace Pro, pas seulement l'Assistant. */}
+      {space === 'app' && <QuotaIndicator />}
 
       {/* User + Logout Dropdown Menu */}
       {user && (
