@@ -9,7 +9,8 @@
  * Utilisé dans le panneau droit du poste de travail (desktop) et dans un Sheet
  * (mobile). Toutes les actions pointent vers de vrais endpoints Laravel :
  *  - PDF source : `/legal-documents/{id}/pdf`
- *  - PDF Mibeko : `/legal-documents/{id}/export`
+ *  - PDF Mibeko : `/legal-documents/{id}/export` (entitlement Pro,
+ *    mibeko-dashboard#86 : mint d'une URL signée avant ouverture)
  *  - JSON sync  : `/legal-documents/{id}/download`
  */
 
@@ -17,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   FileText,
   FileDown,
+  Lock,
   Braces,
   MessageSquarePlus,
   FolderPlus,
@@ -39,14 +41,16 @@ import {
 import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
 import {
   sourcePdfUrl,
-  mibekoPdfUrl,
+  mintMibekoExportUrl,
   jsonExportUrl,
   journalPdfUrl,
 } from '@/features/library/api/libraryApi';
+import { useEntitlements } from '@/features/entitlements/hooks/useEntitlements';
 import { SCOPE_LABELS, type LegalScope } from '@/features/library/types';
 import type { TreeNode } from '@/shared/types/database';
 import { articleLeafLabel } from '@/shared/lib/legalLabels';
 import { LegalArticleBody } from '@/shared/components/LegalArticleBody';
+import { toast } from '@/shared/store/useToast';
 
 interface DocumentReaderViewProps {
   documentId: string;
@@ -167,6 +171,25 @@ export default function DocumentReaderView({
 }: DocumentReaderViewProps) {
   const navigate = useNavigate();
   const { data, isLoading, error } = useDocumentData(documentId);
+  const { data: entitlements } = useEntitlements();
+  const canExportPdf = entitlements?.features.export ?? false;
+
+  // mibeko-dashboard#86 : le PDF Mibeko est réservé aux comptes Pro. Un
+  // compte non-Pro voit une explication (toast) plutôt qu'un onglet qui
+  // s'ouvre sur une erreur — la vérification serveur reste la garde réelle,
+  // celle-ci n'évite qu'un aller-retour réseau inutile dans le cas courant.
+  const handleExportMibekoPdf = async () => {
+    if (!canExportPdf) {
+      toast.info('Le PDF Mibeko est réservé aux comptes Mibeko Pro.');
+      return;
+    }
+    try {
+      const url = await mintMibekoExportUrl(documentId);
+      window.open(url, '_blank');
+    } catch (err) {
+      toast.fromError(err);
+    }
+  };
 
   // Les ids sont normalisés en minuscules par useDocumentData.
   const targetId = articleId?.toLowerCase() ?? null;
@@ -323,9 +346,15 @@ export default function DocumentReaderView({
             onClick={() => window.open(sourcePdfUrl(documentId), '_blank')}
           />
           <ActionButton
-            icon={<FileDown className="h-3.5 w-3.5" />}
+            icon={
+              canExportPdf ? (
+                <FileDown className="h-3.5 w-3.5" />
+              ) : (
+                <Lock className="h-3.5 w-3.5" />
+              )
+            }
             label="PDF Mibeko"
-            onClick={() => window.open(mibekoPdfUrl(documentId), '_blank')}
+            onClick={handleExportMibekoPdf}
           />
           <ActionButton
             icon={<Braces className="h-3.5 w-3.5" />}

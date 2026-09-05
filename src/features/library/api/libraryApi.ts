@@ -236,9 +236,18 @@ export const sourcePdfUrl = (id: string): string =>
 export const journalPdfUrl = (journalId: string): string =>
   `${laravelBaseUrl}/legal-documents/${journalId}/pdf?type=journal`;
 
-/** URL du PDF Mibeko (consolidé / enrichi). */
-export const mibekoPdfUrl = (id: string): string =>
-  `${laravelBaseUrl}/legal-documents/${id}/export`;
+/**
+ * Mint une URL signée à courte durée de vie pour le PDF Mibeko (consolidé /
+ * enrichi) d'un document — mibeko-dashboard#86 : la route est réservée à
+ * l'entitlement Pro, et le clic direct `<a href>` du lecteur ne porte aucun
+ * jeton Bearer. Lève (403) si le compte n'a pas l'entitlement `export`.
+ */
+export async function mintMibekoExportUrl(id: string): Promise<string> {
+  const res = await laravelClient.get<{ data: { url: string } }>(
+    `legal-documents/${id}/export-token`,
+  );
+  return res.data.data.url;
+}
 
 /** URL de l'export JSON de synchronisation. */
 export const jsonExportUrl = (id: string): string =>
