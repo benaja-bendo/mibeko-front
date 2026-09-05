@@ -7,22 +7,26 @@ import {
   useInstitutionMutations,
   useTags,
   useTagMutations,
+  useAiQuotaTiers,
+  useAiQuotaTierMutations,
 } from '@/features/admin/hooks/useAdmin';
-import type { DocumentTypeRef, InstitutionRef, TagRef } from '@/features/admin/api/adminApi';
+import type { DocumentTypeRef, InstitutionRef, TagRef, AiQuotaTierRef } from '@/features/admin/api/adminApi';
 import DocumentTypeModal from '@/features/admin/components/DocumentTypeModal';
 import InstitutionModal from '@/features/admin/components/InstitutionModal';
 import TagModal from '@/features/admin/components/TagModal';
+import AiQuotaTierModal from '@/features/admin/components/AiQuotaTierModal';
 import { themeIcon } from '@/features/library/components/themeIcon';
 import ConfirmDeleteDialog from '@/features/admin/components/ConfirmDeleteDialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Plus, Pencil, Trash2, BookText, Building2, Tag as TagIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookText, Building2, Tag as TagIcon, Sparkles, RotateCcw } from 'lucide-react';
 
-type Tab = 'types' | 'institutions' | 'tags';
+type Tab = 'types' | 'institutions' | 'tags' | 'ai-quotas';
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'types', label: 'Types de loi', icon: <BookText className="w-3.5 h-3.5" /> },
   { key: 'institutions', label: 'Institutions', icon: <Building2 className="w-3.5 h-3.5" /> },
   { key: 'tags', label: 'Thèmes', icon: <TagIcon className="w-3.5 h-3.5" /> },
+  { key: 'ai-quotas', label: 'Quotas IA', icon: <Sparkles className="w-3.5 h-3.5" /> },
 ];
 
 export default function Referentiels() {
@@ -59,6 +63,7 @@ export default function Referentiels() {
           {tab === 'types' && <TypesSection />}
           {tab === 'institutions' && <InstitutionsSection />}
           {tab === 'tags' && <TagsSection />}
+          {tab === 'ai-quotas' && <AiQuotaTiersSection />}
         </div>
       </div>
     </AppLayout>
@@ -80,8 +85,9 @@ function SectionShell({
   count: number;
   isLoading: boolean;
   isError: boolean;
-  onCreate: () => void;
-  createLabel: string;
+  /** Absent = pas de bouton de création (ex. paliers de quota, en nombre fixe). */
+  onCreate?: () => void;
+  createLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -90,10 +96,12 @@ function SectionShell({
         <span className="text-t3 text-xs font-mono">
           {isLoading ? 'Chargement…' : `${count} entrée${count > 1 ? 's' : ''}`}
         </span>
-        <Button variant="gold" size="sm" className="gap-1.5" onClick={onCreate}>
-          <Plus className="w-3.5 h-3.5" />
-          {createLabel}
-        </Button>
+        {onCreate && (
+          <Button variant="gold" size="sm" className="gap-1.5" onClick={onCreate}>
+            <Plus className="w-3.5 h-3.5" />
+            {createLabel}
+          </Button>
+        )}
       </div>
 
       {isError ? (
@@ -411,6 +419,92 @@ function TagsSection() {
           toDelete && remove.mutate(toDelete.id, { onSuccess: () => setToDelete(null) })
         }
       />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Quotas IA par palier — mibeko-dashboard#95
+// ---------------------------------------------------------------------------
+
+const AI_QUOTA_TIER_LABELS: Record<AiQuotaTierRef['tier'], string> = {
+  standard: 'Compte gratuit',
+  user_pro: 'Pro',
+  admin: 'Administrateur',
+};
+
+function AiQuotaTiersSection() {
+  const { data = [], isLoading, isError } = useAiQuotaTiers();
+  const { reset } = useAiQuotaTierMutations();
+  const [editing, setEditing] = React.useState<AiQuotaTierRef | null>(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
+
+  return (
+    <>
+      <SectionShell count={data.length} isLoading={isLoading} isError={isError}>
+        <table className="w-full">
+          <thead className="border-b border-b1 bg-s2/40">
+            <tr>
+              <Th>Palier</Th>
+              <Th className="w-32">Portée</Th>
+              <Th className="w-28">Limite</Th>
+              <Th className="w-32">Source</Th>
+              <Th className="w-24 text-right">Actions</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((r) => (
+              <tr key={r.tier} className="border-b border-b1 last:border-0 hover:bg-s2/40">
+                <td className="px-4 py-2.5 text-t1 text-sm">{AI_QUOTA_TIER_LABELS[r.tier]}</td>
+                <td className="px-4 py-2.5 text-t3 text-sm font-mono">
+                  {r.scope === 'day' ? 'par jour' : 'par mois'}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="font-mono text-[12px] text-gold">{r.limit}</span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <span
+                    className={[
+                      'inline-block text-[10px] font-mono uppercase tracking-wide rounded px-1.5 py-0.5 border',
+                      r.source === 'database'
+                        ? 'text-gold bg-gold/10 border-gold/20'
+                        : 'text-t4 bg-transparent border-b1',
+                    ].join(' ')}
+                  >
+                    {r.source === 'database' ? 'réglé en base' : 'défaut (.env)'}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => {
+                        setEditing(r);
+                        setModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors"
+                      title="Modifier"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    {r.source === 'database' && (
+                      <button
+                        onClick={() => reset.mutate(r.tier)}
+                        disabled={reset.isPending}
+                        className="p-1.5 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors disabled:opacity-40"
+                        title="Réinitialiser sur la valeur par défaut"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </SectionShell>
+
+      <AiQuotaTierModal open={modalOpen} onOpenChange={setModalOpen} record={editing} />
     </>
   );
 }

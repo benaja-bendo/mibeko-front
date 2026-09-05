@@ -216,3 +216,28 @@ export const bulkFlags = (
   laravelClient
     .post<Envelope<{ affected: number }>>('admin/flags/bulk', { ids, action })
     .then((r) => ({ affected: r.data.data.affected, message: r.data.message ?? '' }));
+
+// ---------------------------------------------------------------------------
+// Quotas IA par palier — mibeko-dashboard#95
+// ---------------------------------------------------------------------------
+
+export type AiQuotaTierName = 'standard' | 'user_pro' | 'admin';
+
+export interface AiQuotaTierRef {
+  tier: AiQuotaTierName;
+  scope: 'day' | 'month';
+  limit: number;
+  source: 'database' | 'config';
+}
+
+export const listAiQuotaTiers = (): Promise<AiQuotaTierRef[]> =>
+  laravelClient.get<Envelope<AiQuotaTierRef[]>>('admin/ai-quota-tiers').then((r) => r.data.data);
+
+export const updateAiQuotaTier = (tier: AiQuotaTierName, limit: number): Promise<AiQuotaTierRef> =>
+  laravelClient
+    .put<Envelope<AiQuotaTierRef>>(`admin/ai-quota-tiers/${tier}`, { limit })
+    .then((r) => r.data.data);
+
+/** Retire le réglage posé en base : le palier retombe sur `config/ai.php`. */
+export const resetAiQuotaTier = (tier: AiQuotaTierName): Promise<AiQuotaTierRef> =>
+  laravelClient.delete<Envelope<AiQuotaTierRef>>(`admin/ai-quota-tiers/${tier}`).then((r) => r.data.data);
