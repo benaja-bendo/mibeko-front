@@ -12,6 +12,8 @@ import {
   verifyUserEmail,
   disableUserTwoFactor,
   impersonateUser,
+  setUserAiQuotaOverride,
+  removeUserAiQuotaOverride,
   listInvitations,
   createInvitation,
   resendInvitation,
@@ -137,4 +139,24 @@ export function useInvitationMutations() {
   });
 
   return { create, resend, remove };
+}
+
+/**
+ * Override de quota IA d'un utilisateur — mibeko-dashboard#95. Invalide sa
+ * fiche détaillée, qui porte le quota effectif et l'override courant.
+ */
+export function useUserAiQuotaOverrideMutations(userId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'user', userId] });
+
+  const set = useMutation({
+    mutationFn: ({ limit, note }: { limit: number; note?: string }) => setUserAiQuotaOverride(userId, limit, note),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: () => removeUserAiQuotaOverride(userId),
+    onSuccess: invalidate,
+  });
+
+  return { set, remove };
 }

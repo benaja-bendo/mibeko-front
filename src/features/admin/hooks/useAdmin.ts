@@ -18,12 +18,16 @@ import {
   updateFlagSeverity,
   deleteFlag,
   bulkFlags,
+  listAiQuotaTiers,
+  updateAiQuotaTier,
+  resetAiQuotaTier,
   type DocumentTypePayload,
   type InstitutionPayload,
   type TagPayload,
   type FlagFilters,
   type FlagBulkAction,
   type FlagSeverity,
+  type AiQuotaTierName,
 } from '@/features/admin/api/adminApi';
 
 const STALE = 60 * 1000;
@@ -185,4 +189,32 @@ export function useFlagMutations() {
   });
 
   return { resolve, setSeverity, remove, bulk };
+}
+
+// ---------------------------------------------------------------------------
+// Quotas IA par palier — mibeko-dashboard#95
+// ---------------------------------------------------------------------------
+
+export function useAiQuotaTiers() {
+  return useQuery({
+    queryKey: ['admin', 'ai-quota-tiers'],
+    queryFn: listAiQuotaTiers,
+    staleTime: STALE,
+  });
+}
+
+export function useAiQuotaTierMutations() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'ai-quota-tiers'] });
+
+  const update = useMutation({
+    mutationFn: ({ tier, limit }: { tier: AiQuotaTierName; limit: number }) => updateAiQuotaTier(tier, limit),
+    onSuccess: invalidate,
+  });
+  const reset = useMutation({
+    mutationFn: (tier: AiQuotaTierName) => resetAiQuotaTier(tier),
+    onSuccess: invalidate,
+  });
+
+  return { update, reset };
 }

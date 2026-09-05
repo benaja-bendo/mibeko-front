@@ -2,7 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent } from '@/shared/components/ui/Sheet';
 import { Button } from '@/shared/components/ui/Button';
-import { useUser, useUserMutations, useImpersonate } from '@/features/admin/hooks/useUsers';
+import {
+  useUser,
+  useUserMutations,
+  useImpersonate,
+  useUserAiQuotaOverrideMutations,
+} from '@/features/admin/hooks/useUsers';
+import { Input } from '@/shared/components/ui/Input';
 import { ROLE_LABELS, type AdminUserDetail } from '@/features/admin/api/usersApi';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import RolesPermissionsEditor from './RolesPermissionsEditor';
@@ -10,7 +16,7 @@ import SuspendDialog from './SuspendDialog';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 import {
   ShieldCheck, ShieldOff, MailCheck, MailX, Ban, RotateCcw, KeyRound, LogIn, Trash2,
-  Wifi, WifiOff, Lock, Unlock, Save, Clock, FolderOpen, MessagesSquare,
+  Wifi, WifiOff, Lock, Unlock, Save, Clock, FolderOpen, MessagesSquare, Sparkles, Pencil, X,
 } from 'lucide-react';
 
 function fmtDate(iso?: string | null): string {
@@ -297,6 +303,9 @@ function UserDetailBody(props: {
           </section>
         )}
 
+        {/* Quota IA — mibeko-dashboard#95 */}
+        <AiQuotaOverrideSection userId={data.id} aiQuota={data.ai_quota} />
+
         {/* Journal d'audit */}
         {data.recent_audits.length > 0 && (
           <section className="space-y-1.5">
@@ -368,5 +377,118 @@ function UserDetailBody(props: {
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Override de quota IA — mibeko-dashboard#95. Pensé pour une vente manuelle
+ * (§11.3 du business model) : l'admin saisit le chiffre ici, jamais un
+ * parcours self-service. Le quota effectif affiché tient déjà compte de
+ * l'override (`AiUserQuotaTier::resolve()` côté serveur).
+ */
+function AiQuotaOverrideSection({
+  userId,
+  aiQuota,
+}: {
+  userId: string;
+  aiQuota: AdminUserDetail['ai_quota'];
+}) {
+  const { set, remove } = useUserAiQuotaOverrideMutations(userId);
+  const [editing, setEditing] = React.useState(false);
+  const [limit, setLimit] = React.useState('');
+  const [note, setNote] = React.useState('');
+
+  const startEdit = () => {
+    setLimit(String(aiQuota.override_limit ?? aiQuota.effective.limit));
+    setNote(aiQuota.override_note ?? '');
+    setEditing(true);
+  };
+
+  const save = () => {
+    set.mutate(
+      { limit: Number(limit), note: note.trim() || undefined },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  return (
+    <section className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-t4 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3" /> Quota IA
+        </h3>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            className="p-1 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors"
+            title="Poser un override"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="rounded-lg border border-b1 bg-s2 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+              className="h-8 text-[12px]"
+              autoFocus
+            />
+            <span className="text-t4 text-[11px] font-mono shrink-0">
+              {aiQuota.effective.scope === 'day' ? '/ jour' : '/ mois'}
+            </span>
+          </div>
+          <Input
+            placeholder="Note (ex : vente manuelle du 05/09/2026)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="h-8 text-[12px]"
+          />
+          {set.isError && <p className="text-red text-[11px] font-mono">{(set.error as Error).message}</p>}
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <Button size="sm" variant="gold" onClick={save} disabled={set.isPending || !limit} className="h-7">
+              {set.isPending ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-7 gap-1">
+              <X className="w-3 h-3" /> Annuler
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-b1 bg-s2 px-3 py-2 text-[12px] text-t2 space-y-1">
+          <div className="flex justify-between">
+            <span className="text-t4">Limite effective</span>
+            <span>
+              {aiQuota.effective.limit} {aiQuota.effective.scope === 'day' ? '/ jour' : '/ mois'}
+            </span>
+          </div>
+          {aiQuota.override_limit !== null ? (
+            <>
+              <div className="flex justify-between">
+                <span className="text-t4">Override posé</span>
+                <span className="text-gold">{aiQuota.override_limit}</span>
+              </div>
+              {aiQuota.override_note && (
+                <div className="text-t4 text-[11px]">{aiQuota.override_note}</div>
+              )}
+              <button
+                onClick={() => remove.mutate()}
+                disabled={remove.isPending}
+                className="text-[11px] text-red hover:underline disabled:opacity-40 pt-0.5"
+              >
+                {remove.isPending ? 'Retrait…' : 'Retirer l\'override'}
+              </button>
+            </>
+          ) : (
+            <div className="text-t4 text-[11px]">Aucun override — palier normal du rôle.</div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

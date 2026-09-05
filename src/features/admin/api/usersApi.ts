@@ -99,6 +99,12 @@ export interface AdminUserDetail {
     marketing_consent: boolean;
     analytics_consent: boolean;
   } | null;
+  /** mibeko-dashboard#95 : quota effectif (override compte tenu) + override courant. */
+  ai_quota: {
+    effective: { scope: 'day' | 'month'; limit: number };
+    override_limit: number | null;
+    override_note: string | null;
+  };
   dossiers_count: number;
   conversations_count: number;
   subscription: {
@@ -230,6 +236,16 @@ export const impersonateUser = (id: string): Promise<{ token: string; user: User
   laravelClient
     .post<Envelope<{ token: string; user: User }>>(`admin/users/${id}/impersonate`)
     .then((r) => r.data.data);
+
+/**
+ * Override de quota IA — mibeko-dashboard#95, pensé pour une vente manuelle
+ * (§11.3 du business model) : c'est l'admin qui saisit le chiffre ici.
+ */
+export const setUserAiQuotaOverride = (id: string, limit: number, note?: string): Promise<Envelope<null>> =>
+  laravelClient.put<Envelope<null>>(`admin/users/${id}/ai-quota-override`, { limit, note }).then((r) => r.data);
+
+export const removeUserAiQuotaOverride = (id: string): Promise<Envelope<null>> =>
+  laravelClient.delete<Envelope<null>>(`admin/users/${id}/ai-quota-override`).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Invitations
