@@ -105,6 +105,16 @@ export interface AdminUserDetail {
     override_limit: number | null;
     override_note: string | null;
   };
+  /** mibeko-dashboard#100 : abonnement Pro vendu à la main, en cours de validité. */
+  plan_grant: {
+    id: string;
+    ends_at: string;
+    amount_fcfa: number | null;
+    channel: string | null;
+    reference: string | null;
+    notes: string | null;
+    granted_by: string | null;
+  } | null;
   dossiers_count: number;
   conversations_count: number;
   subscription: {
@@ -246,6 +256,25 @@ export const setUserAiQuotaOverride = (id: string, limit: number, note?: string)
 
 export const removeUserAiQuotaOverride = (id: string): Promise<Envelope<null>> =>
   laravelClient.delete<Envelope<null>>(`admin/users/${id}/ai-quota-override`).then((r) => r.data);
+
+export interface GrantProPlanInput {
+  ends_at: string;
+  amount_fcfa?: number;
+  channel?: string;
+  reference?: string;
+  notes?: string;
+}
+
+/**
+ * Abonnement Pro vendu à la main — mibeko-dashboard#100, même doctrine que
+ * l'override de quota ci-dessus : l'admin saisit l'ajustement après un
+ * encaissement manuel, jamais un parcours self-service.
+ */
+export const grantUserProPlan = (id: string, input: GrantProPlanInput): Promise<Envelope<{ id: string }>> =>
+  laravelClient.post<Envelope<{ id: string }>>(`admin/users/${id}/plan-grant`, input).then((r) => r.data);
+
+export const revokeUserProPlan = (id: string): Promise<Envelope<null>> =>
+  laravelClient.delete<Envelope<null>>(`admin/users/${id}/plan-grant`).then((r) => r.data);
 
 // ---------------------------------------------------------------------------
 // Invitations

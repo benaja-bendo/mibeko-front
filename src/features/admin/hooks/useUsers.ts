@@ -14,6 +14,8 @@ import {
   impersonateUser,
   setUserAiQuotaOverride,
   removeUserAiQuotaOverride,
+  grantUserProPlan,
+  revokeUserProPlan,
   listInvitations,
   createInvitation,
   resendInvitation,
@@ -22,6 +24,7 @@ import {
   type CreateUserPayload,
   type UpdateUserPayload,
   type CreateInvitationPayload,
+  type GrantProPlanInput,
 } from '@/features/admin/api/usersApi';
 
 const STALE = 30 * 1000;
@@ -159,4 +162,24 @@ export function useUserAiQuotaOverrideMutations(userId: string) {
   });
 
   return { set, remove };
+}
+
+/**
+ * Abonnement Pro vendu à la main d'un utilisateur — mibeko-dashboard#100.
+ * Invalide sa fiche détaillée, qui porte l'octroi actif.
+ */
+export function useUserPlanGrantMutations(userId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'user', userId] });
+
+  const grant = useMutation({
+    mutationFn: (input: GrantProPlanInput) => grantUserProPlan(userId, input),
+    onSuccess: invalidate,
+  });
+  const revoke = useMutation({
+    mutationFn: () => revokeUserProPlan(userId),
+    onSuccess: invalidate,
+  });
+
+  return { grant, revoke };
 }

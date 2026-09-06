@@ -7,6 +7,7 @@ import {
   useUserMutations,
   useImpersonate,
   useUserAiQuotaOverrideMutations,
+  useUserPlanGrantMutations,
 } from '@/features/admin/hooks/useUsers';
 import { Input } from '@/shared/components/ui/Input';
 import { ROLE_LABELS, type AdminUserDetail } from '@/features/admin/api/usersApi';
@@ -17,6 +18,7 @@ import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 import {
   ShieldCheck, ShieldOff, MailCheck, MailX, Ban, RotateCcw, KeyRound, LogIn, Trash2,
   Wifi, WifiOff, Lock, Unlock, Save, Clock, FolderOpen, MessagesSquare, Sparkles, Pencil, X,
+  Wallet,
 } from 'lucide-react';
 
 function fmtDate(iso?: string | null): string {
@@ -306,6 +308,9 @@ function UserDetailBody(props: {
         {/* Quota IA — mibeko-dashboard#95 */}
         <AiQuotaOverrideSection userId={data.id} aiQuota={data.ai_quota} />
 
+        {/* Abonnement Pro vendu à la main — mibeko-dashboard#100 */}
+        <ProPlanGrantSection userId={data.id} planGrant={data.plan_grant} />
+
         {/* Journal d'audit */}
         {data.recent_audits.length > 0 && (
           <section className="space-y-1.5">
@@ -486,6 +491,154 @@ function AiQuotaOverrideSection({
             </>
           ) : (
             <div className="text-t4 text-[11px]">Aucun override — palier normal du rôle.</div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Abonnement Pro vendu à la main — mibeko-dashboard#100. Même doctrine que
+ * le quota IA ci-dessus (vente manuelle, §11.3 du business model) : l'admin
+ * saisit l'ajustement après un encaissement mobile money ou en espèces.
+ * L'octroi expire de lui-même à l'échéance, côté serveur, sans action ici.
+ */
+function ProPlanGrantSection({
+  userId,
+  planGrant,
+}: {
+  userId: string;
+  planGrant: AdminUserDetail['plan_grant'];
+}) {
+  const { grant, revoke } = useUserPlanGrantMutations(userId);
+  const [editing, setEditing] = React.useState(false);
+  const [endsAt, setEndsAt] = React.useState('');
+  const [amount, setAmount] = React.useState('');
+  const [channel, setChannel] = React.useState('');
+  const [reference, setReference] = React.useState('');
+
+  const startEdit = () => {
+    setEndsAt('');
+    setAmount('15000');
+    setChannel('mobile_money');
+    setReference('');
+    setEditing(true);
+  };
+
+  const save = () => {
+    if (!endsAt) return;
+    grant.mutate(
+      {
+        ends_at: `${endsAt}T23:59:59`,
+        amount_fcfa: amount ? Number(amount) : undefined,
+        channel: channel.trim() || undefined,
+        reference: reference.trim() || undefined,
+      },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  return (
+    <section className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-t4 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5">
+          <Wallet className="w-3 h-3" /> Abonnement Pro
+        </h3>
+        {!editing && !planGrant && (
+          <button
+            onClick={startEdit}
+            className="p-1 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors"
+            title="Accorder un abonnement Pro"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="rounded-lg border border-b1 bg-s2 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-t4 text-[11px] font-mono shrink-0">Jusqu'au</span>
+            <Input
+              type="date"
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.target.value)}
+              className="h-8 text-[12px]"
+              autoFocus
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              placeholder="Montant FCFA"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="h-8 text-[12px]"
+            />
+            <Input
+              placeholder="Canal (mobile_money, especes…)"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              className="h-8 text-[12px]"
+            />
+          </div>
+          <Input
+            placeholder="Référence (ex : n° de transaction)"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            className="h-8 text-[12px]"
+          />
+          {grant.isError && <p className="text-red text-[11px] font-mono">{(grant.error as Error).message}</p>}
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <Button size="sm" variant="gold" onClick={save} disabled={grant.isPending || !endsAt} className="h-7">
+              {grant.isPending ? 'Enregistrement…' : 'Accorder'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-7 gap-1">
+              <X className="w-3 h-3" /> Annuler
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-b1 bg-s2 px-3 py-2 text-[12px] text-t2 space-y-1">
+          {planGrant ? (
+            <>
+              <div className="flex justify-between">
+                <span className="text-t4">Accordé jusqu'au</span>
+                <span className="text-gold">{fmtDate(planGrant.ends_at)}</span>
+              </div>
+              {planGrant.amount_fcfa !== null && (
+                <div className="flex justify-between">
+                  <span className="text-t4">Montant</span>
+                  <span>{planGrant.amount_fcfa.toLocaleString('fr-FR')} FCFA</span>
+                </div>
+              )}
+              {planGrant.channel && (
+                <div className="flex justify-between">
+                  <span className="text-t4">Canal</span>
+                  <span>{planGrant.channel}</span>
+                </div>
+              )}
+              {planGrant.reference && (
+                <div className="flex justify-between">
+                  <span className="text-t4">Référence</span>
+                  <span className="font-mono">{planGrant.reference}</span>
+                </div>
+              )}
+              {planGrant.granted_by && (
+                <div className="text-t4 text-[11px]">Accordé par {planGrant.granted_by}</div>
+              )}
+              <button
+                onClick={() => revoke.mutate()}
+                disabled={revoke.isPending}
+                className="text-[11px] text-red hover:underline disabled:opacity-40 pt-0.5"
+              >
+                {revoke.isPending ? 'Retrait…' : 'Retirer l\'abonnement'}
+              </button>
+            </>
+          ) : (
+            <div className="text-t4 text-[11px]">Aucun abonnement Pro accordé à la main.</div>
           )}
         </div>
       )}
