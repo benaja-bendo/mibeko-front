@@ -19,11 +19,42 @@ interface Envelope<T> {
 // Vue d'ensemble (KPIs)
 // ---------------------------------------------------------------------------
 
+/**
+ * Une mesure datée et sa fenêtre précédente de même longueur. Un total sans
+ * son antécédent ne dit pas s'il monte — c'est tout l'objet de #106.
+ */
+export interface AdminOverviewTrend {
+  value: number;
+  previous: number;
+}
+
 export interface AdminOverview {
   content: { documents: number; articles: number; official_journals: number };
   referentiels: { document_types: number; institutions: number; tags: number };
   people: { users: number };
-  attention: { open_flags: number; failed_extractions: number };
+  /** Ce qui demande une action. Chaque entrée vaut 0 quand tout va bien. */
+  attention: {
+    open_flags: number;
+    open_flags_blocking: number;
+    open_flags_warning: number;
+    failed_extractions: number;
+    ai_errors_24h: number;
+    unhandled_contacts: number;
+    plan_grants_expiring_soon: number;
+  };
+  trend_window_days: number;
+  trends: {
+    new_users: AdminOverviewTrend;
+    ai_questions: AdminOverviewTrend;
+    /** Coût mesuré en FCFA (`cost_estimated_fcfa`), jamais estimé côté client. */
+    ai_cost_fcfa: AdminOverviewTrend;
+  };
+  /**
+   * `total_active` n'est pas la somme de `mobile_active` et `web_active` :
+   * un compte peut porter un jeton sur les deux surfaces.
+   */
+  adoption: { mobile_active: number; web_active: number; total_active: number; window_days: number };
+  corpus: { published: number; pending: number; versions_without_embedding: number };
 }
 
 export const getAdminOverview = (): Promise<AdminOverview> =>
