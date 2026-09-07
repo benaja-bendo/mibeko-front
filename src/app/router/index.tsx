@@ -171,11 +171,22 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // ─── Pro space (/app/*) — user_pro + editor + admin ───────────────────────
+  // ─── Espace de travail (/app/*) — tout compte authentifié ─────────────────
+  //
+  // mibeko-front#24 : la garde de rôle a disparu de ces routes. Un rôle Spatie
+  // dit qui est la personne dans l'organisation, jamais ce qu'elle a payé —
+  // `mobile_user`, attribué à TOUTE auto-inscription (web comprise, cf.
+  // `CreateNewUser`), n'a jamais été un palier. Le droit d'usage se lit sur
+  // `/me/entitlements`, qui accorde déjà `library` et `assistant` à tous les
+  // plans et ne réserve que `export` au Pro ; côté API rien n'était fermé,
+  // le verrou n'existait qu'ici. Le différenciateur reste le quota (assistant)
+  // et l'entitlement vérifié au serveur (export, cf. EnsureExportEntitled),
+  // jamais la porte d'entrée. Suite de mibeko-front#7, qui avait ouvert le
+  // seul Assistant et laissé le reste de l'espace fermé.
   {
     path: '/app',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <AppDashboardRoutePage />
       </RequireAuth>
     ),
@@ -183,7 +194,7 @@ export const router = createBrowserRouter([
   {
     path: '/app/journals',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <ProJournalsRoutePage />
       </RequireAuth>
     ),
@@ -191,7 +202,7 @@ export const router = createBrowserRouter([
   {
     path: '/app/journals/:id',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <ProJournalViewRoutePage />
       </RequireAuth>
     ),
@@ -199,7 +210,7 @@ export const router = createBrowserRouter([
   {
     path: '/app/library',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <LibraryRoutePage />
       </RequireAuth>
     ),
@@ -207,7 +218,7 @@ export const router = createBrowserRouter([
   {
     path: '/app/library/:id',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <LibraryRoutePage />
       </RequireAuth>
     ),
@@ -226,7 +237,7 @@ export const router = createBrowserRouter([
   {
     path: '/app/dossiers',
     element: (
-      <RequireAuth roles={['admin', 'editor', 'user_pro']} requiredRole="user_pro">
+      <RequireAuth>
         <DossiersRoutePage />
       </RequireAuth>
     ),

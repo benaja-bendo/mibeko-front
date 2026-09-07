@@ -1,26 +1,24 @@
-import { hasRole, isProOrAbove, type User } from '@/shared/types/auth';
+import { hasRole, type User } from '@/shared/types/auth';
 
 /**
  * Destination par défaut d'un utilisateur authentifié.
  *
  * Source unique de vérité : la règle vivait auparavant en trois exemplaires
  * divergents — `getDefaultRedirect` dans `LoginPage`, `RedirectIfAuthenticated`
- * et `RootRedirect` dans `guards.tsx` — et les trois envoyaient vers `/app*`,
- * qui exige `user_pro`. Un compte fraîchement créé était donc accueilli par
- * « Fonctionnalité réservée aux abonnés Pro » quel que soit le chemin emprunté.
+ * et `RootRedirect` dans `guards.tsx`.
  *
- * Deux changements par rapport aux copies précédentes :
- *  - un compte sans abonnement atterrit sur son compte, d'où il voit son
- *    profil, l'état de son offre et l'application mobile ;
- *  - un administrateur va sur `/admin` et non plus sur `/editor` après
- *    connexion. C'est la règle que `RootRedirect` appliquait déjà — la retenir
- *    partout évite qu'une même personne atterrisse à deux endroits selon
- *    qu'elle se connecte ou qu'elle ouvre la racine.
+ * mibeko-front#24 : un compte sans abonnement atterrit désormais sur la
+ * bibliothèque, comme tout le monde. Le détour par `/settings/account` était
+ * un pansement, pas un choix de produit — il évitait le « Fonctionnalité
+ * réservée aux abonnés Pro » que `/app/library` renvoyait alors, en accueillant
+ * un nouveau venu par ses réglages plutôt que par le fonds. La garde de rôle
+ * ayant disparu de ces routes, le détour n'a plus de cause et il ne reste
+ * qu'une seule règle : le staff va dans son espace de travail, tous les autres
+ * vont au fonds.
  */
 export function defaultRedirectFor(user: User | null): string {
   if (!user) return '/auth/login';
   if (hasRole(user, 'admin')) return '/admin';
   if (hasRole(user, 'editor')) return '/editor';
-  if (isProOrAbove(user)) return '/app/library';
-  return '/settings/account';
+  return '/app/library';
 }

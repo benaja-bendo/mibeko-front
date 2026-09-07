@@ -218,10 +218,13 @@ interface SpaceTab {
   adminOnly?: boolean;
 }
 
+// mibeko-front#24 : l'onglet de l'espace de travail ne s'appelle plus « Pro ».
+// Il n'est visible que du staff (cf. `visibleTabs`), mais le mot désignait un
+// privilège qui n'existe plus — l'espace est ouvert à tout compte authentifié.
 const SPACE_TABS: SpaceTab[] = [
   { space: 'admin', to: '/admin', label: 'Admin', adminOnly: true },
   { space: 'editor', to: '/editor', label: 'Éditeur' },
-  { space: 'app', to: '/app', label: 'Pro' },
+  { space: 'app', to: '/app', label: 'Mon espace' },
 ];
 
 interface SidebarProps {
