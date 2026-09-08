@@ -26,7 +26,9 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
           </div>
           <div>
             <div className="text-t1 font-display text-xl font-semibold leading-tight">Mibeko</div>
-            <div className="text-t3 font-mono text-[10px] uppercase tracking-widest">LegalTech</div>
+            <div className="max-w-48 text-xs leading-tight text-t3">
+              Le droit congolais, clair et à portée de main
+            </div>
           </div>
         </Link>
 

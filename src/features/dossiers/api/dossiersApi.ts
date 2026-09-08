@@ -388,7 +388,7 @@ export async function removeDocument(
   await laravelClient.delete(`dossiers/${dossierId}/documents/${docId}`);
 }
 
-// ── Export PDF (inchangé) ─────────────────────────────────────────────────────
+// ── Export PDF ────────────────────────────────────────────────────────────────
 
 export interface DossierExportItem {
   type: 'article' | 'document';
@@ -406,6 +406,10 @@ export interface DossierExportPayload {
 /**
  * Génère et télécharge le PDF de synthèse d'un dossier à partir de ses
  * références juridiques. Le backend renvoie les octets bruts du PDF.
+ *
+ * La route reste publique pour le mode invité mobile. Sur le web authentifié,
+ * l'appelant doit donc vérifier `features.export` avant d'appeler cette
+ * fonction : le palier relève de l'entitlement, jamais d'un rôle local.
  */
 export async function exportDossierPdf(
   payload: DossierExportPayload,

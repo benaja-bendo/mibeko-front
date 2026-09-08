@@ -22,3 +22,13 @@ export function defaultRedirectFor(user: User | null): string {
   if (hasRole(user, 'editor')) return '/editor';
   return '/app/library';
 }
+
+/**
+ * Destination après auto-inscription, en conservant uniquement les intentions
+ * connues. Une valeur arbitraire ne devient jamais une URL de redirection.
+ */
+export function redirectAfterRegistration(user: User | null, next: string | null): string {
+  if (!user) return defaultRedirectFor(user);
+  if (next === 'assistant') return '/app/assistant';
+  return defaultRedirectFor(user);
+}

@@ -77,7 +77,7 @@ export function themeToCssVars(theme: ThemeDefinition): Record<string, string> {
 }
 
 /** Charge la feuille Google Fonts du thème (sans doublonner). */
-function ensureFontsLoaded(theme: ThemeDefinition): void {
+export function ensureThemeFontsLoaded(theme: ThemeDefinition): void {
   const existing = document.getElementById(FONTS_LINK_ID) as HTMLLinkElement | null;
   if (existing?.href === theme.fonts.googleFontsHref) return;
 
@@ -102,7 +102,7 @@ export function applyTheme(id: string): ThemeDefinition {
   }
   root.dataset.theme = theme.id;
   root.style.colorScheme = theme.mode;
-  ensureFontsLoaded(theme);
+  ensureThemeFontsLoaded(theme);
 
   try {
     localStorage.setItem(THEME_ID_KEY, theme.id);

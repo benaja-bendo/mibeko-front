@@ -43,7 +43,7 @@ const UPGRADE_PATHS: Record<string, { title: string; steps: string[]; cta?: stri
     ],
   },
   guest: {
-    title: 'Bienvenue sur Mibeko LegalTech',
+    title: 'Bienvenue sur Mibeko',
     steps: [
       'Votre compte a été créé avec succès, mais aucun accès spécifique ne vous a encore été attribué.',
       'Si vous êtes un professionnel du droit, vous pouvez découvrir nos offres Pro.',
@@ -85,7 +85,9 @@ export default function UnauthorizedPage({ requiredRole = 'user_pro' }: Unauthor
         </div>
         <div>
           <div className="text-t1 font-display text-lg font-semibold leading-tight">Mibeko</div>
-          <div className="text-t3 font-mono text-[10px] uppercase tracking-widest">LegalTech</div>
+          <div className="max-w-48 text-xs leading-tight text-t3">
+            Le droit congolais, clair et à portée de main
+          </div>
         </div>
       </div>
 

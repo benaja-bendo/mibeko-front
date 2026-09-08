@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
+import { AuthAppearance } from './AuthAppearance';
 
 /**
  * Affiche un écran de chargement uniforme pendant le lazy loading des pages.
@@ -20,6 +21,15 @@ function LazyPage({ Component }: { Component: LazyExoticComponent<ComponentType>
     <Suspense fallback={<PageFallback />}>
       <Component />
     </Suspense>
+  );
+}
+
+/** Rend une route d'authentification sous l'identité claire du site public. */
+function AuthRoutePage({ Component }: { Component: LazyExoticComponent<ComponentType> }) {
+  return (
+    <AuthAppearance>
+      <LazyPage Component={Component} />
+    </AuthAppearance>
   );
 }
 
@@ -64,19 +74,19 @@ const SettingsSupport = lazy(() => import('@/pages/settings/Support'));
  * Rend la page de connexion en lazy loading.
  */
 export function LoginRoutePage() {
-  return <LazyPage Component={LoginPage} />;
+  return <AuthRoutePage Component={LoginPage} />;
 }
 
 export function RegisterRoutePage() {
-  return <LazyPage Component={RegisterPage} />;
+  return <AuthRoutePage Component={RegisterPage} />;
 }
 
 export function ForgotPasswordRoutePage() {
-  return <LazyPage Component={ForgotPasswordPage} />;
+  return <AuthRoutePage Component={ForgotPasswordPage} />;
 }
 
 export function ResetPasswordRoutePage() {
-  return <LazyPage Component={ResetPasswordPage} />;
+  return <AuthRoutePage Component={ResetPasswordPage} />;
 }
 
 /**
@@ -216,7 +226,7 @@ export function AdminAuditRoutePage() {
  * Rend la page publique d'acceptation d'invitation en lazy loading.
  */
 export function AcceptInvitationRoutePage() {
-  return <LazyPage Component={AcceptInvitationPage} />;
+  return <AuthRoutePage Component={AcceptInvitationPage} />;
 }
 
 /**
