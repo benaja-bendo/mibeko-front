@@ -22,8 +22,14 @@ import {
   CalendarClock,
   Check,
   Pencil,
+  Lock,
 } from 'lucide-react';
-import { Sheet, SheetContent, SheetTitle } from '@/shared/components/ui/Sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/shared/components/ui/Sheet';
 import {
   Select,
   SelectContent,
@@ -60,6 +66,7 @@ import DocumentGeneratorModal from './DocumentGeneratorModal';
 import EcheanceModal from './EcheanceModal';
 import AddReferenceModal from './AddReferenceModal';
 import { displayArticleNumber } from '@/shared/lib/legalLabels';
+import { useEntitlements } from '@/features/entitlements/hooks/useEntitlements';
 
 interface DossierDrawerProps {
   dossierId: string | null;
@@ -136,6 +143,8 @@ export default function DossierDrawer({
   const deleteDossier = useDeleteDossier();
   const updateEcheance = useUpdateEcheance();
   const deleteEcheance = useDeleteEcheance();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
+  const canExportPdf = entitlements?.features.export ?? false;
   const { removeReference, addPiece, removePiece, removeDocument } =
     useDossierAnnexes();
 
@@ -182,6 +191,12 @@ export default function DossierDrawer({
 
   const handleExport = async () => {
     setExportError(null);
+
+    if (!canExportPdf) {
+      setExportError('L’export PDF est réservé aux comptes Mibeko Pro.');
+      return;
+    }
+
     const items: DossierExportItem[] = dossier.references.map((r) => ({
       type: r.type,
       id: r.id,
@@ -222,6 +237,9 @@ export default function DossierDrawer({
           className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-none md:w-[560px]"
         >
           <SheetTitle className="sr-only">{dossier.title}</SheetTitle>
+          <SheetDescription className="sr-only">
+            Détail du dossier, échéances, annexes et actions disponibles.
+          </SheetDescription>
 
           {/* En-tête */}
           <header className="shrink-0 border-b border-b1 p-4 pr-12">
@@ -558,10 +576,12 @@ export default function DossierDrawer({
                 variant="gold"
                 className="flex-1"
                 onClick={handleExport}
-                disabled={exporting}
+                disabled={exporting || entitlementsLoading}
               >
                 {exporting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : !canExportPdf ? (
+                  <Lock className="mr-2 h-4 w-4" />
                 ) : (
                   <Download className="mr-2 h-4 w-4" />
                 )}

@@ -178,11 +178,12 @@ export const router = createBrowserRouter([
   // `mobile_user`, attribué à TOUTE auto-inscription (web comprise, cf.
   // `CreateNewUser`), n'a jamais été un palier. Le droit d'usage se lit sur
   // `/me/entitlements`, qui accorde déjà `library` et `assistant` à tous les
-  // plans et ne réserve que `export` au Pro ; côté API rien n'était fermé,
-  // le verrou n'existait qu'ici. Le différenciateur reste le quota (assistant)
-  // et l'entitlement vérifié au serveur (export, cf. EnsureExportEntitled),
-  // jamais la porte d'entrée. Suite de mibeko-front#7, qui avait ouvert le
-  // seul Assistant et laissé le reste de l'espace fermé.
+  // plans et ne réserve que `export` au Pro ; côté API, les pages elles-mêmes
+  // n'étaient pas fermées. Le différenciateur reste le quota (assistant) et
+  // l'entitlement (exports : serveur pour les textes, interface web pour les
+  // dossiers dont la route reste publique pour le mobile invité), jamais la
+  // porte d'entrée. Suite de mibeko-front#7, qui avait ouvert le seul Assistant
+  // et laissé le reste de l'espace fermé.
   {
     path: '/app',
     element: (
