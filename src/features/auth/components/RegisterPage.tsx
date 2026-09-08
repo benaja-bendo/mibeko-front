@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { register } from '@/features/auth/api/authApi';
-import { defaultRedirectFor } from '@/features/auth/redirect';
+import { redirectAfterRegistration } from '@/features/auth/redirect';
 import AuthShell from './AuthShell';
 import PasswordField from './PasswordField';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setAuth } = useAuthStore();
 
   const [name, setName] = useState('');
@@ -40,7 +41,9 @@ export default function RegisterPage() {
         password_confirmation: confirmation,
       });
       setAuth(user, token);
-      navigate(defaultRedirectFor(user), { replace: true });
+      navigate(redirectAfterRegistration(user, searchParams.get('next')), {
+        replace: true,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Création du compte impossible');
     } finally {
@@ -51,7 +54,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Créer un compte"
-      subtitle="La lecture des textes reste libre et sans compte. Un compte sert à retrouver votre espace."
+      subtitle="Un compte gratuit ouvre l’Assistant Mibeko et votre bibliothèque juridique, sur le web comme sur mobile."
       footer={
         <p>
           Vous avez déjà un compte ?{' '}

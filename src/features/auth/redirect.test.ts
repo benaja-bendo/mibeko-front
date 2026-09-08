@@ -1,4 +1,4 @@
-import { defaultRedirectFor } from './redirect';
+import { defaultRedirectFor, redirectAfterRegistration } from './redirect';
 import type { User, UserRole } from '@/shared/types/auth';
 
 function userWith(...roles: UserRole[]): User {
@@ -31,5 +31,19 @@ describe('defaultRedirectFor', () => {
 
   it('renvoie vers la connexion quand personne n’est authentifié', () => {
     expect(defaultRedirectFor(null)).toBe('/auth/login');
+  });
+});
+
+describe('redirectAfterRegistration', () => {
+  it("conserve l'intention de poser une question après l'inscription", () => {
+    expect(redirectAfterRegistration(userWith('mobile_user'), 'assistant')).toBe(
+      '/app/assistant',
+    );
+  });
+
+  it('ignore une destination inconnue et conserve la règle par défaut', () => {
+    expect(redirectAfterRegistration(userWith('mobile_user'), 'https://example.com')).toBe(
+      '/app/library',
+    );
   });
 });
