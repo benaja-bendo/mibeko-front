@@ -78,6 +78,7 @@ it('énumère ce qui demande une action et lie les signalements bloquants', asyn
   expect(screen.getByText('10 messages de contact non traités')).toBeInTheDocument();
   // Singulier : une seule échéance, un seul abonnement.
   expect(screen.getByText('1 abonnement Pro expire sous 7 jours')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /1 abonnement Pro expire sous 7 jours/ })).toHaveAttribute('href', '/admin/abonnements');
   expect(screen.getByText('1 extraction en échec')).toBeInTheDocument();
   expect(screen.queryByText("Rien ne demande d'action.")).not.toBeInTheDocument();
 

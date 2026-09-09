@@ -11,6 +11,7 @@ import {
 } from '@/features/admin/hooks/useUsers';
 import { Input } from '@/shared/components/ui/Input';
 import { ROLE_LABELS, type AdminUserDetail } from '@/features/admin/api/usersApi';
+import UserCreditsSection from './UserCreditsSection';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import RolesPermissionsEditor from './RolesPermissionsEditor';
 import SuspendDialog from './SuspendDialog';
@@ -310,6 +311,7 @@ function UserDetailBody(props: {
 
         {/* Abonnement Pro vendu à la main — mibeko-dashboard#100 */}
         <ProPlanGrantSection userId={data.id} planGrant={data.plan_grant} />
+        {!props.isTrashed && <UserCreditsSection key={data.id} userId={data.id} />}
 
         {/* Journal d'audit */}
         {data.recent_audits.length > 0 && (
@@ -520,7 +522,7 @@ function ProPlanGrantSection({
 
   const startEdit = () => {
     setEndsAt('');
-    setAmount('15000');
+    setAmount('');
     setChannel('mobile_money');
     setReference('');
     setEditing(true);
@@ -530,7 +532,7 @@ function ProPlanGrantSection({
     if (!endsAt) return;
     grant.mutate(
       {
-        ends_at: `${endsAt}T23:59:59`,
+        ends_at: new Date(`${endsAt}T23:59:59`).toISOString(),
         amount_fcfa: amount ? Number(amount) : undefined,
         channel: channel.trim() || undefined,
         reference: reference.trim() || undefined,
@@ -545,7 +547,7 @@ function ProPlanGrantSection({
         <h3 className="text-t4 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5">
           <Wallet className="w-3 h-3" /> Abonnement Pro
         </h3>
-        {!editing && !planGrant && (
+        {!editing && (
           <button
             onClick={startEdit}
             className="p-1 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors"
@@ -590,9 +592,10 @@ function ProPlanGrantSection({
             onChange={(e) => setReference(e.target.value)}
             className="h-8 text-[12px]"
           />
+          <p className="text-xs text-t3">Après vérification de l’encaissement uniquement. Un montant payé exige un canal et une référence unique. Pour un renouvellement, indiquez la nouvelle date de fin.</p>
           {grant.isError && <p className="text-red text-[11px] font-mono">{(grant.error as Error).message}</p>}
           <div className="flex items-center gap-1.5 pt-0.5">
-            <Button size="sm" variant="gold" onClick={save} disabled={grant.isPending || !endsAt} className="h-7">
+            <Button size="sm" variant="gold" onClick={save} disabled={grant.isPending || !endsAt || (Number(amount) > 0 && (!channel.trim() || !reference.trim()))} className="h-7">
               {grant.isPending ? 'Enregistrement…' : 'Accorder'}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-7 gap-1">

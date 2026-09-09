@@ -102,9 +102,9 @@ interface ActionItem {
  * strictement positif : le bandeau est vide la plupart du temps, et c'est le
  * comportement voulu.
  *
- * Trois entrées n'ont pas encore d'écran de destination — la boîte de
- * réception (#107), la console IA (#108) et la console des abonnements
- * (#109). Elles sont volontairement signalées sans lien plutôt que tues :
+ * Deux entrées n'ont pas encore d'écran de destination — la boîte de
+ * réception (#107) et la console IA (#108).
+ * Elles sont volontairement signalées sans lien plutôt que tues :
  * savoir qu'il y a dix messages en attente vaut déjà mieux que l'ignorer.
  */
 function buildActions(attention: AdminOverview['attention']): ActionItem[] {
@@ -123,6 +123,7 @@ function buildActions(attention: AdminOverview['attention']): ActionItem[] {
     },
     {
       key: 'expiring',
+      to: '/admin/abonnements',
       count: attention.plan_grants_expiring_soon,
       label: `${attention.plan_grants_expiring_soon} ${plural(attention.plan_grants_expiring_soon, 'abonnement Pro expire', 'abonnements Pro expirent')} sous 7 jours`,
     },

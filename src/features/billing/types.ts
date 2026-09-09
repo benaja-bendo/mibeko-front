@@ -55,6 +55,9 @@ export interface BillingInfo {
 
 /** Vue d'ensemble renvoyée par GET /billing. */
 export interface BillingOverview {
+  effective_plan: 'libre' | 'pro';
+  manual_subscription: ManualGrant | null;
+  credit_balance: number;
   subscription: CurrentSubscription;
   payment_method: PaymentMethod | null;
   invoices: Invoice[];
@@ -62,6 +65,29 @@ export interface BillingOverview {
   plans: BillingPlan[];
   /** Indique si Stripe est configuré (sinon checkout/portail indisponibles). */
   stripe_enabled: boolean;
+}
+
+export interface ManualGrant {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'active' | 'ended' | 'scheduled';
+  amount_fcfa: number | null;
+  channel: string | null;
+  reference: string | null;
+  created_at: string;
+}
+
+export interface CreditEntry {
+  id: string;
+  type: 'purchase' | 'correction' | 'consumption';
+  amount: number;
+  created_at: string;
+}
+
+export interface BillingPage<T> {
+  data: T[];
+  pagination: { current_page: number; last_page: number; total: number };
 }
 
 export interface UpdateBillingInfoPayload {

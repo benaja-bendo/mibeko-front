@@ -1,5 +1,6 @@
 import { Mail, BookOpen, FileText, Shield, Scale, ExternalLink } from 'lucide-react';
 import type { ComponentType } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import SettingsLayout from './SettingsLayout';
 import { SettingsCard } from '@/features/settings';
 
@@ -60,9 +61,15 @@ function LinkItem({ icon: Icon, label, description, href, external }: LinkRow) {
  * Contenu statique (liens vers le site public) ; aucune donnée utilisateur n'y transite.
  */
 export default function Support() {
+  const [params] = useSearchParams();
   return (
     <SettingsLayout title="Support & Légal" description="Assistance, documentation et informations juridiques.">
       <div className="space-y-6">
+        {params.get('category') === 'billing' && <SettingsCard title="Paiement et abonnement" description="Demande de tarif, renouvellement ou paiement à vérifier.">
+          <p className="text-sm text-t2">Indiquez l’adresse e-mail de votre compte, le montant, la date, le canal et la référence de transaction si vous avez déjà réglé. Notre équipe doit vérifier l’encaissement avant d’activer vos droits.</p>
+          <p className="text-sm text-t3 mt-2">Ne transmettez aucun code PIN, mot de passe ou code de validation.</p>
+          <a className="inline-block text-gold underline mt-3" href="mailto:facturation@mibeko.fr?subject=Paiement%20et%20abonnement%20Mibeko">Écrire à la facturation</a>
+        </SettingsCard>}
         <SettingsCard title="Aide & contact" description="Besoin d'un coup de main ? Nous sommes là.">
           <div className="divide-y divide-b1">
             {HELP_LINKS.map((link) => (

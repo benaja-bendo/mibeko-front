@@ -150,6 +150,12 @@ const APP_NAV = [
 
 const ADMIN_NAV = [
   {
+    to: '/admin/abonnements',
+    exact: false,
+    icon: <CreditCard className="w-4 h-4" />,
+    label: 'Abonnements',
+  },
+  {
     to: '/admin',
     exact: true,
     icon: (

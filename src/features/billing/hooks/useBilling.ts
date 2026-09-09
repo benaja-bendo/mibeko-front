@@ -22,6 +22,7 @@ export function useBillingOverview() {
     queryKey: billingKeys.overview(),
     queryFn: getBillingOverview,
     staleTime: 60_000,
+    refetchInterval: 30_000,
   });
 }
 

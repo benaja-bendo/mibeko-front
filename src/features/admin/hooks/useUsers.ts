@@ -170,7 +170,12 @@ export function useUserAiQuotaOverrideMutations(userId: string) {
  */
 export function useUserPlanGrantMutations(userId: string) {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'user', userId] });
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['admin', 'user', userId] });
+    void qc.invalidateQueries({ queryKey: ['admin-billing'] });
+    void qc.invalidateQueries({ queryKey: ['billing'] });
+    void qc.invalidateQueries({ queryKey: ['entitlements'] });
+  };
 
   const grant = useMutation({
     mutationFn: (input: GrantProPlanInput) => grantUserProPlan(userId, input),

@@ -65,6 +65,7 @@ const AdminReferentiels = lazy(() => import('@/pages/admin/Referentiels'));
 const AdminSignalements = lazy(() => import('@/pages/admin/Signalements'));
 const AdminUtilisateurs = lazy(() => import('@/pages/admin/Utilisateurs'));
 const AdminAudit = lazy(() => import('@/pages/admin/Audit'));
+const AdminAbonnements = lazy(() => import('@/pages/admin/Abonnements'));
 const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
 const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
 const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
@@ -192,6 +193,10 @@ export function UpgradeRoutePage() {
  */
 export function AdminDashboardRoutePage() {
   return <LazyPage Component={AdminDashboard} />;
+}
+
+export function AdminAbonnementsRoutePage() {
+  return <LazyPage Component={AdminAbonnements} />;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ManualBilling } from '@/features/billing/components/ManualBilling';
 import { Check, Download, ExternalLink, Info } from 'lucide-react';
 import SettingsLayout from './SettingsLayout';
 import { Button } from '@/shared/components/ui/Button';
@@ -66,6 +67,7 @@ function BillingContent({ data }: { data: BillingOverview }) {
 
   return (
     <div className="space-y-6">
+      <ManualBilling data={data} />
       {!data.stripe_enabled && (
         <div className="flex items-start gap-2.5 rounded-lg border border-blue/20 bg-blue-d px-4 py-3 text-xs text-t2">
           <Info className="w-4 h-4 text-blue shrink-0 mt-0.5" />
@@ -78,7 +80,7 @@ function BillingContent({ data }: { data: BillingOverview }) {
 
       {/* Abonnement courant */}
       <SettingsCard
-        title="Abonnement"
+        title="Abonnement en ligne (Stripe)"
         description="Votre formule actuelle et son statut."
         action={
           <span className={`px-2.5 py-1 rounded-md border text-xs font-medium ${status.className}`}>
@@ -112,14 +114,14 @@ function BillingContent({ data }: { data: BillingOverview }) {
           </div>
         ) : (
           <p className="text-sm text-t2">
-            Vous n'avez pas d'abonnement actif. Choisissez une formule ci-dessous pour débloquer toutes les fonctionnalités.
+            Aucun abonnement Stripe. Vos accès et vos abonnements manuels sont indiqués ci-dessus.
           </p>
         )}
         {portal.isError && <Feedback kind="error" message={portal.error.message} className="mt-3" />}
       </SettingsCard>
 
       {/* Choix de plan (si pas d'abonnement) */}
-      {!hasSubscription && data.plans.length > 0 && (
+      {!hasSubscription && data.effective_plan !== 'pro' && data.plans.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data.plans.map((plan) => (
             <div key={plan.id} className="bg-s1 border border-b1 rounded-xl p-5 flex flex-col">
