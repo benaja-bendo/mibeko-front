@@ -102,10 +102,7 @@ interface ActionItem {
  * strictement positif : le bandeau est vide la plupart du temps, et c'est le
  * comportement voulu.
  *
- * Deux entrées n'ont pas encore d'écran de destination — la boîte de
- * réception (#107) et la console IA (#108).
- * Elles sont volontairement signalées sans lien plutôt que tues :
- * savoir qu'il y a dix messages en attente vaut déjà mieux que l'ignorer.
+ * La console IA (#108) reste signalée sans lien tant qu'elle n'a pas d'écran.
  */
 function buildActions(attention: AdminOverview['attention']): ActionItem[] {
   const plural = (n: number, one: string, many: string) => (n > 1 ? many : one);
@@ -118,6 +115,7 @@ function buildActions(attention: AdminOverview['attention']): ActionItem[] {
     },
     {
       key: 'contacts',
+      to: '/admin/messages',
       count: attention.unhandled_contacts,
       label: `${attention.unhandled_contacts} ${plural(attention.unhandled_contacts, 'message de contact non traité', 'messages de contact non traités')}`,
     },

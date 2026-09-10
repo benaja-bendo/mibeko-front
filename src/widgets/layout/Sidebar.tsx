@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Settings, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
+import { Settings, Mail, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
 
@@ -149,6 +149,7 @@ const APP_NAV = [
 ];
 
 const ADMIN_NAV = [
+  { to: '/admin/messages', exact: false, icon: <Mail className="w-4 h-4" />, label: 'Messages' },
   {
     to: '/admin/abonnements',
     exact: false,

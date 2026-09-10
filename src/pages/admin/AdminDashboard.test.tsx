@@ -75,7 +75,7 @@ it('énumère ce qui demande une action et lie les signalements bloquants', asyn
   renderWithProviders(<AdminDashboard />);
 
   expect(await screen.findByText("18 erreurs de l'assistant IA sur 24 h")).toBeInTheDocument();
-  expect(screen.getByText('10 messages de contact non traités')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /10 messages de contact non traités/ })).toHaveAttribute('href', '/admin/messages');
   // Singulier : une seule échéance, un seul abonnement.
   expect(screen.getByText('1 abonnement Pro expire sous 7 jours')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /1 abonnement Pro expire sous 7 jours/ })).toHaveAttribute('href', '/admin/abonnements');

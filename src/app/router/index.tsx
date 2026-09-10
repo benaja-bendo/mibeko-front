@@ -3,6 +3,7 @@ import { RequireAuth, RedirectIfAuthenticated, RootRedirect } from './guards';
 import {
   AcceptInvitationRoutePage,
   AdminDashboardRoutePage,
+  AdminMessagesRoutePage,
   AdminAbonnementsRoutePage,
   AdminReferentielsRoutePage,
   AdminSignalementsRoutePage,
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
   },
 
   // ─── Admin space (/admin/*) — admin uniquement ────────────────────────────
+  {
+    path: '/admin/messages',
+    element: <RequireAuth roles={['admin']} requiredRole="admin"><AdminMessagesRoutePage /></RequireAuth>,
+  },
   {
     path: '/admin/abonnements',
     element: <RequireAuth roles={['admin']} requiredRole="admin"><AdminAbonnementsRoutePage /></RequireAuth>,
