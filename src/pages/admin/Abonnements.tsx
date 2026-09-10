@@ -58,7 +58,7 @@ export default function Abonnements() {
       <option value="">Toutes les demandes</option><option value="awaiting_payment">Paiement attendu</option><option value="payment_declared">Paiement déclaré</option><option value="verifying">Vérification en cours</option><option value="activated">Activées</option><option value="rejected">Refusées</option>
     </select></label>}
     {tab === 'grants' && <label className="block text-sm text-t2">Échéances <select className="bg-s1 border border-b1 rounded p-2" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-      <option value="">Tous les octrois</option><option value="active">Actifs</option><option value="expiring_7">Expire sous 7 jours</option><option value="expiring_30">Expire sous 30 jours</option><option value="ended">Terminés</option>
+      <option value="">Tous les octrois</option><option value="active">Actifs</option><option value="expiring_7">Expire sous 7 jours</option><option value="expiring_30">Expire sous 30 jours</option><option value="ended">Terminés</option><option value="revoked">Accès retiré</option>
     </select></label>}
     {tab === 'untracked' && <p className="text-sm text-t3">Ces comptes portent le rôle user_pro sans octroi manuel actif. Vérifiez leur situation (accès offert, ancien rôle ou Stripe) avant toute régularisation. Aucun rôle n’est retiré automatiquement.</p>}
     {current.isPending && <p role="status">Chargement…</p>}

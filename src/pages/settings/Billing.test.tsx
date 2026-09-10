@@ -7,7 +7,7 @@ import Billing from './Billing';
 import Support from './Support';
 import type { BillingOverview, ManualGrant } from '@/features/billing/types';
 
-const grant: ManualGrant = { id: 'grant-1', status: 'active', starts_at: '2026-09-01T12:00:00Z', ends_at: '2026-10-01T12:00:00Z', amount_fcfa: 15000, channel: 'mobile_money', reference: 'MM-001', created_at: '2026-09-01T12:00:00Z' };
+const grant: ManualGrant = { id: 'grant-1', status: 'active', starts_at: '2026-09-01T12:00:00Z', ends_at: '2026-10-01T12:00:00Z', revoked_at: null, amount_fcfa: 15000, channel: 'mobile_money', reference: 'MM-001', created_at: '2026-09-01T12:00:00Z' };
 const overview: BillingOverview = {
   effective_plan: 'pro', manual_subscription: grant, credit_balance: 40,
   stripe_enabled: false, subscription: { status: 'none', plan_name: null, renews_at: null, trial_ends_at: null, on_grace_period: false },

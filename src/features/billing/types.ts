@@ -71,7 +71,9 @@ export interface ManualGrant {
   id: string;
   starts_at: string;
   ends_at: string;
-  status: 'active' | 'ended' | 'scheduled';
+  /** Présent seulement si un admin a coupé l'accès avant l'échéance contractuelle (`ends_at` inchangé). */
+  revoked_at: string | null;
+  status: 'active' | 'ended' | 'scheduled' | 'revoked';
   amount_fcfa: number | null;
   channel: string | null;
   reference: string | null;
