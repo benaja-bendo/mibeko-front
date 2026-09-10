@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Download, Loader2 } from 'lucide-react';
 import { activatePaymentOrder, downloadAdminGrantReceipt, getAdminPaymentOrders, getBillingSummary, getAdminGrants, getAdminCredits, getUntrackedAccounts, rejectPaymentOrder, startPaymentVerification } from '@/features/admin/api/adminBillingApi';
+import GrantMovementsPanel from '@/features/admin/components/GrantMovementsPanel';
 import { HistoryPagination } from '@/features/billing/components/ManualBilling';
 import { channelLabel, creditLabel, grantLabel, paymentOrderLabel } from '@/features/billing/labels';
 import type { ManualPaymentOrderStatus } from '@/features/billing/types';
@@ -21,6 +22,8 @@ export default function Abonnements() {
   const [status, setStatus] = useState('');
   const [orderStatus, setOrderStatus] = useState<ManualPaymentOrderStatus | ''>('');
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [collectedAmounts, setCollectedAmounts] = useState<Record<string, string>>({});
+  const [expandedGrant, setExpandedGrant] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const summary = useQuery({ queryKey: ['admin-billing', 'summary', month], queryFn: () => getBillingSummary(month), enabled: Boolean(month) });
   const grants = useQuery({ queryKey: ['admin-billing', 'grants', page, status], queryFn: () => getAdminGrants(page, status), enabled: tab === 'grants' });
@@ -33,7 +36,10 @@ export default function Abonnements() {
     void queryClient.invalidateQueries({ queryKey: ['entitlements'] });
   };
   const verify = useMutation({ mutationFn: startPaymentVerification, onSuccess: invalidateOrders });
-  const activate = useMutation({ mutationFn: activatePaymentOrder, onSuccess: invalidateOrders });
+  const activate = useMutation({
+    mutationFn: ({ orderId, collectedAmountFcfa }: { orderId: string; collectedAmountFcfa?: number }) => activatePaymentOrder(orderId, collectedAmountFcfa ? { collected_amount_fcfa: collectedAmountFcfa } : undefined),
+    onSuccess: invalidateOrders,
+  });
   const reject = useMutation({ mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) => rejectPaymentOrder(orderId, reason), onSuccess: invalidateOrders });
   const downloadReceipt = useMutation({
     mutationFn: (grantId: string) => downloadAdminGrantReceipt(grantId),
@@ -52,12 +58,16 @@ export default function Abonnements() {
     {summary.isError && <p role="alert">{summary.error.message} <Button onClick={() => summary.refetch()}>Réessayer les indicateurs</Button></p>}
     {summary.data && <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[
-        ['Montants enregistrés ce mois', `${summary.data.recorded_amount_fcfa.toLocaleString('fr-FR')} FCFA`],
+        ['Encaissé (brut)', `${summary.data.collected_amount_fcfa.toLocaleString('fr-FR')} FCFA`],
+        ['Remboursements', `${summary.data.refunded_amount_fcfa.toLocaleString('fr-FR')} FCFA`],
+        ['Net', `${summary.data.net_amount_fcfa.toLocaleString('fr-FR')} FCFA`],
+        ['Écarts saisi/encaissé', summary.data.discrepancy_count],
+        ['Montants saisis ce mois', `${summary.data.recorded_amount_fcfa.toLocaleString('fr-FR')} FCFA`],
         ['Octrois expirant sous 7 jours', summary.data.expiring_7_days],
         ['Octrois expirant sous 30 jours', summary.data.expiring_30_days],
         ['Comptes Pro sans octroi actif', summary.data.untracked_pro_accounts],
       ].map(([label, value]) => <div key={label} className="rounded-xl border border-b1 bg-s1 p-4"><p className="text-xs text-t3">{label}</p><p className="text-xl text-t1 mt-2">{value}</p></div>)}</div>
-      <p className="text-xs text-t3">Somme des montants d’abonnements saisis ce mois, pas un rapprochement bancaire ni une recette nette de remboursements. {summary.data.unpriced_grants} octroi(s) sans montant. Les crédits ne sont pas des FCFA.</p>
+      <p className="text-xs text-t3">Brut, remboursements et net dérivés du grand livre des mouvements (mibeko-dashboard#122), pas un rapprochement bancaire. Le montant saisi reste ce qui a été déclaré à la vente, pas nécessairement encaissé — {summary.data.unpriced_grants} octroi(s) sans montant saisi. Les crédits ne sont pas des FCFA.</p>
     </>}
     <div className="flex gap-2 flex-wrap" aria-label="Vues de facturation">{([['orders', 'Demandes de paiement'], ['grants', 'Abonnements'], ['credits', 'Grand livre de crédits'], ['untracked', 'Pro à vérifier']] as const).map(([value, label]) => <Button key={value} variant={tab === value ? 'gold' : 'outline'} aria-pressed={tab === value} onClick={() => { setTab(value); setPage(1); }}>{label}</Button>)}</div>
     {tab === 'orders' && <label className="block text-sm text-t2">Étape <select className="bg-s1 border border-b1 rounded p-2" value={orderStatus} onChange={(e) => { setOrderStatus(e.target.value as ManualPaymentOrderStatus | ''); setPage(1); }}>
@@ -74,7 +84,8 @@ export default function Abonnements() {
       {tab === 'orders' && orders.data?.data.map((order) => {
         const reason = rejectionReasons[order.id] ?? '';
         const canReject = order.status !== 'activated' && order.status !== 'rejected';
-        const error = verify.variables === order.id && verify.isError ? verify.error : activate.variables === order.id && activate.isError ? activate.error : reject.variables?.orderId === order.id && reject.isError ? reject.error : null;
+        const collectedAmount = collectedAmounts[order.id] ?? '';
+        const error = verify.variables === order.id && verify.isError ? verify.error : activate.variables?.orderId === order.id && activate.isError ? activate.error : reject.variables?.orderId === order.id && reject.isError ? reject.error : null;
         return <li key={order.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p>{order.user ? personLink(order.user.id, order.user.name) : 'Compte supprimé'} · {order.offer_label}</p>
@@ -86,7 +97,15 @@ export default function Abonnements() {
           {order.internal_notes && <p className="text-xs text-t3">Note interne : {order.internal_notes}</p>}
           {order.rejection_reason && <p className="text-red">Motif transmis : {order.rejection_reason}</p>}
           {order.status === 'payment_declared' && <Button size="sm" variant="gold" disabled={verify.isPending && verify.variables === order.id} onClick={() => verify.mutate(order.id)}>Commencer la vérification</Button>}
-          {order.status === 'verifying' && <Button size="sm" variant="gold" disabled={activate.isPending && activate.variables === order.id} onClick={() => activate.mutate(order.id)}>Confirmer l’encaissement et activer</Button>}
+          {order.status === 'verifying' && <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+            <label className="text-xs text-t3">Montant réellement encaissé
+              <Input type="number" step="1" min={1} placeholder={String(order.amount_fcfa)} value={collectedAmount}
+                onChange={(e) => setCollectedAmounts((current) => ({ ...current, [order.id]: e.target.value }))} className="w-40" />
+            </label>
+            <Button size="sm" variant="gold" disabled={activate.isPending && activate.variables?.orderId === order.id}
+              onClick={() => activate.mutate({ orderId: order.id, collectedAmountFcfa: collectedAmount.trim() ? Number(collectedAmount) : undefined })}
+            >Confirmer l’encaissement et activer</Button>
+          </div>}
           {canReject && <div className="flex flex-col sm:flex-row gap-2">
             <Input value={reason} onChange={(e) => setRejectionReasons((currentReasons) => ({ ...currentReasons, [order.id]: e.target.value }))} placeholder="Motif précis transmis au client" />
             <Button size="sm" variant="danger" disabled={(reject.isPending && reject.variables?.orderId === order.id) || reason.trim().length < 3} onClick={() => reject.mutate({ orderId: order.id, reason: reason.trim() })}>Refuser</Button>
@@ -96,16 +115,21 @@ export default function Abonnements() {
       })}
       {tab === 'grants' && grants.data?.data.map((grant) => {
         const downloading = downloadReceipt.isPending && downloadReceipt.variables === grant.id;
+        const expanded = expandedGrant === grant.id;
         return <li key={grant.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p>{grant.user ? personLink(grant.user.id, grant.user.name) : 'Compte supprimé'} · {grantLabel[grant.status]}</p>
-            <Button variant="outline" size="sm" disabled={downloading} onClick={() => downloadReceipt.mutate(grant.id)}>
-              {downloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
-              Reçu
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setExpandedGrant(expanded ? null : grant.id)} aria-pressed={expanded}>Mouvements</Button>
+              <Button variant="outline" size="sm" disabled={downloading} onClick={() => downloadReceipt.mutate(grant.id)}>
+                {downloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
+                Reçu
+              </Button>
+            </div>
           </div>
-          <p className="text-t2">Du {date(grant.starts_at)} au {date(grant.ends_at)} · {grant.amount_fcfa === null ? 'Montant inconnu' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA`} · {channelLabel(grant.channel)}</p>
+          <p className="text-t2">Du {date(grant.starts_at)} au {date(grant.ends_at)} · {grant.amount_fcfa === null ? 'Montant inconnu' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA saisis`} · {channelLabel(grant.channel)}</p>
           <p className="text-t3 break-all">Référence : {grant.reference ?? 'Non renseignée'} · Accordé par {grant.creator?.name ?? 'Non renseigné'}</p>
+          {expanded && <GrantMovementsPanel grantId={grant.id} />}
         </li>;
       })}
       {tab === 'credits' && credits.data?.data.map((entry) => <li key={entry.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-1">
