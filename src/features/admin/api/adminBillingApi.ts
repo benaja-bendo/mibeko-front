@@ -39,3 +39,18 @@ export const activatePaymentOrder = (orderId: string) => laravelClient
   .post<{ data: AdminPaymentOrder }>(`admin/billing/payment-orders/${orderId}/activate`).then((r) => r.data.data);
 export const rejectPaymentOrder = (orderId: string, reason: string) => laravelClient
   .post<{ data: AdminPaymentOrder }>(`admin/billing/payment-orders/${orderId}/reject`, { reason }).then((r) => r.data.data);
+
+/** Même justificatif que côté client, retrouvable par l'admin sans dépendre du titulaire — mibeko-dashboard#121. */
+export async function downloadAdminGrantReceipt(grantId: string): Promise<void> {
+  const res = await laravelClient.get(`admin/billing/grants/${grantId}/receipt`, {
+    responseType: 'blob',
+  });
+
+  const blob = new Blob([res.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `mibeko-recu-${grantId}.pdf`;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}

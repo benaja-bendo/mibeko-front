@@ -57,6 +57,28 @@ it('affiche une erreur récupérable et la pagination des abonnements', async ()
   expect(await screen.findByText('Référence : MM-ANCIEN')).toBeInTheDocument();
 });
 
+it('télécharge le reçu d’un abonnement manuel', async () => {
+  mockBilling();
+  const receiptRequests: string[] = [];
+  server.use(http.get('*/api/v1/billing/manual-grants/:id/receipt', ({ params }) => {
+    receiptRequests.push(String(params.id));
+    return new HttpResponse(new Blob(['%PDF-1.4']), { headers: { 'Content-Type': 'application/pdf' } });
+  }));
+  // jsdom ne définit pas ces deux méthodes du tout : le composant ne s'en
+  // sert que pour déclencher le téléchargement, sans rapport avec ce test.
+  // On ne touche qu'à elles, jamais au constructeur `URL` lui-même (utilisé
+  // ailleurs par le routeur/MSW).
+  URL.createObjectURL = vi.fn(() => 'blob:mock');
+  URL.revokeObjectURL = vi.fn();
+
+  renderWithProviders(<Billing />);
+  const user = userEvent.setup();
+  await screen.findByText('Référence : MM-001');
+  await user.click(screen.getByRole('button', { name: /Reçu/ }));
+
+  await vi.waitFor(() => expect(receiptRequests).toEqual(['grant-1']));
+});
+
 it('oriente une question de paiement vers la facturation sans demander de secret', () => {
   renderWithProviders(<Support />, { route: '/settings/support?category=billing' });
   expect(screen.getByRole('link', { name: 'Écrire à la facturation' })).toHaveAttribute('href', expect.stringContaining('mailto:facturation@mibeko.fr'));

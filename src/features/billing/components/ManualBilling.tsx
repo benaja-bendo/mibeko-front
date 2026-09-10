@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { declareManualPayment, getManualGrants, getCreditHistory, getManualPaymentOrders } from '../api/manualBillingApi';
+import { Download, Loader2 } from 'lucide-react';
+import { declareManualPayment, downloadManualGrantReceipt, getManualGrants, getCreditHistory, getManualPaymentOrders } from '../api/manualBillingApi';
 import type { BillingOverview } from '../types';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { channelLabel, creditLabel, grantLabel, paymentOrderLabel } from '../labels';
+import { toast } from '@/shared/store/useToast';
 
 const date = (value: string) => new Date(value).toLocaleDateString('fr-FR');
 
@@ -31,6 +33,10 @@ export function ManualBilling({ data }: { data: BillingOverview }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['billing'] });
     },
+  });
+  const downloadReceipt = useMutation({
+    mutationFn: (grantId: string) => downloadManualGrantReceipt(grantId),
+    onError: (err) => toast.fromError(err, 'Échec du téléchargement du reçu.'),
   });
   const manual = data.manual_subscription;
 
@@ -88,16 +94,25 @@ export function ManualBilling({ data }: { data: BillingOverview }) {
 
     <section className="rounded-xl border border-b1 bg-s1 p-5 space-y-3">
       <h2 className="text-t1 font-semibold">Historique des abonnements manuels</h2>
-      <p className="text-xs text-t3">Confirmations d’enregistrement, distinctes des factures Stripe. Pour un justificatif de paiement, contactez le support.</p>
+      <p className="text-xs text-t3">Confirmations d’enregistrement, distinctes des factures Stripe. Le reçu de chaque abonnement se télécharge ci-dessous — ce n’est pas une facture.</p>
       {grants.isPending && <p role="status">Chargement des abonnements…</p>}
       {grants.isError && <div role="alert">{grants.error.message} <Button variant="outline" onClick={() => grants.refetch()}>Réessayer les abonnements</Button></div>}
       {grants.data && <>
         {grants.data.data.length === 0 && <p className="text-sm text-t3">Aucun abonnement manuel enregistré.</p>}
-        <ul className="divide-y divide-b1">{grants.data.data.map((grant) => <li key={grant.id} className="py-3 text-sm space-y-1">
-          <p className="text-t1">Pro · {grantLabel[grant.status]} · du {date(grant.starts_at)} au {date(grant.ends_at)}</p>
-          <p className="text-t2">{grant.amount_fcfa === null ? 'Montant non renseigné' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA`} · {channelLabel(grant.channel)}</p>
-          <p className="text-t3 break-all">Référence : {grant.reference ?? grant.id}</p>
-        </li>)}</ul>
+        <ul className="divide-y divide-b1">{grants.data.data.map((grant) => {
+          const downloading = downloadReceipt.isPending && downloadReceipt.variables === grant.id;
+          return <li key={grant.id} className="py-3 text-sm space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-t1">Pro · {grantLabel[grant.status]} · du {date(grant.starts_at)} au {date(grant.ends_at)}</p>
+              <Button variant="outline" size="sm" disabled={downloading} onClick={() => downloadReceipt.mutate(grant.id)}>
+                {downloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
+                Reçu
+              </Button>
+            </div>
+            <p className="text-t2">{grant.amount_fcfa === null ? 'Montant non renseigné' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA`} · {channelLabel(grant.channel)}</p>
+            <p className="text-t3 break-all">Référence : {grant.reference ?? grant.id}</p>
+          </li>;
+        })}</ul>
         <HistoryPagination page={page} lastPage={grants.data.pagination.last_page} onChange={setPage} />
       </>}
     </section>

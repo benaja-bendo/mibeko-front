@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 import AppLayout from '@/widgets/layout/AppLayout';
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
-import { activatePaymentOrder, getAdminPaymentOrders, getBillingSummary, getAdminGrants, getAdminCredits, getUntrackedAccounts, rejectPaymentOrder, startPaymentVerification } from '@/features/admin/api/adminBillingApi';
+import { Download, Loader2 } from 'lucide-react';
+import { activatePaymentOrder, downloadAdminGrantReceipt, getAdminPaymentOrders, getBillingSummary, getAdminGrants, getAdminCredits, getUntrackedAccounts, rejectPaymentOrder, startPaymentVerification } from '@/features/admin/api/adminBillingApi';
 import { HistoryPagination } from '@/features/billing/components/ManualBilling';
 import { channelLabel, creditLabel, grantLabel, paymentOrderLabel } from '@/features/billing/labels';
 import type { ManualPaymentOrderStatus } from '@/features/billing/types';
+import { toast } from '@/shared/store/useToast';
 
 type Tab = 'orders' | 'grants' | 'credits' | 'untracked';
 const date = (value: string) => new Date(value).toLocaleDateString('fr-FR');
@@ -33,6 +35,10 @@ export default function Abonnements() {
   const verify = useMutation({ mutationFn: startPaymentVerification, onSuccess: invalidateOrders });
   const activate = useMutation({ mutationFn: activatePaymentOrder, onSuccess: invalidateOrders });
   const reject = useMutation({ mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) => rejectPaymentOrder(orderId, reason), onSuccess: invalidateOrders });
+  const downloadReceipt = useMutation({
+    mutationFn: (grantId: string) => downloadAdminGrantReceipt(grantId),
+    onError: (err) => toast.fromError(err, 'Échec du téléchargement du reçu.'),
+  });
   const current = tab === 'orders' ? orders : tab === 'grants' ? grants : tab === 'credits' ? credits : untracked;
   const personLink = (id: string, name: string) => <Link className="text-gold underline" to={`/admin/utilisateurs?focus=${id}`}>{name}</Link>;
 
@@ -88,11 +94,20 @@ export default function Abonnements() {
           {error && <p role="alert" className="text-red">{error.message}</p>}
         </li>;
       })}
-      {tab === 'grants' && grants.data?.data.map((grant) => <li key={grant.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-1">
-        <p>{grant.user ? personLink(grant.user.id, grant.user.name) : 'Compte supprimé'} · {grantLabel[grant.status]}</p>
-        <p className="text-t2">Du {date(grant.starts_at)} au {date(grant.ends_at)} · {grant.amount_fcfa === null ? 'Montant inconnu' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA`} · {channelLabel(grant.channel)}</p>
-        <p className="text-t3 break-all">Référence : {grant.reference ?? 'Non renseignée'} · Accordé par {grant.creator?.name ?? 'Non renseigné'}</p>
-      </li>)}
+      {tab === 'grants' && grants.data?.data.map((grant) => {
+        const downloading = downloadReceipt.isPending && downloadReceipt.variables === grant.id;
+        return <li key={grant.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p>{grant.user ? personLink(grant.user.id, grant.user.name) : 'Compte supprimé'} · {grantLabel[grant.status]}</p>
+            <Button variant="outline" size="sm" disabled={downloading} onClick={() => downloadReceipt.mutate(grant.id)}>
+              {downloading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Download className="mr-2 h-3 w-3" />}
+              Reçu
+            </Button>
+          </div>
+          <p className="text-t2">Du {date(grant.starts_at)} au {date(grant.ends_at)} · {grant.amount_fcfa === null ? 'Montant inconnu' : `${grant.amount_fcfa.toLocaleString('fr-FR')} FCFA`} · {channelLabel(grant.channel)}</p>
+          <p className="text-t3 break-all">Référence : {grant.reference ?? 'Non renseignée'} · Accordé par {grant.creator?.name ?? 'Non renseigné'}</p>
+        </li>;
+      })}
       {tab === 'credits' && credits.data?.data.map((entry) => <li key={entry.id} className="bg-s1 border border-b1 rounded-xl p-4 text-sm space-y-1">
         <p>{entry.user ? personLink(entry.user.id, entry.user.name) : 'Compte supprimé'} · {creditLabel[entry.type]} · {entry.amount > 0 ? '+' : ''}{entry.amount} crédits</p>
         <p className="text-t2">{date(entry.created_at)} · {entry.reason ?? 'Sans motif'} · {entry.author?.name ?? 'Système'}</p>
