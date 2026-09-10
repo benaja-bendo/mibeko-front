@@ -26,6 +26,7 @@ import {
   type CreateInvitationPayload,
   type GrantProPlanInput,
 } from '@/features/admin/api/usersApi';
+import { createPaymentOrder, type CreatePaymentOrderInput } from '@/features/admin/api/adminBillingApi';
 
 const STALE = 30 * 1000;
 
@@ -187,4 +188,17 @@ export function useUserPlanGrantMutations(userId: string) {
   });
 
   return { grant, revoke };
+}
+
+/** Crée la commande visible par le client avant son règlement. */
+export function useCreatePaymentOrderMutation(userId: string) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreatePaymentOrderInput) => createPaymentOrder(userId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['admin-billing'] });
+      void qc.invalidateQueries({ queryKey: ['billing'] });
+    },
+  });
 }

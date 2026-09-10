@@ -8,6 +8,7 @@ import {
   useImpersonate,
   useUserAiQuotaOverrideMutations,
   useUserPlanGrantMutations,
+  useCreatePaymentOrderMutation,
 } from '@/features/admin/hooks/useUsers';
 import { Input } from '@/shared/components/ui/Input';
 import { ROLE_LABELS, type AdminUserDetail } from '@/features/admin/api/usersApi';
@@ -309,6 +310,9 @@ function UserDetailBody(props: {
         {/* Quota IA — mibeko-dashboard#95 */}
         <AiQuotaOverrideSection userId={data.id} aiQuota={data.ai_quota} />
 
+        {/* Demande de paiement suivie jusqu'à activation — mibeko-dashboard#120 */}
+        <ManualPaymentOrderSection userId={data.id} />
+
         {/* Abonnement Pro vendu à la main — mibeko-dashboard#100 */}
         <ProPlanGrantSection userId={data.id} planGrant={data.plan_grant} />
         {!props.isTrashed && <UserCreditsSection key={data.id} userId={data.id} />}
@@ -498,6 +502,62 @@ function AiQuotaOverrideSection({
       )}
     </section>
   );
+}
+
+/** Commande confirmée visible par le client avant paiement — #120. */
+function ManualPaymentOrderSection({ userId }: { userId: string }) {
+  const create = useCreatePaymentOrderMutation(userId);
+  const [editing, setEditing] = React.useState(false);
+  const [idempotencyKey, setIdempotencyKey] = React.useState('');
+  const [amount, setAmount] = React.useState('15000');
+  const [duration, setDuration] = React.useState('1');
+  const [channel, setChannel] = React.useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
+  const [instructions, setInstructions] = React.useState('');
+  const [notes, setNotes] = React.useState('');
+
+  const startEdit = () => {
+    setIdempotencyKey(crypto.randomUUID());
+    setAmount('15000');
+    setDuration('1');
+    setChannel('mobile_money');
+    setInstructions('');
+    setNotes('');
+    setEditing(true);
+  };
+
+  const save = () => {
+    create.mutate({
+      idempotency_key: idempotencyKey,
+      amount_fcfa: Number(amount),
+      duration_months: Number(duration),
+      channel,
+      payment_instructions: instructions.trim(),
+      internal_notes: notes.trim() || undefined,
+    }, { onSuccess: () => setEditing(false) });
+  };
+
+  return <section className="space-y-1.5">
+    <div className="flex items-center justify-between">
+      <h3 className="text-t4 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5"><Wallet className="w-3 h-3" /> Demande de paiement</h3>
+      {!editing && <button onClick={startEdit} className="p-1 rounded-md text-t3 hover:text-t1 hover:bg-s2 transition-colors" title="Créer une demande"><Pencil className="w-3.5 h-3.5" /></button>}
+    </div>
+    {editing ? <div className="rounded-lg border border-b1 bg-s2 px-3 py-2.5 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[11px] text-t3">Montant FCFA<Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-[12px]" /></label>
+        <label className="text-[11px] text-t3">Durée en mois<Input type="number" min={1} max={24} value={duration} onChange={(e) => setDuration(e.target.value)} className="h-8 text-[12px]" /></label>
+      </div>
+      <label className="block text-[11px] text-t3">Canal disponible
+        <select value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)} className="mt-1 w-full h-8 rounded-md border border-b1 bg-s1 px-2 text-[12px] text-t1">
+          <option value="mobile_money">Mobile Money</option><option value="bank_transfer">Virement bancaire</option><option value="cash">Espèces</option>
+        </select>
+      </label>
+      <label className="block text-[11px] text-t3">Instructions transmises au client<textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3} className="mt-1 w-full rounded-md border border-b1 bg-s1 px-2 py-1.5 text-[12px] text-t1" placeholder="Destinataire, coordonnées et libellé à utiliser" /></label>
+      <Input placeholder="Note interne facultative" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-[12px]" />
+      <p className="text-xs text-t3">Vérifiez que ce canal est disponible. Le client verra cette commande et déclarera sa référence ; l’accès restera inactif jusqu’au rapprochement humain.</p>
+      {create.isError && <p role="alert" className="text-red text-[11px] font-mono">{create.error.message}</p>}
+      <div className="flex items-center gap-1.5"><Button size="sm" variant="gold" onClick={save} disabled={create.isPending || Number(amount) < 1 || Number(duration) < 1 || !instructions.trim()} className="h-7">{create.isPending ? 'Création…' : 'Transmettre au client'}</Button><Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-7 gap-1"><X className="w-3 h-3" /> Annuler</Button></div>
+    </div> : <div className="rounded-lg border border-b1 bg-s2 px-3 py-2 text-[11px] text-t4">{create.data ? <span className="text-emerald-400">Commande {create.data.reference} transmise au client.</span> : 'Créez ici une commande après accord sur l’offre, la durée et le canal. Son traitement se poursuit dans Abonnements.'}</div>}
+  </section>;
 }
 
 /**

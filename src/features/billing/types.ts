@@ -78,6 +78,33 @@ export interface ManualGrant {
   created_at: string;
 }
 
+export type ManualPaymentOrderStatus =
+  | 'awaiting_payment'
+  | 'payment_declared'
+  | 'verifying'
+  | 'activated'
+  | 'rejected';
+
+export interface ManualPaymentOrder {
+  id: string;
+  reference: string;
+  offer_code: string;
+  offer_label: string;
+  amount_fcfa: number;
+  duration_months: number;
+  channel: 'mobile_money' | 'bank_transfer' | 'cash';
+  payment_instructions: string;
+  status: ManualPaymentOrderStatus;
+  payment_reference: string | null;
+  payment_declared_at: string | null;
+  verification_started_at: string | null;
+  activated_at: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
+  plan_grant_id: string | null;
+  created_at: string;
+}
+
 export interface CreditEntry {
   id: string;
   type: 'purchase' | 'correction' | 'consumption';
