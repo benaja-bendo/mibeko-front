@@ -30,6 +30,7 @@ const TYPE_LABELS: Record<NotificationType, { label: string; description: string
   new_document: { label: 'Nouveaux documents', description: 'Publication de nouveaux textes juridiques.' },
   share: { label: 'Partages', description: 'Quand un dossier ou document vous est partagé.' },
   legal_alert: { label: 'Alertes légales', description: 'Échéances et nouveautés réglementaires.' },
+  billing: { label: 'Facturation', description: "Rappel avant l'échéance d'un abonnement Pro. La confirmation d'achat est toujours envoyée." },
   system: { label: 'Système & sécurité', description: 'Connexions, sécurité et messages importants.' },
 };
 

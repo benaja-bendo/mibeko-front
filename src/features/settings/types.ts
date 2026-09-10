@@ -14,6 +14,7 @@ export const NOTIFICATION_TYPES = [
   'new_document',
   'share',
   'legal_alert',
+  'billing',
   'system',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
