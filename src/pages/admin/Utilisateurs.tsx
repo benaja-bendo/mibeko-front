@@ -418,15 +418,17 @@ function InvitationsPanel({ query }: { query: ReturnType<typeof useInvitations> 
                             {resending ? 'Envoi…' : 'Renvoyer'}
                           </button>
                         )}
-                        <button
-                          onClick={() => handleCancel(inv)}
-                          disabled={cancelling}
-                          className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
-                          title="Annuler"
-                        >
-                          {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                          {cancelling ? 'Annulation…' : 'Annuler'}
-                        </button>
+                        {inv.status !== 'accepted' && (
+                          <button
+                            onClick={() => handleCancel(inv)}
+                            disabled={cancelling}
+                            className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
+                            title="Annuler"
+                          >
+                            {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                            {cancelling ? 'Annulation…' : 'Annuler'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
