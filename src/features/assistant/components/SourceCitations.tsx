@@ -130,7 +130,7 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
         <div className="mb-2 flex items-center gap-2">
           <Library className="h-3.5 w-3.5 text-gold" />
           <span className="text-[11px] font-semibold text-t2">
-            {sources.length} document{sources.length > 1 ? 's' : ''} à consulter
+            {sources.length} extrait{sources.length > 1 ? 's' : ''} à consulter
           </span>
           <span className="font-mono text-[10px] text-t4">
             cliquez pour ouvrir

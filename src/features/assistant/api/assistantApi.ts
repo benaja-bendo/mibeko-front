@@ -151,6 +151,7 @@ export async function streamChat(
     : `${laravelBaseUrl}/assistant/chat`;
 
   let done = false;
+  let failed = false;
 
   await openSsePost({
     url,
@@ -175,10 +176,12 @@ export async function streamChat(
     },
     onFrame: ({ event, data }) => {
       if (data === SSE_DONE) {
-        callbacks.onDone?.();
+        if (!failed) callbacks.onDone?.();
         done = true;
         return true; // arrête la lecture
       }
+
+      if (failed && event !== 'meta') return;
 
       try {
         switch (event) {
@@ -197,6 +200,7 @@ export async function streamChat(
             break;
           }
           case 'error': {
+            failed = true;
             const payload = JSON.parse(data);
             callbacks.onError?.(payload.message ?? 'Erreur inconnue');
             break;
@@ -217,11 +221,15 @@ export async function streamChat(
           }
         }
       } catch {
-        // Trame JSON malformée — on l'ignore pour ne pas casser le flux.
+        failed = true;
+        callbacks.onError?.('La réponse reçue est illisible. Réessayez votre question.');
+        return true;
       }
     },
   });
 
   // Fin de flux sans sentinelle `[DONE]` explicite (serveur qui clôt le stream).
-  if (!done) callbacks.onDone?.();
+  if (!done && !failed) {
+    callbacks.onError?.('La connexion a été interrompue avant la fin de la réponse. Réessayez votre question.');
+  }
 }

@@ -19,7 +19,7 @@ describe('ChatMessage — état « aucune réponse »', () => {
     renderWithProviders(<ChatMessage message={reponse({ noResult: true })} />);
 
     expect(
-      screen.getByText(/Aucun texte du corpus Mibeko ne répond à cette question/),
+      screen.getByText(/Aucun extrait pertinent trouvé pour cette recherche/),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Parcourir la Bibliothèque' }),
@@ -30,7 +30,7 @@ describe('ChatMessage — état « aucune réponse »', () => {
     renderWithProviders(<ChatMessage message={reponse()} />);
 
     expect(
-      screen.queryByText(/Aucun texte du corpus Mibeko/),
+      screen.queryByText(/Aucun extrait pertinent/),
     ).not.toBeInTheDocument();
   });
 
@@ -42,7 +42,16 @@ describe('ChatMessage — état « aucune réponse »', () => {
     );
 
     expect(
-      screen.queryByText(/Aucun texte du corpus Mibeko/),
+      screen.queryByText(/Aucun extrait pertinent/),
     ).not.toBeInTheDocument();
   });
+});
+
+it('offers retry for a failed reply and retains the explanation', async () => {
+  const onRetry = vi.fn();
+  renderWithProviders(<ChatMessage message={reponse({ error: true, content: '', errorMessage: 'Le service a été interrompu.' })} onRetry={onRetry} />);
+  expect(screen.getByText('Réponse interrompue')).toBeInTheDocument();
+  expect(screen.getByText('Le service a été interrompu.')).toBeInTheDocument();
+  screen.getByRole('button', { name: 'Réessayer la question' }).click();
+  expect(onRetry).toHaveBeenCalledTimes(1);
 });

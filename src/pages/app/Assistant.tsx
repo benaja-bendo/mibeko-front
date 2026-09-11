@@ -290,6 +290,12 @@ export default function AssistantPage() {
                         <ChatMessage
                           key={message.id}
                           message={message}
+                          onRetry={message.error && isLast && !chat.isStreaming && !isQuotaExhausted && displayedMessages[i - 1]?.role === 'user'
+                            ? () => {
+                                const question = displayedMessages[i - 1];
+                                handleSend(question.content, { mode: question.mode, references: question.references });
+                              }
+                            : undefined}
                           status={isLast && isLiveSelected ? chat.status : null}
                         />
                       );

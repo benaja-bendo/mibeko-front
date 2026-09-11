@@ -109,6 +109,33 @@ describe('Assistant', () => {
     });
   });
 
+  it('permet de réessayer après une erreur SSE sans perdre la question ni son mode', async () => {
+    const requests: Record<string, unknown>[] = [];
+    server.use(
+      http.post('*/api/v1/assistant/chat', async ({ request }) => {
+        requests.push(await request.json() as Record<string, unknown>);
+        return new HttpResponse('event: error\ndata: {"message":"Service momentanément indisponible"}\n\ndata: [DONE]\n\n', {
+          headers: { 'Content-Type': 'text/event-stream', 'X-Conversation-Id': 'conv_retry' },
+        });
+      }),
+      http.post('*/api/v1/assistant/chat/conv_retry', async ({ request }) => {
+        requests.push(await request.json() as Record<string, unknown>);
+        return new HttpResponse(SSE_BODY, { headers: { 'Content-Type': 'text/event-stream' } });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Assistant />, { route: '/app/assistant' });
+    await user.click(screen.getByRole('button', { name: /Analyse/ }));
+    const textarea = screen.getByPlaceholderText(/Posez une question juridique/);
+    fireEvent.change(textarea, { target: { value: 'Question à reprendre' } });
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(await screen.findByText('Service momentanément indisponible')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Réessayer la question' }));
+    expect(await screen.findByText(/Le préavis est d'un mois/)).toBeInTheDocument();
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({ message: 'Question à reprendre', mode: 'analysis' });
+  });
+
   it("charge une conversation de l'historique avec skeleton, sans requête superflue", async () => {
     let detailCalls = 0;
 
@@ -166,7 +193,7 @@ describe('Assistant', () => {
     ).toBeInTheDocument();
     // « Code du travail » apparaît en chip de référence ET en carte source.
     expect(screen.getAllByText('Code du travail').length).toBeGreaterThan(1);
-    expect(screen.getByText(/1 document à consulter/)).toBeInTheDocument();
+    expect(screen.getByText(/1 extrait à consulter/)).toBeInTheDocument();
     expect(
       screen.queryByTestId('conversation-skeleton'),
     ).not.toBeInTheDocument();

@@ -16,6 +16,8 @@ import {
   BookMarked,
   Layers,
   SearchX,
+  RotateCcw,
+  Copy,
 } from 'lucide-react';
 import type {
   AssistantSource,
@@ -28,14 +30,17 @@ import SourceCitations, {
   type SourceCitationsHandle,
 } from './SourceCitations';
 import { buildMentionMatcher } from '../lib/sourceMentions';
+import { answerWithSources } from '../lib/answerWithSources';
+import { toast } from '@/shared/store/useToast';
 
 interface ChatMessageProps {
   message: ChatMessageType;
   /** Statut transitoire (ex. "Recherche…") affiché si la réponse est vide. */
   status?: string | null;
+  onRetry?: () => void;
 }
 
-export default function ChatMessage({ message, status }: ChatMessageProps) {
+export default function ChatMessage({ message, status, onRetry }: ChatMessageProps) {
   const sourcesRef = useRef<SourceCitationsHandle>(null);
   const navigate = useNavigate();
 
@@ -176,7 +181,7 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
       }
     : undefined;
 
-  const showStatus = !!status && !message.content;
+  const showStatus = !!status && message.pending && !message.error && !message.content;
   const showTypingCursor = message.pending && !!message.content;
 
   return (
@@ -221,6 +226,25 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
           </div>
         )}
 
+        {(message.error || message.interrupted) && !message.pending && (
+          <div role="status" className="mt-3 rounded-lg border border-b1 bg-s2 px-3 py-3">
+            <p className="text-sm font-medium text-t1">
+              {message.error ? 'Réponse interrompue' : 'Génération arrêtée'}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-t2">
+              {message.errorMessage ?? (message.error
+                ? 'La réponse n’a pas pu être terminée. Vous pouvez réessayer la même question.'
+                : 'Le texte affiché peut être incomplet. Rechargez la conversation pour retrouver la réponse si le serveur a terminé.')}
+            </p>
+            {onRetry && message.error && (
+              <button type="button" onClick={onRetry}
+                className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-gold hover:text-t1">
+                <RotateCcw className="h-3.5 w-3.5" /> Réessayer la question
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Non-réponse assumée : le corpus a été interrogé et n'a rien rendu.
             L'état est explicite plutôt que déduit d'une réponse courte — c'est
             la contrepartie visible de la règle qui interdit à l'assistant de
@@ -231,7 +255,7 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
               <SearchX className="mt-0.5 h-3.5 w-3.5 shrink-0 text-t3" />
               <div className="min-w-0 space-y-1.5">
                 <p className="text-xs font-medium text-t2">
-                  Aucun texte du corpus Mibeko ne répond à cette question
+                  Aucun extrait pertinent trouvé pour cette recherche
                 </p>
                 <p className="text-xs leading-relaxed text-t3">
                   La recherche n'a rien trouvé, et l'assistant ne complète jamais
@@ -255,9 +279,23 @@ export default function ChatMessage({ message, status }: ChatMessageProps) {
           <SourceCitations ref={sourcesRef} sources={message.sources} />
         )}
 
+        {!message.pending && !message.error && !message.interrupted && message.content && (
+          <button type="button" className="mt-3 inline-flex items-center gap-1.5 text-xs text-t3 hover:text-t1"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(answerWithSources(message, window.location.origin));
+                toast.success('Réponse et références copiées');
+              } catch {
+                toast.error('La copie est indisponible. Sélectionnez le texte pour le copier.');
+              }
+            }}>
+            <Copy className="h-3.5 w-3.5" /> Copier la réponse et ses références
+          </button>
+        )}
+
         {/* Avis 👍/👎 : une fois la réponse terminée et son id backend connu
             (historique, ou émis en fin de flux pour une réponse fraîche). */}
-        {!message.pending && !message.error && message.backendId && (
+        {!message.pending && !message.error && !message.interrupted && message.backendId && (
           <MessageFeedback
             key={message.backendId}
             messageId={message.backendId}

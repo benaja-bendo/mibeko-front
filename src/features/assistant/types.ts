@@ -78,6 +78,8 @@ export interface ChatMessage {
   pending?: boolean;
   /** `true` si la génération a échoué. */
   error?: boolean;
+  errorMessage?: string;
+  interrupted?: boolean;
   /**
    * `true` quand l'assistant a interrogé le corpus et n'y a trouvé aucun
    * extrait : la réponse est une non-réponse assumée, pas un texte tronqué.
@@ -113,6 +115,8 @@ export interface PersistedMessage {
   meta?: {
     sources?: AssistantSource[];
     cached?: boolean;
+    turn_status?: 'error';
+    error_message?: string;
     /** Non-réponse assumée (corpus interrogé, aucun extrait). */
     no_result?: boolean;
     /** Références épinglées au moment de l'envoi (messages utilisateur). */

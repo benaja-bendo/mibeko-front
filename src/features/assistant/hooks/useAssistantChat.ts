@@ -39,9 +39,11 @@ export function persistedToChatMessages(
   return persisted.map((m) => ({
     id: m.id,
     role: m.role,
-    content: m.content,
+    content: m.meta?.turn_status === 'error' && m.content === m.meta.error_message ? '' : m.content,
     sources: m.meta?.sources ?? undefined,
     noResult: m.meta?.no_result ?? undefined,
+    error: m.meta?.turn_status === 'error',
+    errorMessage: m.meta?.error_message,
     references: m.meta?.references ?? undefined,
     mode: m.meta?.mode ?? undefined,
     // Message d'historique : `id` est déjà l'identifiant backend.
@@ -84,6 +86,7 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
   /** Démarre une nouvelle conversation vierge. */
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    abortRef.current = null;
     setMessages([]);
     setConversationId(null);
     setStatus(null);
@@ -98,7 +101,7 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
     setStatus(null);
     const activeId = activeAssistantIdRef.current;
     if (activeId) {
-      patchMessage(activeId, { pending: false });
+      patchMessage(activeId, { pending: false, interrupted: true });
     }
   }, [patchMessage]);
 
@@ -106,7 +109,7 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
   const sendMessage = useCallback(
     async (text: string, options: SendMessageOptions = {}) => {
       const trimmed = text.trim();
-      if (!trimmed || isStreaming) return;
+      if (!trimmed || abortRef.current) return;
 
       const { mode, references } = options;
 
@@ -157,6 +160,7 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
 
       let sources: AssistantSource[] | undefined;
       let buffer = '';
+      let failed = false;
       // Suit l'id réel de l'échange (créé en cours de route pour une nouvelle
       // conversation) afin de le transmettre à onExchangeFinished.
       let exchangeConversationId = targetConversationId;
@@ -172,6 +176,7 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
           },
           {
             onConversationId: (id) => {
+              if (controller.signal.aborted) return;
               exchangeConversationId = id;
               if (!targetConversationId) {
                 setConversationId(id);
@@ -183,7 +188,9 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
               // attendre un rechargement de la conversation.
               patchMessage(assistantId, { backendId: id });
             },
-            onStatus: (msg) => setStatus(msg),
+            onStatus: (msg) => {
+              if (!controller.signal.aborted) setStatus(msg);
+            },
             onSources: (batch) => {
               // L'IA peut chercher plusieurs fois : on cumule les lots dans
               // l'ordre, sans toucher aux positions — l'index 1-based doit
@@ -201,13 +208,17 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
               patchMessage(assistantId, { noResult: true });
             },
             onError: (msg) => {
+              failed = true;
+              setStatus(null);
               patchMessage(assistantId, {
-                content: buffer || msg,
+                content: buffer,
+                errorMessage: msg,
                 error: true,
                 pending: false,
               });
             },
             onDone: () => {
+              if (failed) return;
               patchMessage(assistantId, {
                 content: buffer,
                 sources,
@@ -219,27 +230,29 @@ export function useAssistantChat(options: UseAssistantChatOptions = {}) {
       } catch (err) {
         // Annulation volontaire (Stop) : on ne montre pas d'erreur.
         if (controller.signal.aborted) {
-          patchMessage(assistantId, { content: buffer, pending: false });
+          patchMessage(assistantId, { content: buffer, pending: false, interrupted: true });
         } else {
           const message =
             err instanceof Error ? err.message : 'Échec de la génération.';
           patchMessage(assistantId, {
-            content: buffer || `⚠️ ${message}`,
+            content: buffer,
+            errorMessage: message,
             error: true,
             pending: false,
           });
         }
       } finally {
-        setIsStreaming(false);
-        setStatus(null);
-        activeAssistantIdRef.current = null;
-        abortRef.current = null;
+        if (abortRef.current === controller) {
+          setIsStreaming(false);
+          setStatus(null);
+          activeAssistantIdRef.current = null;
+          abortRef.current = null;
+        }
         onExchangeFinished?.(exchangeConversationId);
       }
     },
     [
       conversationId,
-      isStreaming,
       onConversationCreated,
       onExchangeFinished,
       patchMessage,
