@@ -48,6 +48,7 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/components/ForgotP
 const ResetPasswordPage = lazy(() => import('@/features/auth/components/ResetPasswordPage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
+const ReviewQueue = lazy(() => import('@/pages/ReviewQueue'));
 const Journals = lazy(() => import('@/pages/Journals'));
 const JournalDetail = lazy(() => import('@/pages/JournalDetail'));
 const Ingestion = lazy(() => import('@/pages/Ingestion'));
@@ -103,6 +104,13 @@ export function DashboardRoutePage() {
  */
 export function LegalDocumentsRoutePage() {
   return <LazyPage Component={LegalDocuments} />;
+}
+
+/**
+ * Rend la file de revue priorisée et assignable en lazy loading.
+ */
+export function ReviewQueueRoutePage() {
+  return <LazyPage Component={ReviewQueue} />;
 }
 
 /**
