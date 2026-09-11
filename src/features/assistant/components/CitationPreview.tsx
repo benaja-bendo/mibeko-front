@@ -22,7 +22,7 @@ interface CitationPreviewProps {
   /** Ouvre l'article dans le reader de la Bibliothèque. */
   onRead: () => void;
   /** Fait défiler jusqu'à la carte source n sous la réponse. */
-  onLocate: () => void;
+  onLocate?: () => void;
   /** Le marqueur [n] qui sert de déclencheur. */
   children: React.ReactNode;
 }
@@ -93,13 +93,13 @@ export default function CitationPreview({
           >
             <BookOpenText className="h-3 w-3" /> Lire l'article
           </button>
-          <button
+          {onLocate && <button
             type="button"
             onClick={onLocate}
             className="flex h-7 items-center justify-center gap-1.5 rounded-lg border border-b1 px-2.5 text-[11px] text-t2 transition-colors hover:bg-s2 hover:text-t1"
           >
             <MapPin className="h-3 w-3" /> Source
-          </button>
+          </button>}
         </div>
       </HoverCardContent>
     </HoverCard>

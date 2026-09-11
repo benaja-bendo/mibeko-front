@@ -1,4 +1,6 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useLocation } from 'react-router-dom';
 import { renderWithProviders } from '../../../test/render';
 import ChatMessage from './ChatMessage';
 import type { ChatMessage as ChatMessageType } from '../types';
@@ -54,4 +56,51 @@ it('offers retry for a failed reply and retains the explanation', async () => {
   expect(screen.getByText('Le service a été interrompu.')).toBeInTheDocument();
   screen.getByRole('button', { name: 'Réessayer la question' }).click();
   expect(onRetry).toHaveBeenCalledTimes(1);
+});
+
+const sources = [
+  { id: 'a1', document_id: 'd1', document_title: 'Texte non cité', content: 'Extrait non cité' },
+  { id: 'a2', document_id: 'd2', document_title: 'Texte cité', content: 'Extrait cité' },
+];
+
+it('attend la fin du texte puis propose uniquement les sources citées dans un bloc replié', async () => {
+  const user = userEvent.setup();
+  const message = reponse({ content: '', pending: true, sources });
+  const view = renderWithProviders(<ChatMessage message={message} status="Recherche des textes applicables…" />);
+  expect(screen.getByText('Recherche des textes applicables…')).toBeVisible();
+  expect(screen.queryByText(/Sources citées/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Extrait cité')).not.toBeInTheDocument();
+
+  view.rerender(<ChatMessage message={{ ...message, content: 'Une réponse [2].' }} />);
+  expect(screen.getByTitle('Source 2')).toBeVisible();
+  expect(screen.queryByText(/Sources citées/)).not.toBeInTheDocument();
+
+  view.rerender(<ChatMessage message={{ ...message, content: 'Une réponse [2].', pending: false }} />);
+  const summary = screen.getByText('Sources citées (1)');
+  expect(summary).toBeVisible();
+  expect(summary.closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('Extrait cité')).not.toBeVisible();
+  await user.click(summary);
+  expect(screen.getByText('Extrait cité')).toBeVisible();
+  expect(screen.queryByText('Extrait non cité')).not.toBeInTheDocument();
+  // La seconde source conserve son numéro, même si la première n'est pas citée.
+  expect(screen.getAllByText('2')).toHaveLength(2);
+  await user.click(summary);
+  expect(screen.getByText('Extrait cité')).not.toBeVisible();
+});
+
+it('ouvre un article depuis sa citation pendant la rédaction', async () => {
+  function Location() {
+    const location = useLocation();
+    return <output>{location.pathname}{location.search}</output>;
+  }
+  renderWithProviders(<><ChatMessage message={reponse({ content: 'Une réponse [2].', pending: true, sources })} /><Location /></>);
+  await userEvent.setup().click(screen.getByTitle('Source 2'));
+  expect(screen.getByText('/app/library?doc=d2&article=a2')).toBeInTheDocument();
+});
+
+it.each([{ error: true }, { interrupted: true }])('ne présente pas un échec comme une réponse sourcée terminée (%j)', (state) => {
+  renderWithProviders(<ChatMessage message={reponse({ content: 'Début [2].', sources, ...state })} />);
+  expect(screen.queryByText(/Sources citées/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Extrait cité')).not.toBeInTheDocument();
 });

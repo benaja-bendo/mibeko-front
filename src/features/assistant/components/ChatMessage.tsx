@@ -18,6 +18,7 @@ import {
   SearchX,
   RotateCcw,
   Copy,
+  ChevronDown,
 } from 'lucide-react';
 import type {
   AssistantSource,
@@ -42,6 +43,7 @@ interface ChatMessageProps {
 
 export default function ChatMessage({ message, status, onRetry }: ChatMessageProps) {
   const sourcesRef = useRef<SourceCitationsHandle>(null);
+  const sourcesDetailsRef = useRef<HTMLDetailsElement>(null);
   const navigate = useNavigate();
 
   // Détecteur de mentions de sources (titres de documents, « article N »).
@@ -96,6 +98,20 @@ export default function ChatMessage({ message, status, onRetry }: ChatMessagePro
   const sourceAt = (index: number): AssistantSource | undefined =>
     message.sources?.[index - 1];
 
+  const citedNumbers = [...new Set(
+    [...message.content.matchAll(/\[(\d+)\]/g)]
+      .map((match) => Number(match[1]))
+      .filter((number) => sourceAt(number)),
+  )];
+  const showSources = !message.pending && !message.error && !message.interrupted && citedNumbers.length > 0;
+
+  const locateSource = (index: number) => {
+    if (sourcesDetailsRef.current) {
+      sourcesDetailsRef.current.open = true;
+      sourcesRef.current?.scrollToSource(index);
+    }
+  };
+
   /** Ouvre l'article cité dans le reader de la Bibliothèque. */
   const openSourceInLibrary = (source: AssistantSource) => {
     const params = new URLSearchParams();
@@ -114,7 +130,7 @@ export default function ChatMessage({ message, status, onRetry }: ChatMessagePro
     if (source?.document_id) {
       openSourceInLibrary(source);
     } else {
-      sourcesRef.current?.scrollToSource(index);
+      locateSource(index);
     }
   };
 
@@ -127,7 +143,7 @@ export default function ChatMessage({ message, status, onRetry }: ChatMessagePro
         index={index}
         source={source}
         onRead={() => handleCitationClick(index)}
-        onLocate={() => sourcesRef.current?.scrollToSource(index)}
+        onLocate={showSources ? () => locateSource(index) : undefined}
       >
         {marker}
       </CitationPreview>
@@ -161,7 +177,7 @@ export default function ChatMessage({ message, status, onRetry }: ChatMessagePro
               index={match.index}
               source={match.source}
               onRead={() => handleCitationClick(match.index)}
-              onLocate={() => sourcesRef.current?.scrollToSource(match.index)}
+              onLocate={showSources && citedNumbers.includes(match.index) ? () => locateSource(match.index) : undefined}
             >
               <button
                 type="button"
@@ -275,8 +291,17 @@ export default function ChatMessage({ message, status, onRetry }: ChatMessagePro
           </div>
         )}
 
-        {message.sources && message.sources.length > 0 && (
-          <SourceCitations ref={sourcesRef} sources={message.sources} />
+        {showSources && message.sources && (
+          <details ref={sourcesDetailsRef} className="group/sources mt-3 rounded-lg border border-b1 bg-s1">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-t2 hover:text-t1 [&::-webkit-details-marker]:hidden">
+              <BookMarked className="h-3.5 w-3.5 text-gold" />
+              Sources citées ({citedNumbers.length})
+              <ChevronDown className="ml-auto h-3.5 w-3.5 transition-transform group-open/sources:rotate-180" />
+            </summary>
+            <div className="px-3 pb-3">
+              <SourceCitations ref={sourcesRef} sources={message.sources} visibleNumbers={citedNumbers} />
+            </div>
+          </details>
         )}
 
         {!message.pending && !message.error && !message.interrupted && message.content && (

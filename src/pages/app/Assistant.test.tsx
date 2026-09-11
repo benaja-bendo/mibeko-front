@@ -191,9 +191,12 @@ describe('Assistant', () => {
     expect(
       await screen.findByText(/Le préavis est d'un mois/),
     ).toBeInTheDocument();
-    // « Code du travail » apparaît en chip de référence ET en carte source.
+    expect(screen.getByText('Sources citées (1)')).toBeVisible();
+    expect(screen.getByText(/1 extrait à consulter/)).not.toBeVisible();
+    await user.click(screen.getByText('Sources citées (1)'));
+    // Le bloc déplié montre les cartes sans masquer le texte de la réponse.
     expect(screen.getAllByText('Code du travail').length).toBeGreaterThan(1);
-    expect(screen.getByText(/1 extrait à consulter/)).toBeInTheDocument();
+    expect(screen.getByText(/1 extrait à consulter/)).toBeVisible();
     expect(
       screen.queryByTestId('conversation-skeleton'),
     ).not.toBeInTheDocument();

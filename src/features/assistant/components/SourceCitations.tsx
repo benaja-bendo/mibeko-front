@@ -44,6 +44,8 @@ export interface SourceCitationsHandle {
 
 interface SourceCitationsProps {
   sources: AssistantSource[];
+  /** Filtre les cartes sans renuméroter les références [n] du texte. */
+  visibleNumbers?: number[];
 }
 
 /** Tronque un extrait pour l'aperçu d'une carte de citation. */
@@ -54,7 +56,7 @@ function snippet(text?: string | null, max = 150): string {
 }
 
 const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
-  ({ sources }, ref) => {
+  ({ sources, visibleNumbers }, ref) => {
     const navigate = useNavigate();
     const scrollerRef = useRef<HTMLDivElement>(null);
     const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -130,7 +132,7 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
         <div className="mb-2 flex items-center gap-2">
           <Library className="h-3.5 w-3.5 text-gold" />
           <span className="text-[11px] font-semibold text-t2">
-            {sources.length} extrait{sources.length > 1 ? 's' : ''} à consulter
+            {visibleNumbers?.length ?? sources.length} extrait{(visibleNumbers?.length ?? sources.length) > 1 ? 's' : ''} à consulter
           </span>
           <span className="font-mono text-[10px] text-t4">
             cliquez pour ouvrir
@@ -156,7 +158,7 @@ const SourceCitations = forwardRef<SourceCitationsHandle, SourceCitationsProps>(
             onScroll={updateScrollState}
             className="flex gap-2.5 overflow-x-auto scroll-smooth pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {sources.map((source, i) => (
+            {sources.map((source, i) => (!visibleNumbers || visibleNumbers.includes(i + 1)) && (
               <HoverCard key={source.id || i} openDelay={400} closeDelay={80}>
               <HoverCardTrigger asChild>
               <button
