@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Settings, Mail, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu } from 'lucide-react';
+import { Settings, Mail, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
 
@@ -222,6 +222,7 @@ const ADMIN_NAV = [
     ),
     label: "Journal d'activité",
   },
+  { to: '/admin/sante', exact: false, icon: <Activity className="w-4 h-4" />, label: 'Santé' },
 ];
 
 // ---------------------------------------------------------------------------
