@@ -71,7 +71,7 @@ export function IdentityCard({ account }: IdentityCardProps) {
               id="phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+243 …"
+              placeholder="+242 …"
               maxLength={30}
             />
           </div>
