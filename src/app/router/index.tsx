@@ -3,6 +3,7 @@ import { RequireAuth, RedirectIfAuthenticated, RootRedirect } from './guards';
 import {
   AcceptInvitationRoutePage,
   AdminDashboardRoutePage,
+  AdminSanteRoutePage,
   AdminMessagesRoutePage,
   AdminAbonnementsRoutePage,
   AdminReferentielsRoutePage,
@@ -120,6 +121,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin']} requiredRole="admin">
         <AdminSignalementsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/admin/sante',
+    element: (
+      <RequireAuth roles={['admin']} requiredRole="admin">
+        <AdminSanteRoutePage />
       </RequireAuth>
     ),
   },
