@@ -109,4 +109,55 @@ describe('Library', () => {
       JSON.parse(localStorage.getItem('mibeko_library_recent_searches') ?? '[]'),
     ).toContain('rupture du contrat de travail');
   });
+
+  it("ouvrir un résultat de recherche mesure l'activation (mibeko-dashboard#137)", async () => {
+    server.use(
+      http.get('*/api/v1/library/search', () =>
+        HttpResponse.json({
+          success: true,
+          data: [
+            {
+              id: 'art_1',
+              number: '12',
+              content: 'La rupture du contrat de travail est encadrée…',
+              document_id: 'doc_code_travail',
+              document_title: 'Code du Travail',
+              breadcrumb: 'Code > Code du Travail',
+              legal_scope: 'national',
+              score: 0.91,
+            },
+          ],
+          pagination: { total: 1, per_page: 12, current_page: 1, last_page: 1 },
+        }),
+      ),
+      http.get('*/api/v1/legal-documents/doc_code_travail', () =>
+        HttpResponse.json({ data: { id: 'doc_code_travail', titre_officiel: 'Code du Travail', legal_scope: 'national' } }),
+      ),
+      http.get('*/api/v1/legal-documents/doc_code_travail/tree', () => HttpResponse.json({ data: [] })),
+    );
+
+    let receivedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post('*/api/v1/product-events', async ({ request }) => {
+        receivedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { success: true, message: 'Événement enregistré.', data: { id: 'evt_1', event_type: 'search_useful', created_at: '2026-01-01T00:00:00+00:00' } },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderWithProviders(<Library />, { route: '/app/library' });
+
+    const suggestions = await screen.findAllByRole('button', { name: 'rupture du contrat de travail' });
+    await userEvent.click(suggestions[0]);
+    await waitFor(() => expect(screen.getAllByText('1 résultat').length).toBeGreaterThan(0));
+
+    const [resultButton] = screen.getAllByText('Code > Code du Travail').map((el) => el.closest('button'));
+    await userEvent.click(resultButton!);
+
+    await waitFor(() =>
+      expect(receivedBody).toMatchObject({ event_type: 'search_useful', surface: 'web', reference_id: 'art_1' }),
+    );
+  });
 });

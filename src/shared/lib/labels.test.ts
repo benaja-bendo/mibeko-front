@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { documentRoleLabel, documentRoleHint, legalScopeLabel } from './labels';
+import { documentRoleLabel, documentRoleHint, legalScopeLabel, usageContextLabel } from './labels';
 
 describe('labels métier', () => {
   it('traduit le rôle documentaire', () => {
@@ -24,5 +24,13 @@ describe('labels métier', () => {
     expect(legalScopeLabel('national')).toBe('National');
     expect(legalScopeLabel('ohada')).toBe('OHADA');
     expect(legalScopeLabel(undefined)).toBe('—');
+  });
+
+  it('traduit le cadre d\'usage', () => {
+    expect(usageContextLabel('personal')).toBe('Personnel');
+    expect(usageContextLabel('studies')).toBe('Études');
+    expect(usageContextLabel('professional')).toBe('Activité professionnelle');
+    expect(usageContextLabel('other')).toBe('Autre');
+    expect(usageContextLabel(undefined)).toBe('—');
   });
 });

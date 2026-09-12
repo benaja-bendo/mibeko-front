@@ -57,6 +57,7 @@ import DocumentReaderView from '@/features/library/components/DocumentReaderView
 import LibraryAiPanel from '@/features/library/components/LibraryAiPanel';
 import { useDossier } from '@/features/dossiers/hooks/useDossiers';
 import { useDossierAnnexes } from '@/features/dossiers/store/useDossierAnnexes';
+import { useProductEvents } from '@/features/productEvents/hooks/useProductEvents';
 import type {
   LibraryFilterState,
   LibraryHomeDocument,
@@ -190,6 +191,9 @@ export default function Library() {
   // Surface IA du panneau droit (explication / synthèse, en streaming).
   const ai = useLibraryAi();
 
+  // Mesure d'activation (mibeko-dashboard#137) — fire-and-forget.
+  const productEvents = useProductEvents();
+
   // Historique local des recherches (alimente l'accueil).
   const { recentSearches, addRecentSearch, clearRecentSearches } =
     useRecentSearches();
@@ -285,6 +289,10 @@ export default function Library() {
   /** Lire un article : bascule la surface droite en mode lecture. */
   const selectResult = (item: SearchResultItem) => {
     if (!item.document_id) return;
+    // mibeko-dashboard#137 : jalon « première recherche utile » — uniquement
+    // depuis une vraie recherche (pas l'accueil ni le parcours par thème),
+    // fire-and-forget, jamais de texte de requête envoyé.
+    if (isSearch) productEvents.recordSearchUseful(item.id);
     setSelected({ documentId: item.document_id, articleId: item.id ?? null });
     ai.close(); // la lecture prend la priorité sur une éventuelle réponse IA
     openRightPanel();

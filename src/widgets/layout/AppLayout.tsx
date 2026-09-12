@@ -2,6 +2,7 @@ import React from 'react';
 import Sidebar from './Sidebar';
 import ImpersonationBanner from '@/features/admin/components/ImpersonationBanner';
 import Toaster from '@/shared/components/ui/Toaster';
+import { OnboardingHost } from '@/features/onboarding/components/OnboardingHost';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ export default function AppLayout({ children, space = 'editor' }: AppLayoutProps
         <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
       </div>
       <Toaster />
+      <OnboardingHost />
     </div>
   );
 }

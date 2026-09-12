@@ -61,4 +61,15 @@ export const handlers = [
       },
     })
   ),
+  // Onboarding (mibeko-dashboard#136, front#40) : aucun parcours actif par
+  // défaut — `OnboardingHost` est monté dans AppLayout sur toutes les pages
+  // /app/*, donc tout test qui rend une de ces pages sans surcharger ce
+  // handler doit rester silencieux (onUnhandledRequest:'error' sinon).
+  http.get('*/api/v1/onboarding/journey', () =>
+    HttpResponse.json({
+      success: true,
+      message: 'Aucun parcours actif.',
+      data: { available: false, journey: null, enrollment: null },
+    })
+  ),
 ];

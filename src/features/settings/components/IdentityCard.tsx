@@ -7,20 +7,13 @@ import { SettingsCard } from './SettingsCard';
 import { Feedback } from './Feedback';
 import { useUpdateProfile } from '@/features/settings/hooks/useSettings';
 import { useThemes } from '@/features/library/hooks/useThemes';
+import { usageContextLabel } from '@/shared/lib/labels';
 import { USAGE_CONTEXTS } from '@/features/settings/types';
 import type { AccountProfile, UpdateProfilePayload, UsageContext } from '@/features/settings/types';
 
 interface IdentityCardProps {
   account: AccountProfile;
 }
-
-/** Libellés de présentation — miroir français des codes MobileProfile::USAGE_CONTEXTS (mibeko-dashboard#135). */
-const USAGE_CONTEXT_LABELS: Record<UsageContext, string> = {
-  personal: 'Personnel',
-  studies: 'Études',
-  professional: 'Activité professionnelle',
-  other: 'Autre',
-};
 
 function sameInterests(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
@@ -121,7 +114,7 @@ export function IdentityCard({ account }: IdentityCardProps) {
               <SelectContent>
                 {USAGE_CONTEXTS.map((code) => (
                   <SelectItem key={code} value={code}>
-                    {USAGE_CONTEXT_LABELS[code]}
+                    {usageContextLabel(code)}
                   </SelectItem>
                 ))}
               </SelectContent>

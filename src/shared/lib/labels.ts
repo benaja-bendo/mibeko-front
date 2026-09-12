@@ -44,3 +44,24 @@ export function legalScopeLabel(scope: string | null | undefined): string {
       return scope || '—';
   }
 }
+
+/**
+ * Cadre d'usage déclaré par le compte — miroir français des codes
+ * `MobileProfile::USAGE_CONTEXTS` (mibeko-dashboard#135). Source unique :
+ * consommé par les Paramètres (`IdentityCard`) et l'accueil d'onboarding
+ * (front#40), qui ne doivent jamais diverger sur ces 4 libellés.
+ */
+export function usageContextLabel(code: string | null | undefined): string {
+  switch (code) {
+    case 'personal':
+      return 'Personnel';
+    case 'studies':
+      return 'Études';
+    case 'professional':
+      return 'Activité professionnelle';
+    case 'other':
+      return 'Autre';
+    default:
+      return code || '—';
+  }
+}
