@@ -21,6 +21,10 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export type NotificationChannel = 'email' | 'push' | 'in_app';
 
+/** Cadre d'usage — codes stables, miroir de MobileProfile::USAGE_CONTEXTS (mibeko-dashboard#135). */
+export const USAGE_CONTEXTS = ['personal', 'studies', 'professional', 'other'] as const;
+export type UsageContext = (typeof USAGE_CONTEXTS)[number];
+
 /** Matrice canal × type + fréquence de regroupement (clé technique `_frequency`). */
 export type NotificationMatrix = Record<
   NotificationType,
@@ -52,7 +56,11 @@ export interface AccountProfile {
   profile: {
     phone: string | null;
     profession: string | null;
+    usage_context: UsageContext | null;
+    job_title: string | null;
     company: string | null;
+    /** Slugs de la taxonomie "Thèmes de vie" (mibeko-dashboard#135). */
+    interests: string[];
   };
   /** Rôles & permissions : lecture seule côté client. */
   roles: string[];
@@ -93,7 +101,10 @@ export interface UpdateProfilePayload {
   name?: string;
   phone?: string | null;
   profession?: string | null;
+  usage_context?: UsageContext | null;
+  job_title?: string | null;
   company?: string | null;
+  interests?: string[];
 }
 
 export interface UpdatePasswordPayload {

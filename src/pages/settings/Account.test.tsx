@@ -16,7 +16,14 @@ const ACCOUNT = {
     email: 'tshala@example.cg',
     email_verified: true,
     status: 'active',
-    profile: { phone: '+242068000000', profession: 'Avocat', company: 'Cabinet Mibeko' },
+    profile: {
+      phone: '+242068000000',
+      profession: 'Professionnel du droit',
+      usage_context: 'professional',
+      job_title: 'Avocat',
+      company: 'Cabinet Mibeko',
+      interests: [],
+    },
     roles: ['user_pro'],
     permissions: ['library.read'],
     security: { two_factor_enabled: false, two_factor_confirmed: false },
@@ -43,7 +50,7 @@ function defaultMatrix(): NotificationMatrix {
   };
 }
 
-/** Mocke les trois requêtes déclenchées par la page Compte. */
+/** Mocke les requêtes déclenchées par la page Compte. */
 function mockAccountEndpoints() {
   server.use(
     http.get('*/api/v1/profile', () => HttpResponse.json(ACCOUNT)),
@@ -58,6 +65,8 @@ function mockAccountEndpoints() {
         ],
       }),
     ),
+    // IdentityCard alimente son multi-select "Centres d'intérêt" avec le catalogue de thèmes existant.
+    http.get('*/api/v1/library/themes', () => HttpResponse.json({ success: true, data: [] })),
   );
 }
 
