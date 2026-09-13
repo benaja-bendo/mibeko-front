@@ -21,7 +21,7 @@ export function AppearanceCard({ settings }: AppearanceCardProps) {
   const [done, setDone] = useState(false);
 
   // L'utilisateur peut prévisualiser un thème avant de l'enregistrer
-  const dirty = activeThemeId !== (settings.theme || 'lex-gold');
+  const dirty = activeThemeId !== (settings.theme || 'mibeko-classic');
 
   function handleThemeChange(themeId: string) {
     setTheme(themeId);

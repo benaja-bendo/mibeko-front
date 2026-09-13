@@ -2,46 +2,46 @@
 
 /*
  * Contrat de tokens de l'application.
- * Les valeurs ci-dessous sont celles du thème par défaut (« Lex Gold ») ; le
+ * Les valeurs ci-dessous sont celles du thème par défaut (« Mibeko Classique ») ; le
  * moteur de thèmes (src/app/themes) les surcharge à chaud sur <html> pour
  * changer l'apparence entière. Ne jamais utiliser de couleur en dur dans les
  * composants : toujours passer par ces tokens.
  */
 @theme {
-  --color-bg: #0c0d0f;
-  --color-s1: #141517;
-  --color-s2: #1b1d21;
-  --color-s3: #222428;
-  --color-s4: #2a2d33;
-  --color-b1: rgba(255,255,255,.055);
-  --color-b2: rgba(255,255,255,.10);
-  --color-b3: rgba(255,255,255,.16);
-  --color-t1: #e9e7e1;
-  --color-t2: #9b9891;
-  --color-t3: #5e5c57;
-  --color-t4: #3a3936;
-  --color-gold: #c8a86a;
-  --color-on-gold: #120e00;
-  --color-gold-d: rgba(200,168,106,.12);
-  --color-gold-d2: rgba(200,168,106,.22);
-  --color-blue: #5c8fd4;
-  --color-blue-d: rgba(92,143,212,.13);
-  --color-green: #56a07a;
-  --color-green-d: rgba(86,160,122,.12);
-  --color-red: #c4614e;
-  --color-red-d: rgba(196,97,78,.12);
-  --color-purple: #9478c8;
-  --color-purple-d: rgba(148,120,200,.13);
-  --color-amber: #c4903a;
-  --color-amber-d: rgba(196,144,58,.12);
+  --color-bg: #fcf9f8;
+  --color-s1: #ffffff;
+  --color-s2: #f6f3f2;
+  --color-s3: #f0eded;
+  --color-s4: #e4e2e1;
+  --color-b1: rgba(27,28,28,.10);
+  --color-b2: rgba(27,28,28,.16);
+  --color-b3: rgba(27,28,28,.26);
+  --color-t1: #1b1c1c;
+  --color-t2: #414844;
+  --color-t3: #727974;
+  --color-t4: #a8aea9;
+  --color-gold: #1e6b47;
+  --color-on-gold: #ffffff;
+  --color-gold-d: rgba(30,107,71,.08);
+  --color-gold-d2: rgba(30,107,71,.15);
+  --color-blue: #2f5e9e;
+  --color-blue-d: rgba(47,94,158,.10);
+  --color-green: #10b981;
+  --color-green-d: rgba(16,185,129,.10);
+  --color-red: #ba1a1a;
+  --color-red-d: rgba(186,26,26,.08);
+  --color-purple: #5c4a8a;
+  --color-purple-d: rgba(92,74,138,.10);
+  --color-amber: #8f4c31;
+  --color-amber-d: rgba(143,76,49,.10);
 
-  --font-display: 'Fraunces', serif;
-  --font-body: 'Instrument Sans', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-sm: 5px;
-  --radius-md: 9px;
-  --radius-lg: 14px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
   /* Apparition douce d'un fil de conversation (changement d'historique). */
   --animate-thread-in: thread-in 0.18s ease-out;
@@ -64,7 +64,7 @@
    * ils pointent vers les tokens du contrat pour suivre le thème actif.
    */
   :root {
-    color-scheme: dark;
+    color-scheme: light;
     --bg: var(--color-bg);
     --s1: var(--color-s1);
     --s2: var(--color-s2);

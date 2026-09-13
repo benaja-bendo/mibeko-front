@@ -1,5 +1,5 @@
 /**
- * lex-gold.ts — Thème par défaut « Lex Gold » (DESIGN_1).
+ * lex-gold.ts — Thème sombre optionnel « Lex Gold » (DESIGN_1).
  *
  * « Prestige Technical » : minimalisme sombre, charbon profond et accent
  * bronze, pensé pour les longues sessions de revue documentaire. Les valeurs

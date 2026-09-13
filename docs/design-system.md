@@ -1,6 +1,6 @@
 # Design system — mibeko-front
 
-> Statut : à jour au 2 juillet 2026 · référence des tokens, thèmes et polices du dashboard React (`mibeko-front`).
+> Statut : à jour au 13 septembre 2026 · référence des tokens, thèmes et polices du dashboard React (`mibeko-front`).
 
 Ce document décrit le design system réellement implémenté dans le code
 (`src/app/themes/`, `src/app/styles/globals.css`). Il fait autorité sur les
@@ -24,7 +24,7 @@ repeint l'application entière à chaud, sans rechargement ni re-render global.
 - **Contrat de types** : `src/app/themes/types.ts` (`ThemeColors`, `ThemeFonts`, `ThemeRadii`, `ThemePreview`, `ThemeDefinition`).
 - **Registre + moteur** : `src/app/themes/index.ts` (`THEMES`, `applyTheme`, `themeToCssVars`, `bootstrapTheme`).
 - **État réactif** : `src/app/themes/themeStore.ts` (store zustand `useThemeStore`).
-- **Valeurs par défaut inline** : `src/app/styles/globals.css` (`@theme`) — ce sont exactement les valeurs du thème par défaut « Lex Gold », de sorte que le premier rendu soit déjà correct avant l'application JavaScript.
+- **Valeurs par défaut inline** : `src/app/styles/globals.css` (`@theme`) — ce sont exactement les valeurs du thème par défaut « Mibeko Classique », de sorte que le premier rendu soit déjà correct avant l'application JavaScript.
 
 ### Persistance et anti-flash
 
@@ -34,12 +34,12 @@ script anti-flash dans `index.html` peut ainsi repeindre l'interface avant le
 premier paint, sans dépendre du bundle. La source de vérité côté compte est
 `user_settings.theme` (voir la carte Apparence des paramètres et le provider
 `ThemeAccountSync`, qui aligne l'appareil sur la préférence serveur au
-chargement). Rappel : le dashboard n'a pas de CSP, et les tokens transitent par
-`localStorage`.
+chargement). Le dashboard applique une CSP dans `docker/nginx/default.conf` ;
+les tokens de thème transitent par `localStorage`.
 
-## Thème par défaut : « Lex Gold » (sombre)
+## Thème sombre optionnel : « Lex Gold »
 
-Thème actif par défaut (`DEFAULT_THEME_ID = 'lex-gold'`). Positionnement
+Thème disponible sous l'identifiant `lex-gold`. Positionnement
 « Prestige Technical » : minimalisme sombre, charbon profond et accent bronze,
 pensé pour les longues sessions de revue documentaire par un persona avocat /
 juriste. Source : `src/app/themes/lex-gold.ts` (`mode: 'dark'`).
@@ -91,9 +91,9 @@ Le `<body>` applique `font-body` par défaut avec une taille de base de `13px`
 | md | `--radius-md` | `9px` |
 | lg | `--radius-lg` | `14px` |
 
-## Thème clair : « Mibeko Classique »
+## Thème par défaut : « Mibeko Classique »
 
-Second thème du registre (`id: 'mibeko-classic'`, `mode: 'light'`), proposé dans
+Premier thème du registre (`DEFAULT_THEME_ID = 'mibeko-classic'`, `mode: 'light'`), proposé dans
 les Paramètres à côté de Lex Gold. Minimalisme institutionnel inspiré des
 archives juridiques congolaises : fond crème, vert forêt profond pour les
 actions, terracotta sobre en accent secondaire ; contrastes calibrés WCAG AA
@@ -110,8 +110,9 @@ Valeurs remarquables :
   feuille de fonts inclut aussi Source Serif 4).
 - Rayons plus serrés : `sm 4px`, `md 6px`, `lg 8px`.
 
-Cette palette forêt fait écho au site public (`mibeko-site`) et à l'app mobile
-(`mibeko-app-kmp`), tandis que Lex Gold est propre au dashboard.
+Cette palette forêt aligne le premier contact du dashboard sur le site public
+(`mibeko-site`) et l'app mobile (`mibeko-app-kmp`). Une préférence déjà enregistrée,
+y compris Lex Gold, reste prioritaire sur ce défaut.
 
 ## Aperçus dans les Paramètres
 
@@ -131,7 +132,6 @@ Aucun composant n'est à modifier : ils ne connaissent que les tokens.
 
 ## Historique
 
-Le thème forêt d'origine du dashboard (avant l'adoption de Lex Gold comme
-défaut) est archivé, pour référence, dans
+Le thème forêt d'origine du dashboard est archivé, pour référence, dans
 [`_archive/design-foret-obsolete.md`](./_archive/design-foret-obsolete.md). Ne
 pas s'en servir pour de nouvelles valeurs.

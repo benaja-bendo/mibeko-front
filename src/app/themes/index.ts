@@ -16,10 +16,10 @@ import { mibekoClassic } from './mibeko-classic';
 
 export type { ThemeDefinition } from './types';
 
-export const DEFAULT_THEME_ID = lexGold.id;
+export const DEFAULT_THEME_ID = mibekoClassic.id;
 
 /** Registre ordonné — l'ordre est celui d'affichage dans les Paramètres. */
-export const THEMES: ThemeDefinition[] = [lexGold, mibekoClassic];
+export const THEMES: ThemeDefinition[] = [mibekoClassic, lexGold];
 
 const THEME_ID_KEY = 'mibeko:theme';
 const THEME_VARS_KEY = 'mibeko:theme-vars';
