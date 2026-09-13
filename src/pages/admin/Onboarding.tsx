@@ -13,6 +13,7 @@ import type {
   OnboardingPreview,
 } from '@/features/admin/api/onboardingAdminApi';
 import type { OnboardingStepType } from '@/features/onboarding/types';
+import { onboardingCopy } from '@/features/onboarding/lib/onboardingCopy';
 
 const STEP_TYPES: Array<{ value: OnboardingStepType; label: string }> = [
   { value: 'welcome', label: 'Accueil' },
@@ -180,7 +181,7 @@ function PreviewPanel({ preview }: { preview: OnboardingPreview }) {
   return (
     <section aria-label="Prévisualisation" className="rounded-xl border border-gold/20 bg-gold/5 p-4 space-y-3">
       <div><h2 className="font-display text-lg text-t1">Prévisualisation {preview.platform}</h2><p className="text-xs text-t3">Aucune donnée utilisateur écrite · aucun appel IA.</p></div>
-      <div className="space-y-2">{preview.steps.map((step, index) => <div key={step.key} className="rounded-lg border border-b1 bg-s1 p-3"><div className="flex justify-between"><span className="font-mono text-xs text-t3">{index + 1}. {step.key}</span>{!step.supported && <span className="text-xs text-amber">Ignorée par cet ancien client</span>}</div><h3 className="mt-2 font-medium text-t1">{step.config.title ?? step.config.title_key ?? step.key}</h3>{step.config.body && <p className="mt-1 text-sm text-t2">{step.config.body}</p>}{step.config.examples?.map((example) => <p key={example} className="mt-1 text-xs text-t3">Exemple : {example}</p>)}</div>)}</div>
+      <div className="space-y-2">{preview.steps.map((step, index) => <div key={step.key} className="rounded-lg border border-b1 bg-s1 p-3"><div className="flex justify-between"><span className="font-mono text-xs text-t3">{index + 1}. {step.key}</span>{!step.supported && <span className="text-xs text-amber">Ignorée par cet ancien client</span>}</div><h3 className="mt-2 font-medium text-t1">{step.config.title ?? onboardingCopy(step.config.title_key, step.key)}</h3>{(step.config.body ?? onboardingCopy(step.config.body_key, '')) && <p className="mt-1 text-sm text-t2">{step.config.body ?? onboardingCopy(step.config.body_key, '')}</p>}{step.config.examples?.map((example) => <p key={example} className="mt-1 text-xs text-t3">Exemple : {example}</p>)}</div>)}</div>
     </section>
   );
 }
