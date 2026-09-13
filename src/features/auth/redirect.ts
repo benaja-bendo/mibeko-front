@@ -1,4 +1,4 @@
-import { hasRole, type User } from '@/shared/types/auth';
+import { hasRole, requiresEmailVerification, type User } from '@/shared/types/auth';
 
 /**
  * Destination par défaut d'un utilisateur authentifié.
@@ -18,6 +18,7 @@ import { hasRole, type User } from '@/shared/types/auth';
  */
 export function defaultRedirectFor(user: User | null): string {
   if (!user) return '/auth/login';
+  if (requiresEmailVerification(user)) return '/auth/verifier-email';
   if (hasRole(user, 'admin')) return '/admin';
   if (hasRole(user, 'editor')) return '/editor';
   return '/app/library';
@@ -29,6 +30,11 @@ export function defaultRedirectFor(user: User | null): string {
  */
 export function redirectAfterRegistration(user: User | null, next: string | null): string {
   if (!user) return defaultRedirectFor(user);
+  if (requiresEmailVerification(user)) {
+    return next === 'assistant'
+      ? '/auth/verifier-email?next=assistant'
+      : '/auth/verifier-email';
+  }
   if (next === 'assistant') return '/app/assistant';
   return defaultRedirectFor(user);
 }

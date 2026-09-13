@@ -67,7 +67,7 @@ describe('RegisterPage', () => {
     expect(screen.queryByText(/LegalTech/i)).not.toBeInTheDocument();
   });
 
-  it("ouvre l'Assistant après une inscription qui porte cette intention", async () => {
+  it("demande de vérifier l'e-mail en conservant l'intention Assistant", async () => {
     renderWithProviders(
       <>
         <RegisterPage />
@@ -80,10 +80,10 @@ describe('RegisterPage', () => {
 
     expect(
       await screen.findByRole('status', { name: 'Route courante' }),
-    ).toHaveTextContent('/app/assistant');
+    ).toHaveTextContent('/auth/verifier-email');
   });
 
-  it("conserve la bibliothèque comme destination d'inscription par défaut", async () => {
+  it("demande de vérifier l'e-mail après une inscription sans intention", async () => {
     renderWithProviders(
       <>
         <RegisterPage />
@@ -96,6 +96,6 @@ describe('RegisterPage', () => {
 
     expect(
       await screen.findByRole('status', { name: 'Route courante' }),
-    ).toHaveTextContent('/app/library');
+    ).toHaveTextContent('/auth/verifier-email');
   });
 });

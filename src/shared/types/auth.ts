@@ -4,6 +4,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  email_verified_at?: string | null;
+  email_verification_required?: boolean;
   roles: UserRole[];
   permissions: string[];
 }
@@ -29,6 +31,10 @@ export function hasRole(user: User | null, ...roles: UserRole[]): boolean {
 export function hasPermission(user: User | null, permission: string): boolean {
   if (!user) return false;
   return user.permissions.includes(permission);
+}
+
+export function requiresEmailVerification(user: User | null): boolean {
+  return user?.email_verification_required === true && !user.email_verified_at;
 }
 
 export function isEditorOrAbove(user: User | null): boolean {

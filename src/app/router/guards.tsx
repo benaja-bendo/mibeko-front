@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import UnauthorizedPage from '@/features/auth/components/UnauthorizedPage';
-import { type UserRole } from '@/shared/types/auth';
+import { requiresEmailVerification, type UserRole } from '@/shared/types/auth';
 import { defaultRedirectFor } from '@/features/auth/redirect';
 
 interface RequireAuthProps {
@@ -10,14 +10,20 @@ interface RequireAuthProps {
   roles?: UserRole[];
   /** Rôle affiché dans la page 403 pour orienter l'utilisateur */
   requiredRole?: 'editor' | 'user_pro' | 'admin';
+  /** La page de vérification reste accessible avant validation de l'adresse. */
+  allowUnverifiedEmail?: boolean;
 }
 
-export function RequireAuth({ children, roles, requiredRole }: RequireAuthProps) {
+export function RequireAuth({ children, roles, requiredRole, allowUnverifiedEmail = false }: RequireAuthProps) {
   const { isAuthenticated, user } = useAuthStore();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/auth/login" state={{ from: location.pathname }} replace />;
+  }
+
+  if (!allowUnverifiedEmail && requiresEmailVerification(user)) {
+    return <Navigate to="/auth/verifier-email" replace />;
   }
 
   if (roles && user && !roles.some((r) => user.roles?.includes(r))) {

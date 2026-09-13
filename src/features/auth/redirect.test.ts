@@ -5,6 +5,14 @@ function userWith(...roles: UserRole[]): User {
   return { id: 'u1', name: 'Test', email: 'test@exemple.com', roles, permissions: [] };
 }
 
+function unverifiedUser(): User {
+  return {
+    ...userWith('mobile_user'),
+    email_verified_at: null,
+    email_verification_required: true,
+  };
+}
+
 describe('defaultRedirectFor', () => {
   it('envoie un compte sans abonnement sur la bibliothèque, comme tout le monde', () => {
     // mibeko-front#24 : la destination ne dépend plus du plan. `mobile_user`
@@ -32,12 +40,22 @@ describe('defaultRedirectFor', () => {
   it('renvoie vers la connexion quand personne n’est authentifié', () => {
     expect(defaultRedirectFor(null)).toBe('/auth/login');
   });
+
+  it('isole un nouveau compte tant que son adresse e-mail reste non vérifiée', () => {
+    expect(defaultRedirectFor(unverifiedUser())).toBe('/auth/verifier-email');
+  });
 });
 
 describe('redirectAfterRegistration', () => {
   it("conserve l'intention de poser une question après l'inscription", () => {
     expect(redirectAfterRegistration(userWith('mobile_user'), 'assistant')).toBe(
       '/app/assistant',
+    );
+  });
+
+  it("conserve l'intention Assistant pendant la vérification obligatoire", () => {
+    expect(redirectAfterRegistration(unverifiedUser(), 'assistant')).toBe(
+      '/auth/verifier-email?next=assistant',
     );
   });
 

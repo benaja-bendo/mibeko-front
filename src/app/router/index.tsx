@@ -30,6 +30,7 @@ import {
   SettingsNotificationsRoutePage,
   SettingsSupportRoutePage,
   RegisterRoutePage,
+  VerifyEmailRoutePage,
   ForgotPasswordRoutePage,
   ResetPasswordRoutePage,
   UpgradeRoutePage,
@@ -52,6 +53,14 @@ export const router = createBrowserRouter([
       <RedirectIfAuthenticated>
         <RegisterRoutePage />
       </RedirectIfAuthenticated>
+    ),
+  },
+  {
+    path: '/auth/verifier-email',
+    element: (
+      <RequireAuth allowUnverifiedEmail>
+        <VerifyEmailRoutePage />
+      </RequireAuth>
     ),
   },
   {

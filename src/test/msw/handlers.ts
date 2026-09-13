@@ -18,7 +18,15 @@ export const handlers = [
       success: true,
       data: {
         token: 'jeton-de-test',
-        user: { id: 'u1', name: 'Test', email: 'test@exemple.com', roles: ['mobile_user'], permissions: [] },
+        user: {
+          id: 'u1',
+          name: 'Test',
+          email: 'test@exemple.com',
+          email_verified_at: null,
+          email_verification_required: true,
+          roles: ['mobile_user'],
+          permissions: [],
+        },
       },
     })
   ),

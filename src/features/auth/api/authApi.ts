@@ -57,6 +57,11 @@ export async function fetchMe(): Promise<User> {
   return data.data.user;
 }
 
+export async function resendEmailVerification(): Promise<string> {
+  const { data } = await laravelClient.post('/email/verification-notification');
+  return data.message as string;
+}
+
 export async function logout(): Promise<void> {
   await laravelClient.post('/logout');
 }
