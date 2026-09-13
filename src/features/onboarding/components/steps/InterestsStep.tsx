@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DialogDescription, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
 import { useThemes } from '@/features/library/hooks/useThemes';
+import { StepExamples } from '@/features/onboarding/components/StepExamples';
 import type { OnboardingStepDefinition } from '@/features/onboarding/types';
 
 interface InterestsStepProps {
@@ -18,6 +19,7 @@ interface InterestsStepProps {
  * second appel dupliqué.
  */
 export function InterestsStep({ step, onAnswer, onSkip, pending }: InterestsStepProps) {
+  const config = step.config as { title?: string; body?: string; cta?: string; examples?: string[] };
   const themes = useThemes();
   const [selected, setSelected] = useState<string[]>((step.progress.value as string[]) ?? []);
 
@@ -27,8 +29,9 @@ export function InterestsStep({ step, onAnswer, onSkip, pending }: InterestsStep
 
   return (
     <div className="space-y-4">
-      <DialogTitle>Des centres d'intérêt à signaler ?</DialogTitle>
-      <DialogDescription>Facultatif — utile pour mettre en avant les bons textes plus tard.</DialogDescription>
+      <DialogTitle>{config.title ?? "Des centres d'intérêt à signaler ?"}</DialogTitle>
+      <DialogDescription>{config.body ?? 'Facultatif — utile pour mettre en avant les bons textes plus tard.'}</DialogDescription>
+      <StepExamples examples={config.examples} />
       <div className="flex flex-wrap gap-2">
         {themes.data?.map((theme) => (
           <Button
@@ -48,7 +51,7 @@ export function InterestsStep({ step, onAnswer, onSkip, pending }: InterestsStep
           Passer
         </Button>
         <Button type="button" variant="gold" onClick={() => onAnswer(selected)} disabled={pending}>
-          Continuer
+          {config.cta ?? 'Continuer'}
         </Button>
       </div>
     </div>

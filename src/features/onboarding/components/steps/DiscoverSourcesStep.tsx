@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { DialogDescription, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
 import { onboardingCopy } from '@/features/onboarding/lib/onboardingCopy';
+import { StepExamples } from '@/features/onboarding/components/StepExamples';
 import type { OnboardingStepDefinition } from '@/features/onboarding/types';
 
 interface DiscoverSourcesStepProps {
@@ -23,7 +24,8 @@ interface DiscoverSourcesStepProps {
  */
 export function DiscoverSourcesStep({ step, onAnswer }: DiscoverSourcesStepProps) {
   const navigate = useNavigate();
-  const config = step.config as { title_key?: string };
+  const config = step.config as { title?: string; body?: string; title_key?: string; examples?: string[]; options?: Array<{ code: string; label?: string }> };
+  const labels = new Map(config.options?.map((option) => [option.code, option.label]));
 
   function choose(value: 'comprendre' | 'retrouver' | 'explorer', destination: string) {
     onAnswer(value);
@@ -32,17 +34,18 @@ export function DiscoverSourcesStep({ step, onAnswer }: DiscoverSourcesStepProps
 
   return (
     <div className="space-y-4">
-      <DialogTitle>{onboardingCopy(config.title_key, "Que voulez-vous faire aujourd'hui ?")}</DialogTitle>
-      <DialogDescription>Vous pourrez toujours revenir à cet accueil plus tard.</DialogDescription>
+      <DialogTitle>{config.title ?? onboardingCopy(config.title_key, "Que voulez-vous faire aujourd'hui ?")}</DialogTitle>
+      <DialogDescription>{config.body ?? 'Vous pourrez toujours revenir à cet accueil plus tard.'}</DialogDescription>
+      <StepExamples examples={config.examples} />
       <div className="grid gap-2">
         <Button type="button" variant="outline" className="justify-start" onClick={() => choose('comprendre', '/app/assistant')}>
-          Comprendre une question — poser une question à l'Assistant
+          {labels.get('comprendre') ?? "Comprendre une question — poser une question à l'Assistant"}
         </Button>
         <Button type="button" variant="outline" className="justify-start" onClick={() => choose('retrouver', '/app/library')}>
-          Retrouver un texte — chercher dans la bibliothèque
+          {labels.get('retrouver') ?? 'Retrouver un texte — chercher dans la bibliothèque'}
         </Button>
         <Button type="button" variant="outline" className="justify-start" onClick={() => choose('explorer', '/app/library')}>
-          Explorer — parcourir par thème
+          {labels.get('explorer') ?? 'Explorer — parcourir par thème'}
         </Button>
       </div>
     </div>

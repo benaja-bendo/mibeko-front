@@ -6,6 +6,7 @@ import {
   AdminSanteRoutePage,
   AdminMessagesRoutePage,
   AdminAbonnementsRoutePage,
+  AdminOnboardingRoutePage,
   AdminReferentielsRoutePage,
   AdminSignalementsRoutePage,
   AdminUtilisateursRoutePage,
@@ -92,6 +93,10 @@ export const router = createBrowserRouter([
   {
     path: '/admin/abonnements',
     element: <RequireAuth roles={['admin']} requiredRole="admin"><AdminAbonnementsRoutePage /></RequireAuth>,
+  },
+  {
+    path: '/admin/onboarding',
+    element: <RequireAuth roles={['admin']} requiredRole="admin"><AdminOnboardingRoutePage /></RequireAuth>,
   },
   {
     path: '/admin',

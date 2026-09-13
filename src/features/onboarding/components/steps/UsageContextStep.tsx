@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DialogDescription, DialogTitle } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
 import { usageContextLabel } from '@/shared/lib/labels';
+import { StepExamples } from '@/features/onboarding/components/StepExamples';
 import type { OnboardingChoiceOption, OnboardingStepDefinition } from '@/features/onboarding/types';
 
 interface UsageContextStepProps {
@@ -18,14 +19,15 @@ interface UsageContextStepProps {
  * fermés des deux côtés, pas la peine de dupliquer une seconde traduction.
  */
 export function UsageContextStep({ step, onAnswer, onSkip, pending }: UsageContextStepProps) {
-  const config = step.config as { options?: OnboardingChoiceOption[] };
+  const config = step.config as { title?: string; body?: string; cta?: string; examples?: string[]; options?: OnboardingChoiceOption[] };
   const options = config.options ?? [];
   const [selected, setSelected] = useState<string | null>((step.progress.value as string) ?? null);
 
   return (
     <div className="space-y-4">
-      <DialogTitle>Quel est votre cadre d'usage ?</DialogTitle>
-      <DialogDescription>Facultatif — vous pourrez le changer plus tard dans vos préférences.</DialogDescription>
+      <DialogTitle>{config.title ?? "Quel est votre cadre d'usage ?"}</DialogTitle>
+      <DialogDescription>{config.body ?? 'Facultatif — vous pourrez le changer plus tard dans vos préférences.'}</DialogDescription>
+      <StepExamples examples={config.examples} />
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cadre d'usage">
         {options.map((option) => (
           <Button
@@ -36,7 +38,7 @@ export function UsageContextStep({ step, onAnswer, onSkip, pending }: UsageConte
             aria-checked={selected === option.code}
             onClick={() => setSelected(option.code)}
           >
-            {usageContextLabel(option.code)}
+            {option.label ?? usageContextLabel(option.code)}
           </Button>
         ))}
       </div>
@@ -50,7 +52,7 @@ export function UsageContextStep({ step, onAnswer, onSkip, pending }: UsageConte
           onClick={() => selected && onAnswer(selected)}
           disabled={!selected || pending}
         >
-          Continuer
+          {config.cta ?? 'Continuer'}
         </Button>
       </div>
     </div>

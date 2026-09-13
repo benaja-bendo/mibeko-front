@@ -6,6 +6,7 @@ import { UsageContextStep } from '@/features/onboarding/components/steps/UsageCo
 import { InterestsStep } from '@/features/onboarding/components/steps/InterestsStep';
 import { DiscoverSourcesStep } from '@/features/onboarding/components/steps/DiscoverSourcesStep';
 import { onboardingCopy } from '@/features/onboarding/lib/onboardingCopy';
+import { StepExamples } from '@/features/onboarding/components/StepExamples';
 import type { OnboardingJourneyDefinition, OnboardingStepDefinition } from '@/features/onboarding/types';
 
 interface OnboardingModalProps {
@@ -28,14 +29,15 @@ function resolved(step: OnboardingStepDefinition): boolean {
 
 /** Rendu d'une étape inconnue (clé future non couverte par un composant dédié) — jamais un écran vide ni un crash. */
 function GenericStep({ step, onContinue }: { step: OnboardingStepDefinition; onContinue: () => void }) {
-  const config = step.config as { title_key?: string };
+  const config = step.config as { title?: string; body?: string; cta?: string; title_key?: string; examples?: string[] };
   return (
     <div className="space-y-4">
-      <DialogTitle>{onboardingCopy(config.title_key, 'Une nouveauté vous attend')}</DialogTitle>
-      <DialogDescription>Cette étape sera bientôt disponible.</DialogDescription>
+      <DialogTitle>{config.title ?? onboardingCopy(config.title_key, 'Une nouveauté vous attend')}</DialogTitle>
+      <DialogDescription>{config.body ?? 'Cette étape sera bientôt disponible.'}</DialogDescription>
+      <StepExamples examples={config.examples} />
       <div className="flex justify-end">
         <Button type="button" variant="gold" onClick={onContinue}>
-          Continuer
+          {config.cta ?? 'Continuer'}
         </Button>
       </div>
     </div>

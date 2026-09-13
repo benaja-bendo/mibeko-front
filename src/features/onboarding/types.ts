@@ -30,7 +30,8 @@ export interface OnboardingStepProgress {
 /** `config.options` d'une étape `single_choice`/`multi_choice` à options inlinées. */
 export interface OnboardingChoiceOption {
   code: string;
-  label_key: string;
+  label?: string;
+  label_key?: string;
 }
 
 export interface OnboardingStepDefinition {

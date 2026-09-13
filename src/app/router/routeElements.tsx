@@ -70,6 +70,7 @@ const AdminUtilisateurs = lazy(() => import('@/pages/admin/Utilisateurs'));
 const AdminAudit = lazy(() => import('@/pages/admin/Audit'));
 const AdminMessages = lazy(() => import('@/pages/admin/Messages'));
 const AdminAbonnements = lazy(() => import('@/pages/admin/Abonnements'));
+const AdminOnboarding = lazy(() => import('@/pages/admin/Onboarding'));
 const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
 const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
 const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
@@ -216,6 +217,10 @@ export function AdminSanteRoutePage() {
 
 export function AdminAbonnementsRoutePage() {
   return <LazyPage Component={AdminAbonnements} />;
+}
+
+export function AdminOnboardingRoutePage() {
+  return <LazyPage Component={AdminOnboarding} />;
 }
 
 /**

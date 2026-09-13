@@ -65,6 +65,23 @@ describe('OnboardingHost — reprise', () => {
     expect(screen.getByText('Bienvenue sur Mibeko')).toBeInTheDocument();
   });
 
+  it('affiche les contenus littéraux publiés sans rebuild du client web', async () => {
+    mockJourney(journeyResponse({
+      journey: {
+        key: 'onboarding',
+        version: 2,
+        steps: [step({ config: { title: 'Bienvenue aux professionnels', body: 'Un guide actualisé depuis l’administration.', cta: 'Découvrir', examples: ['Retrouver un texte OHADA'] } })],
+      },
+    }));
+
+    renderWithProviders(<OnboardingHost />, { route: '/app/library' });
+
+    expect(await screen.findByText('Bienvenue aux professionnels')).toBeInTheDocument();
+    expect(screen.getByText('Un guide actualisé depuis l’administration.')).toBeInTheDocument();
+    expect(screen.getByText('Exemple : Retrouver un texte OHADA')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Découvrir' })).toBeInTheDocument();
+  });
+
   it("ne rouvre pas la modale automatiquement quand le parcours est reporté", async () => {
     mockJourney(journeyResponse({ enrollment: { status: 'postponed', started_at: '2026-01-01T00:00:00+00:00', completed_at: null, postponed_at: '2026-01-01T00:05:00+00:00', replay_count: 0 } }));
     renderWithProviders(<OnboardingHost />, { route: '/app/library' });
