@@ -25,6 +25,7 @@ import {
   ProJournalsRoutePage,
   ProJournalViewRoutePage,
   ReviewQueueRoutePage,
+  RelationsRoutePage,
   SettingsRoutePage,
   SettingsAccountRoutePage,
   SettingsBillingRoutePage,
@@ -169,6 +170,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
         <ReviewQueueRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/editor/relations',
+    element: (
+      <RequireAuth roles={['admin', 'editor']} requiredRole="editor">
+        <RelationsRoutePage />
       </RequireAuth>
     ),
   },

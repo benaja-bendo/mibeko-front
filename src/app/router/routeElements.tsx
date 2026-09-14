@@ -50,6 +50,7 @@ const ResetPasswordPage = lazy(() => import('@/features/auth/components/ResetPas
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
 const ReviewQueue = lazy(() => import('@/pages/ReviewQueue'));
+const Relations = lazy(() => import('@/pages/Relations'));
 const Journals = lazy(() => import('@/pages/Journals'));
 const JournalDetail = lazy(() => import('@/pages/JournalDetail'));
 const Ingestion = lazy(() => import('@/pages/Ingestion'));
@@ -118,6 +119,13 @@ export function LegalDocumentsRoutePage() {
  */
 export function ReviewQueueRoutePage() {
   return <LazyPage Component={ReviewQueue} />;
+}
+
+/**
+ * Rend la relecture des relations modification/abrogation candidates en lazy loading.
+ */
+export function RelationsRoutePage() {
+  return <LazyPage Component={Relations} />;
 }
 
 /**
