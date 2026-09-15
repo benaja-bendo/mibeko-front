@@ -15,6 +15,9 @@ const EXTRACTION_STATUS_CFG: Record<string, { cls: string; label: string }> = {
   succeeded:  { cls: 'text-green bg-green/10 border-green/20',   label: 'Réussi' },
   needs_review: { cls: 'text-gold bg-gold-d border-gold/25',     label: 'À arbitrer' },
   discarded:  { cls: 'text-t3 bg-s2 border-b1',                  label: 'Rejeté' },
+  // Statuts de la file d'ingestion (ingestion_jobs, mibeko-python#23) —
+  // 'pending'/'running'/'failed' partagent déjà les clés ci-dessus.
+  done:       { cls: 'text-green bg-green/10 border-green/20',   label: 'Terminé' },
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {

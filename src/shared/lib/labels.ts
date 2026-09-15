@@ -65,3 +65,52 @@ export function usageContextLabel(code: string | null | undefined): string {
       return code || '—';
   }
 }
+
+/** Étape d'un travail de la file d'ingestion (`ingestion_jobs.step`, mibeko-python#23). */
+export function ingestionJobStepLabel(step: string | null | undefined): string {
+  switch (step) {
+    case 'recu':
+      return 'Reçu';
+    case 'parse':
+      return 'Extraction (OCR)';
+    case 'structure':
+      return 'Structuration';
+    case 'controle':
+      return 'Contrôle';
+    case 'termine':
+      return 'Terminé';
+    default:
+      return step || '—';
+  }
+}
+
+/** Origine d'un travail de la file d'ingestion (`ingestion_jobs.kind`). */
+export function ingestionJobKindLabel(kind: string | null | undefined): string {
+  switch (kind) {
+    case 'depot':
+      return 'Dépôt web';
+    case 'veille':
+      return 'Veille';
+    case 'reprise':
+      return 'Reprise';
+    default:
+      return kind || '—';
+  }
+}
+
+/**
+ * Classe d'erreur d'un travail en échec (`ingestion_jobs.error_class`) —
+ * explique à l'éditeur pourquoi « relancer » a un sens ou non.
+ */
+export function ingestionErrorClassLabel(errorClass: string | null | undefined): string {
+  switch (errorClass) {
+    case 'transitoire':
+      return 'Incident réseau ou quota';
+    case 'definitive':
+      return 'Échec définitif';
+    case 'information_manquante':
+      return 'Information manquante — nécessite une correction';
+    default:
+      return errorClass || '';
+  }
+}
