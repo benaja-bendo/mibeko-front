@@ -139,11 +139,6 @@ export interface HealthStatus {
   timestamp: string;
 }
 
-export interface UploadResponse {
-  message: string;
-  document_id: string;
-}
-
 export interface ParseResponse {
   message: string;
   run_id: string;
@@ -238,42 +233,8 @@ export const deletePythonDocument = (id: string): Promise<void> =>
   pyFetch(`/documents/${id}`, { method: 'DELETE' });
 
 // ---------------------------------------------------------------------------
-// Upload
-// ---------------------------------------------------------------------------
-
-/**
- * Upload un PDF (+ MD/JSON optionnels) pour ingestion.
- * Utilise FormData directement car multipart/form-data.
- */
-export const uploadDocument = async (formData: FormData): Promise<UploadResponse> => {
-  const res = await pythonClient.post<UploadResponse>('/documents/upload', formData, {
-    headers: { 'Accept': 'application/json', 'Content-Type': 'multipart/form-data' },
-  });
-  return res.data;
-};
-
-export interface JournalUploadResponse {
-  message: string;
-  official_journal_id: string;
-  created_documents_count: number;
-  created_document_ids: string[];
-  created: boolean;
-}
-
-/**
- * Upload d'un Journal Officiel (flux) : le backend découpe le JO en actes
- * unitaires (lois, décrets, arrêtés…) et les ingère comme documents FLUX.
- */
-export const uploadOfficialJournal = async (formData: FormData): Promise<JournalUploadResponse> => {
-  const res = await pythonClient.post<JournalUploadResponse>('/official-journals/upload', formData, {
-    headers: { 'Accept': 'application/json', 'Content-Type': 'multipart/form-data' },
-  });
-  return res.data;
-};
-
-// ---------------------------------------------------------------------------
-// Dépôt (chemin unique d'ingestion, mibeko-python#23) — remplace à terme les
-// anciens /documents/upload et /official-journals/upload : une seule
+// Dépôt (chemin unique d'ingestion, mibeko-python#23) — remplace les anciens
+// /documents/upload et /official-journals/upload (front#43) : une seule
 // question à l'éditeur (« qu'est-ce que c'est ? »), le structureur déduit le
 // reste de l'en-tête. Le dépôt ne crée plus de document directement — il
 // dépose un travail dans la file durable, suivi via getIngestionJobs.
