@@ -41,6 +41,18 @@ function formatPythonError(data: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Erreur Python enrichie : `.message` reste lisible comme avant (tout le code
+ * existant qui fait `err.message` continue de fonctionner à l'identique).
+ * `.status`/`.data` sont ajoutés pour les appelants qui ont besoin du payload
+ * structuré d'une réponse d'erreur — ex. le 409 de `POST /api/v1/depots`
+ * porte `document_id`/`manifest_id`/`actions`, perdus sinon.
+ */
+export interface PythonApiError extends Error {
+  status?: number;
+  data?: unknown;
+}
+
 pythonClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -50,6 +62,9 @@ pythonClient.interceptors.response.use(
       handleUnauthorized();
     }
     const message = formatPythonError(error.response?.data, error.message || 'Python API error');
-    return Promise.reject(new Error(message));
+    const apiError: PythonApiError = new Error(message);
+    apiError.status = error.response?.status;
+    apiError.data = error.response?.data;
+    return Promise.reject(apiError);
   },
 );

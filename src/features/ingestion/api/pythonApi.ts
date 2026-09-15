@@ -4,7 +4,7 @@
  * Le rewrite Vite enlève /py, donc /py/api/... → /api/... sur le serveur Python.
  */
 
-import { pythonClient, pythonBaseUrl as BASE, readSseStream } from '@/shared/api';
+import { pythonClient, pythonBaseUrl as BASE, readSseStream, type PythonApiError } from '@/shared/api';
 import { getStoredToken } from '@/shared/auth/tokenAccess';
 
 // ---------------------------------------------------------------------------
@@ -270,6 +270,102 @@ export const uploadOfficialJournal = async (formData: FormData): Promise<Journal
   });
   return res.data;
 };
+
+// ---------------------------------------------------------------------------
+// Dépôt (chemin unique d'ingestion, mibeko-python#23) — remplace à terme les
+// anciens /documents/upload et /official-journals/upload : une seule
+// question à l'éditeur (« qu'est-ce que c'est ? »), le structureur déduit le
+// reste de l'en-tête. Le dépôt ne crée plus de document directement — il
+// dépose un travail dans la file durable, suivi via getIngestionJobs.
+// ---------------------------------------------------------------------------
+
+/** Les trois branches du formulaire de dépôt (mibeko-python#23 § 3.2). */
+export type DepotTypeSource = 'journal_officiel' | 'code' | 'acte_uniforme' | 'acte';
+
+export interface DepotResponse {
+  message: string;
+  job_id: string;
+  manifest_id: string;
+}
+
+/**
+ * Payload du 409 : le fichier (même empreinte SHA-256) est déjà connu.
+ * `document_id` est renseigné si un document a déjà été créé à partir de ce
+ * fichier ; sinon seul `manifest_id` l'est (dépôt en cours de traitement, pas
+ * encore un document). `actions` porte les identifiants renvoyés par l'API,
+ * jamais du texte à afficher tel quel.
+ */
+export interface DepotConflict {
+  message: string;
+  document_id: string | null;
+  manifest_id: string | null;
+  actions: string[];
+}
+
+/** Dépose un PDF dans la file d'ingestion (multipart/form-data). */
+export const createDepot = async (formData: FormData): Promise<DepotResponse> => {
+  const res = await pythonClient.post<DepotResponse>('/depots', formData, {
+    headers: { Accept: 'application/json', 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
+
+/**
+ * Distingue un conflit 409 (fichier déjà connu, réponse exploitable par
+ * l'UI) d'une erreur ordinaire. `err.data` vient de l'enrichissement de
+ * `pythonClient` (voir `PythonApiError`) — sans lui, seul `err.message`
+ * survivrait et les trois actions du 409 seraient perdues.
+ */
+export function asDepotConflict(err: unknown): DepotConflict | null {
+  const apiErr = err as PythonApiError;
+  if (apiErr?.status !== 409 || !apiErr.data || typeof apiErr.data !== 'object') return null;
+  return apiErr.data as DepotConflict;
+}
+
+// ---------------------------------------------------------------------------
+// File d'ingestion — travaux (ingestion_jobs)
+// ---------------------------------------------------------------------------
+
+export type IngestionJobKind = 'depot' | 'veille' | 'reprise';
+export type IngestionJobStep = 'recu' | 'parse' | 'structure' | 'controle' | 'termine';
+export type IngestionJobStatus = 'pending' | 'running' | 'failed' | 'done';
+export type IngestionJobErrorClass = 'transitoire' | 'definitive' | 'information_manquante';
+
+export interface IngestionJob {
+  id: string;
+  kind: IngestionJobKind;
+  manifest_id: string;
+  step: IngestionJobStep;
+  status: IngestionJobStatus;
+  attempts: number;
+  max_attempts: number;
+  error_class: IngestionJobErrorClass | null;
+  last_error: string | null;
+  result: {
+    parse?: { methode?: string | null; skipped?: boolean };
+    structure?: { statut?: string; document_ids?: string[] };
+  };
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+/** Liste les travaux de la file, plus récents d'abord. */
+export const getIngestionJobs = (params?: {
+  status?: IngestionJobStatus;
+  limit?: number;
+}): Promise<{ jobs: IngestionJob[] }> => {
+  const q = new URLSearchParams();
+  if (params?.status) q.set('status', params.status);
+  if (params?.limit) q.set('limit', String(params.limit));
+  const qs = q.toString();
+  return pyFetch(`/ingestion/jobs${qs ? `?${qs}` : ''}`);
+};
+
+/** Relance un travail `failed` — seul point qui reposte un appel LLM après un échec. */
+export const relancerIngestionJob = (
+  jobId: string
+): Promise<{ message: string; id: string; step: IngestionJobStep }> =>
+  pyFetch(`/ingestion/jobs/${jobId}/relancer`, { method: 'POST' });
 
 // ---------------------------------------------------------------------------
 // Parsing
