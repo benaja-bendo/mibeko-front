@@ -92,6 +92,12 @@ export default function PdfViewer({
   const [openExternalError, setOpenExternalError] = useState(false);
 
   const [numPages, setNumPages] = useState<number>(1);
+  // `numPages` vaut 1 (repli) tant que pdf.js n'a pas fini de charger le
+  // binaire — beaucoup plus lent que la structure (API Laravel). Sans ce
+  // drapeau, un `scrollToPage` déclenché par la sélection initiale
+  // (`?article=`, mibeko-front#44) se fait borner à la page 1 par
+  // `Math.min(numPages, n)` avant que le vrai nombre de pages soit connu.
+  const [pdfLoaded, setPdfLoaded] = useState(false);
   // Mode « ajuster à la largeur » : actif par défaut pour que la page tienne
   // dans le conteneur (essentiel sur mobile/tablette). Désactivé dès que
   // l'utilisateur règle le zoom manuellement.
@@ -178,7 +184,12 @@ export default function PdfViewer({
 
   // Fait défiler jusqu'à la page `n` et met à jour l'indicateur tout de
   // suite ; le défilement lui-même le confirmera ensuite via `handleScroll`.
-  const scrollToPage = (n: number, behavior: 'smooth' | 'auto' = 'smooth') => {
+  // `behavior: 'auto'` ne veut PAS dire instantané : la spec CSSOM View le
+  // fait retomber sur le `scroll-behavior` CSS du conteneur (`scroll-smooth`
+  // ici), ce qui anime un saut long page par page et le fait atterrir à côté
+  // de la cible sur un document de plusieurs centaines de pages — seul
+  // `'instant'` court-circuite vraiment le CSS.
+  const scrollToPage = (n: number, behavior: 'smooth' | 'instant' = 'smooth') => {
     const target = Math.max(1, Math.min(numPages, n));
     setPdfPage(target);
     rowVirtualizer.scrollToIndex(target - 1, { align: 'start', behavior });
@@ -244,6 +255,7 @@ export default function PdfViewer({
   useEffect(() => {
     setFitMode(true);
     setPageSizes(new Map());
+    setPdfLoaded(false);
   }, [documentId]);
 
   // Réglage manuel du zoom : sort du mode « ajuster ».
@@ -342,11 +354,15 @@ export default function PdfViewer({
   // 1) coordonnées enregistrées (source_locator.page) si présentes ;
   // 2) sinon, recherche du libellé dans le texte du PDF (indépendant de l'ingestion).
   useEffect(() => {
-    if (!selectedNode) return;
+    // Sans ce garde, un élément sélectionné avant la fin du chargement du PDF
+    // (structure chargée en premier, cas du `?article=` initial) se voit
+    // borné à la page 1 par `scrollToPage` — `pdfLoaded` fait rejouer l'effet
+    // une fois le vrai nombre de pages connu.
+    if (!selectedNode || !pdfLoaded) return;
 
     const loc = selectedNode.source_locator;
     if (loc && typeof loc.page === 'number') {
-      scrollToPage(loc.page, 'auto');
+      scrollToPage(loc.page, 'instant');
       const timer = setTimeout(() => {
         document.getElementById(`zone-${selectedNode.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 400);
@@ -358,7 +374,7 @@ export default function PdfViewer({
     setLocating(true);
     findPageForNode(selectedNode)
       .then((p) => {
-        if (!cancelled && p) scrollToPage(p, 'auto');
+        if (!cancelled && p) scrollToPage(p, 'instant');
       })
       .finally(() => {
         if (!cancelled) setLocating(false);
@@ -366,9 +382,10 @@ export default function PdfViewer({
     return () => {
       cancelled = true;
     };
-    // On ne dépend QUE de l'élément sélectionné (pas de pdfPage : éviter les boucles).
+    // On ne dépend QUE de l'élément sélectionné et de l'état de chargement du
+    // PDF (pas de pdfPage : éviter les boucles).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNode?.id]);
+  }, [selectedNode?.id, pdfLoaded]);
 
   const handleZoneClick = (nodeId: string) => {
     const node = findNodeById(treeData, nodeId);
@@ -535,6 +552,7 @@ export default function PdfViewer({
               pdfProxyRef.current = pdf;
               pageTextCache.current.clear();
               setNumPages(pdf.numPages);
+              setPdfLoaded(true);
             }}
             loading={
               <div className="flex flex-col items-center justify-center h-full w-full text-t3 gap-3 py-20">
