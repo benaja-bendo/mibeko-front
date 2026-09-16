@@ -1,5 +1,5 @@
 /**
- * Ingestion.tsx — Boîte de réception documentaire (admin/éditeur, front#43).
+ * Ingestion.tsx — Boîte de réception documentaire (admin/éditeur, front#43/#44).
  *
  * Trois zones :
  *  - « Déposer » : formulaire à trois branches (mibeko-python#23 § 3.2), qui
@@ -7,226 +7,44 @@
  *    directement.
  *  - « En cours » : suivi des travaux (`GET /api/v1/ingestion/jobs`), étape
  *    réelle, tentative, erreur lisible, relance.
- *  - « Curation » : le sas de validation existant (À traiter/À valider,
- *    publier/rejeter) — conservé tel quel le temps que front#44 (« À
- *    vérifier ») le remplace vraiment (docs/decisions.md, 15/09).
+ *  - « À vérifier » : relecture dirigée d'un document (front#44) — signalements,
+ *    points d'observation obligatoires et sondage calculés côté serveur
+ *    (mibeko-dashboard#142), cette page ne fait qu'afficher et confirmer.
+ *    « Valider » y transite `draft`/`review` vers `validated` ; « Publier »
+ *    reste ailleurs, sous son propre garde-fou.
  *
- * Publication/rejet passent par l'API Laravel (bulk curation), le dépôt et le
- * suivi des travaux par l'API Python.
+ * Le dépôt et le suivi des travaux passent par l'API Python, la relecture
+ * dirigée par l'API Laravel.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  getPythonDocuments,
-  parseDocument,
-  reprocessDocument,
-  type PythonDocumentSummary,
-} from '@/features/ingestion/api/pythonApi';
-import {
-  bulkUpdateDocuments,
-  bulkDeleteDocuments,
-  type BulkSkippedDocument,
-} from '@/features/documents/api/laravelApi';
 import { usePythonStream } from '@/features/ingestion/hooks/usePythonStream';
-import { IngestionStats, ServiceHealth, type QueueStage } from '@/features/ingestion/components/IngestionStats';
-import { ValidationQueue } from '@/features/ingestion/components/ValidationQueue';
-import { DocumentDetailPanel } from '@/features/ingestion/components/DocumentDetailPanel';
+import { ServiceHealth } from '@/features/ingestion/components/IngestionStats';
+import { AVerifierZone } from '@/features/ingestion/components/AVerifierZone';
 import { DepotForm } from '@/features/ingestion/components/DepotForm';
 import { IngestionJobsQueue } from '@/features/ingestion/components/IngestionJobsQueue';
 import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { toast } from '@/shared/store/useToast';
-import { documentRoleLabel } from '@/shared/lib/labels';
 
-type Zone = 'deposer' | 'en-cours' | 'curation';
+type Zone = 'deposer' | 'en-cours' | 'a-verifier';
 
 const ZONE_LABELS: Record<Zone, string> = {
   deposer: 'Déposer',
   'en-cours': 'En cours',
-  curation: 'Curation',
+  'a-verifier': 'À vérifier',
 };
-
-/**
- * Résume les documents écartés par les garde-fous de l'API, en nommant le motif
- * majoritaire — un simple compteur n'apprend rien à l'éditeur sur ce qu'il doit
- * corriger.
- */
-function resumeDesEcarts(ecartes: number, skipped: BulkSkippedDocument[]): string {
-  if (ecartes === 0) return 'Aucun document mis à jour.';
-
-  const parMotif = new Map<string, number>();
-  for (const { motif } of skipped) parMotif.set(motif, (parMotif.get(motif) ?? 0) + 1);
-
-  const majoritaire = [...parMotif.entries()].sort((a, b) => b[1] - a[1])[0];
-
-  return majoritaire
-    ? `${ecartes} document(s) écarté(s) — motif principal : ${majoritaire[0]}.`
-    : `${ecartes} document(s) écarté(s) par les garde-fous de publication.`;
-}
 
 export default function Ingestion() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [zone, setZone] = useState<Zone>('deposer');
-  const [stage, setStage] = useState<QueueStage>('review');
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'STOCK' | 'FLUX'>('ALL');
-  const [failedOnly, setFailedOnly] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   usePythonStream({
     onNotification: ({ message, type }) => toast[type](message),
   });
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['python-documents'] });
-    queryClient.invalidateQueries({ queryKey: ['python-stats'] });
-    // Le catalogue /editor/documents doit refléter les publications/rejets.
-    queryClient.invalidateQueries({ queryKey: ['legal-documents'] });
-  };
-
   const openDocument = (documentId: string) => navigate(`/editor/viewer/${documentId}`);
-
-  // ── File : seulement l'étape active du sas ────────────────────────────────
-  const { data: docs, isLoading } = useQuery({
-    queryKey: ['python-documents', stage],
-    queryFn: () => getPythonDocuments({ limit: 100, curation: stage }),
-    refetchInterval: 10000,
-    enabled: zone === 'curation',
-  });
-
-  const filteredDocs = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    return (docs || []).filter((d) => {
-      if (roleFilter !== 'ALL' && d.document_role !== roleFilter) return false;
-      if (failedOnly && d.extraction_status !== 'failed') return false;
-      if (needle) {
-        const haystack = `${d.titre_officiel} ${d.stock_code || ''} ${d.type_code || ''}`.toLowerCase();
-        if (!haystack.includes(needle)) return false;
-      }
-      return true;
-    });
-  }, [docs, search, roleFilter, failedOnly]);
-
-  // ── Décisions de curation (API Laravel) ──────────────────────────────────
-  const publishMutation = useMutation({
-    mutationFn: (ids: string[]) =>
-      bulkUpdateDocuments({
-        ids,
-        action: 'set_curation_status',
-        value: 'published',
-        // Le pipeline ne renseigne jamais la date d'entrée en vigueur : sans ce
-        // drapeau, l'API écarte silencieusement l'intégralité du lot.
-        date_entree_vigueur_inconnue: true,
-      }),
-    onSuccess: (res, ids) => {
-      // Un lot peut être intégralement écarté par les garde-fous : afficher un
-      // succès dans ce cas laissait croire à une publication qui n'a pas eu lieu.
-      const { updated_count: publies = 0, skipped_count: ecartes = 0, skipped = [] } = res.data ?? {};
-
-      if (publies === 0) {
-        toast.error(resumeDesEcarts(ecartes, skipped));
-      } else if (ecartes > 0) {
-        toast.info(`${publies} document(s) publié(s). ${resumeDesEcarts(ecartes, skipped)}`);
-      } else {
-        toast.success(res.message || `${ids.length} document(s) publié(s)`);
-      }
-
-      setSelectedIds(new Set());
-      if (detailId && ids.includes(detailId)) setDetailId(null);
-      invalidateAll();
-    },
-    onError: (err) => toast.fromError(err, 'Erreur de publication'),
-  });
-
-  // Promotion `draft → review` : c'est la seule transition ouverte depuis un
-  // brouillon (machine à états côté Laravel), et elle manquait à cette file —
-  // les documents déposés n'avaient aucun moyen d'atteindre « À valider ».
-  const reviewMutation = useMutation({
-    mutationFn: (ids: string[]) =>
-      bulkUpdateDocuments({ ids, action: 'set_curation_status', value: 'review' }),
-    onSuccess: (res, ids) => {
-      const { updated_count: promus = 0, skipped_count: ecartes = 0, skipped = [] } = res.data ?? {};
-
-      if (promus === 0) {
-        toast.error(resumeDesEcarts(ecartes, skipped));
-      } else {
-        toast.success(`${promus} document(s) envoyé(s) en validation`);
-      }
-
-      setSelectedIds(new Set());
-      if (detailId && ids.includes(detailId)) setDetailId(null);
-      invalidateAll();
-    },
-    onError: (err) => toast.fromError(err, 'Erreur de mise en validation'),
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: (ids: string[]) => bulkDeleteDocuments({ ids }),
-    onSuccess: (_res, ids) => {
-      toast.success(`${ids.length} document(s) rejeté(s) (corbeille)`);
-      setSelectedIds(new Set());
-      if (detailId && ids.includes(detailId)) setDetailId(null);
-      invalidateAll();
-    },
-    onError: (err) => toast.fromError(err, 'Erreur de rejet'),
-  });
-
-  const busy = publishMutation.isPending || rejectMutation.isPending || reviewMutation.isPending;
-
-  // ── Pilotage du pipeline (API Python) ─────────────────────────────────────
-  const handleParse = async (id: string, fmt: 'md' | 'json') => {
-    try {
-      await parseDocument(id, fmt);
-      toast.info(`Parsing ${fmt.toUpperCase()} lancé en arrière-plan`);
-      invalidateAll();
-    } catch (err: unknown) {
-      toast.fromError(err, 'Erreur de parsing');
-    }
-  };
-
-  const handleReprocess = async (id: string) => {
-    try {
-      await reprocessDocument(id);
-      toast.info("Relance de l'extraction en arrière-plan");
-      invalidateAll();
-    } catch (err: unknown) {
-      toast.fromError(err, 'Erreur de relance');
-    }
-  };
-
-  // ── Sélection ─────────────────────────────────────────────────────────────
-  const toggleSelect = (id: string) =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const toggleSelectAll = () =>
-    setSelectedIds((prev) =>
-      prev.size === filteredDocs.length ? new Set() : new Set(filteredDocs.map((d) => d.id))
-    );
-
-  const changeStage = (next: QueueStage) => {
-    setStage(next);
-    setFailedOnly(false);
-    setSelectedIds(new Set());
-    setDetailId(null);
-  };
-
-  // Carte « Échecs » : bascule sur l'étape « à traiter » filtrée aux échecs réels.
-  const selectFailed = () => {
-    setZone('curation');
-    setStage('draft');
-    setFailedOnly(true);
-    setSelectedIds(new Set());
-    setDetailId(null);
-  };
 
   if (!user || (!user.roles?.includes('admin') && !user.roles?.includes('editor'))) {
     return (
@@ -268,7 +86,7 @@ export default function Ingestion() {
 
           {/* ── Zones ────────────────────────────────────────────────────── */}
           <div className="flex items-center rounded-xl border border-b1 overflow-hidden w-fit">
-            {(['deposer', 'en-cours', 'curation'] as const).map((z) => (
+            {(['deposer', 'en-cours', 'a-verifier'] as const).map((z) => (
               <button
                 key={z}
                 onClick={() => setZone(z)}
@@ -294,157 +112,9 @@ export default function Ingestion() {
 
           {zone === 'en-cours' && <IngestionJobsQueue onOpenDocument={openDocument} />}
 
-          {zone === 'curation' && (
-            <div className="space-y-4">
-              {/* ── KPIs / étapes du sas ─────────────────────────────────── */}
-              <IngestionStats
-                activeStage={stage}
-                failedActive={failedOnly}
-                onSelectStage={changeStage}
-                onSelectFailed={selectFailed}
-              />
-
-              {/* ── Onglets + recherche + filtre rôle ────────────────────── */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center rounded-xl border border-b1 overflow-hidden">
-                  {(['review', 'draft'] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => changeStage(s)}
-                      className={[
-                        'h-10 px-4 text-xs font-mono transition-colors',
-                        stage === s ? 'bg-gold/10 text-gold' : 'bg-s1 text-t3 hover:text-t2',
-                      ].join(' ')}
-                    >
-                      {s === 'review' ? 'À valider' : 'À traiter'}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="relative flex-1 min-w-[180px] group">
-                  <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 stroke-t3 group-focus-within:stroke-gold fill-none stroke-[1.5] transition-colors pointer-events-none">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Titre, code stock…"
-                    className="w-full h-10 bg-s1 border border-b1 rounded-xl text-t1 pl-10 pr-4 text-sm outline-none focus:border-gold/50 focus:ring-4 focus:ring-gold/5 placeholder:text-t4 transition-all"
-                  />
-                </div>
-
-                <div className="flex items-center rounded-xl border border-b1 overflow-hidden">
-                  {(['ALL', 'STOCK', 'FLUX'] as const).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setRoleFilter(r)}
-                      className={[
-                        'h-10 px-3 text-[11px] font-mono transition-colors whitespace-nowrap',
-                        roleFilter === r ? 'bg-gold/10 text-gold' : 'bg-s1 text-t3 hover:text-t2',
-                      ].join(' ')}
-                    >
-                      {r === 'ALL' ? 'Tous' : documentRoleLabel(r, { short: true })}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Filtre actif « échecs » (amovible) ───────────────────── */}
-              {failedOnly && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setFailedOnly(false)}
-                    className="inline-flex items-center gap-1.5 h-7 px-2.5 bg-red/10 border border-red/20 text-red text-[11px] font-mono rounded-full hover:bg-red/20 transition-colors"
-                  >
-                    Échecs d'extraction uniquement
-                    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 stroke-current fill-none stroke-[2.5]">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              {/* ── Barre d'actions bulk ─────────────────────────────────── */}
-              {selectedIds.size > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-gold/5 border border-gold/20 rounded-xl flex-wrap">
-                  <span className="text-gold text-xs font-mono font-semibold">
-                    {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
-                  </span>
-                  <div className="flex-1" />
-                  {stage === 'draft' && (
-                    <button
-                      disabled={busy}
-                      onClick={() => reviewMutation.mutate([...selectedIds])}
-                      className="h-8 px-3 text-xs font-mono font-semibold text-on-gold bg-gold rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
-                    >
-                      Envoyer en validation
-                    </button>
-                  )}
-                  {stage === 'review' && (
-                    <button
-                      disabled={busy}
-                      onClick={() => publishMutation.mutate([...selectedIds])}
-                      className="h-8 px-3 text-xs font-mono font-semibold text-on-gold bg-green rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
-                    >
-                      Publier la sélection
-                    </button>
-                  )}
-                  <button
-                    disabled={busy}
-                    onClick={() => rejectMutation.mutate([...selectedIds])}
-                    className="h-8 px-3 text-xs font-mono text-red bg-red/10 border border-red/20 rounded-md hover:bg-red/20 transition-colors disabled:opacity-40"
-                  >
-                    Rejeter la sélection
-                  </button>
-                  <button
-                    onClick={() => setSelectedIds(new Set())}
-                    className="h-8 px-3 text-xs font-mono text-t2 bg-s2 border border-b1 rounded-md hover:bg-s3"
-                  >
-                    Désélectionner
-                  </button>
-                </div>
-              )}
-
-              {/* ── File ─────────────────────────────────────────────────── */}
-              <ValidationQueue
-                docs={filteredDocs}
-                isLoading={isLoading}
-                stage={stage}
-                selectedIds={selectedIds}
-                onToggleSelect={toggleSelect}
-                onToggleSelectAll={toggleSelectAll}
-                selectedRowId={detailId}
-                onOpenDetail={(d: PythonDocumentSummary) => setDetailId(d.id === detailId ? null : d.id)}
-                busy={busy}
-                onParse={handleParse}
-                onReprocess={handleReprocess}
-                onPublish={(ids) => publishMutation.mutate(ids)}
-                onReject={(ids) => rejectMutation.mutate(ids)}
-              />
-            </div>
-          )}
+          {zone === 'a-verifier' && <AVerifierZone />}
         </div>
       </div>
-
-      {/* ── Drawer de contrôle (curation) ────────────────────────────────── */}
-      {detailId && (
-        <div className="fixed inset-0 z-40 flex justify-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setDetailId(null)} />
-          <div className="relative w-full sm:max-w-[480px] h-full p-3 animate-in slide-in-from-right-4">
-            <DocumentDetailPanel
-              docId={detailId}
-              onClose={() => setDetailId(null)}
-              onParse={handleParse}
-              onReprocess={handleReprocess}
-              onPublish={(ids) => publishMutation.mutate(ids)}
-              onReject={(ids) => rejectMutation.mutate(ids)}
-              busy={busy}
-            />
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }
