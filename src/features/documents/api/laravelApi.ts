@@ -316,6 +316,44 @@ export const getDocumentCurationFlags = (id: string, openOnly = false): Promise<
 export const resolveCurationFlag = (flagId: string, resolved: boolean): Promise<{ data: CurationFlagDto }> =>
   laravelClient.patch<{ data: CurationFlagDto }>(`curation-flags/${flagId}`, { resolved }).then((r) => r.data);
 
+/** Article minimal identifié par le calcul de relecture dirigée (mibeko-dashboard#142). */
+export interface RelectureArticleRef {
+  id: string;
+  numero_article: string | null;
+}
+
+/**
+ * Exigences de relecture dirigée calculées par le serveur (§ protocole
+ * étape 4) : points d'observation obligatoires + sondage déterministe. Le
+ * front ne recalcule jamais rien, il affiche ceci et confirme.
+ */
+export interface RelectureRequiseDto {
+  document_controle_run_id: string | null;
+  version_jeu: string | null;
+  resultat: 'ok' | 'echec' | 'incomplet' | null;
+  points_obligatoires: RelectureArticleRef[];
+  sondage_articles: RelectureArticleRef[];
+  /** Vrai si une preuve couvrant CE run précis existe déjà. */
+  preuve_existante: boolean;
+}
+
+export const getRelectureRequise = (id: string): Promise<{ data: RelectureRequiseDto }> =>
+  laravelClient.get<{ data: RelectureRequiseDto }>(`legal-documents/${id}/relecture`).then((r) => r.data);
+
+/**
+ * Enregistre la preuve de relecture dirigée. Le serveur revérifie que
+ * `points_vus`/`sondage_confirmes` couvrent intégralement ce qu'il a
+ * lui-même calculé — un envoi partiel est refusé (422), jamais accepté tel
+ * quel.
+ */
+export const enregistrerRelecture = (
+  id: string,
+  payload: { points_vus: string[]; sondage_confirmes: string[] },
+): Promise<{ data: { id: string }; message: string }> =>
+  laravelClient
+    .post<{ data: { id: string }; message: string }>(`legal-documents/${id}/relecture`, payload)
+    .then((r) => r.data);
+
 /** Relance la détection structurelle déterministe sur le document. */
 export const detectDocumentAnomalies = (id: string): Promise<{ data: { created: number } }> =>
   laravelClient.post<{ data: { created: number } }>(`legal-documents/${id}/detect-anomalies`).then((r) => r.data);
