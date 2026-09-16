@@ -5,7 +5,7 @@ import { useViewerStore } from '@/features/viewer/store/useViewerStore';
 import { cn } from '@/shared/lib/utils';
 import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Target, Maximize, MoveHorizontal, MousePointer2, AlertCircle as LucideAlertCircle } from 'lucide-react';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import type { TreeNode } from '@/shared/types/database';
 import { getStoredToken } from '@/features/auth/store/authStore';
 import { laravelClient } from '@/shared/api/laravelClient';
@@ -28,6 +28,18 @@ interface Zone {
   page: number;
 }
 
+/** Recherche un nœud par id dans l'arbre — utilisé au clic sur une zone comme à l'ouverture directe sur un article (`?article=`). */
+function findNodeById(nodes: TreeNode[], id: string): TreeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 // Espace vertical entre deux pages dans le défilement continu.
 const PAGE_GAP = 24;
 // Taille de repli tant qu'aucune page n'a encore été mesurée par pdf.js (au
@@ -42,6 +54,13 @@ export default function PdfViewer({
   treeData?: TreeNode[];
 }) {
   const { id: documentId } = useParams<{ id: string }>();
+  // Ouverture directe sur un article précis (mibeko-front#44, zone « À
+  // vérifier ») : `?article=<id>` sélectionne le nœud dès que l'arbre est
+  // chargé, ce qui déclenche le scroll automatique déjà en place plus bas
+  // (effet sur `selectedNode`) — jamais une seconde logique de navigation.
+  const [searchParams] = useSearchParams();
+  const initialArticleId = searchParams.get('article');
+  const initialArticleHandledRef = useRef(false);
   // Sélecteurs ciblés : le PDF ne se re-rend plus pour des changements d'état
   // sans rapport (ouverture de modales, frappe dans la recherche, repli de
   // l'arbre…), seulement pour ce qu'il consomme réellement.
@@ -352,23 +371,23 @@ export default function PdfViewer({
   }, [selectedNode?.id]);
 
   const handleZoneClick = (nodeId: string) => {
-    // Find the node in treeData
-    const findNode = (nodes: TreeNode[]): TreeNode | null => {
-      for (const node of nodes) {
-        if (node.id === nodeId) return node;
-        if (node.children) {
-          const found = findNode(node.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-
-    const node = findNode(treeData);
+    const node = findNodeById(treeData, nodeId);
     if (node) {
       selectNode(node.id, node);
     }
   };
+
+  // Ouverture directe sur un article (mibeko-front#44) : sélectionne le nœud
+  // une seule fois, dès que l'arbre contient l'article demandé — le ref évite
+  // de re-sélectionner si l'utilisateur clique ensuite ailleurs dans l'arbre.
+  useEffect(() => {
+    if (!initialArticleId || initialArticleHandledRef.current || treeData.length === 0) return;
+    const node = findNodeById(treeData, initialArticleId);
+    if (node) {
+      selectNode(node.id, node);
+      initialArticleHandledRef.current = true;
+    }
+  }, [initialArticleId, treeData, selectNode]);
 
   // Persiste une zone tracée sur une page (voir PdfPage) et referme le mode sélection.
   const handleZoneDrawn = (page: number, rect: { x: number; y: number; w: number; h: number }) => {
