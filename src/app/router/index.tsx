@@ -31,6 +31,7 @@ import {
   SettingsBillingRoutePage,
   SettingsNotificationsRoutePage,
   SettingsSupportRoutePage,
+  SettingsWatchesRoutePage,
   RegisterRoutePage,
   VerifyEmailRoutePage,
   ForgotPasswordRoutePage,
@@ -321,6 +322,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <SettingsNotificationsRoutePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/settings/veille',
+    element: (
+      <RequireAuth>
+        <SettingsWatchesRoutePage />
       </RequireAuth>
     ),
   },

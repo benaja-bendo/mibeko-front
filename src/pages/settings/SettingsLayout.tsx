@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { User, Bell, CreditCard, LifeBuoy } from 'lucide-react';
+import { User, Bell, BellRing, CreditCard, LifeBuoy } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLayout from '@/widgets/layout/AppLayout';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -9,6 +9,7 @@ import { cn } from '@/shared/lib/utils';
 const SETTINGS_NAV = [
   { to: '/settings/account', label: 'Compte', icon: User },
   { to: '/settings/notifications', label: 'Notifications', icon: Bell },
+  { to: '/settings/veille', label: 'Veille légale', icon: BellRing },
   { to: '/settings/billing', label: 'Facturation', icon: CreditCard },
   { to: '/settings/support', label: 'Support & Légal', icon: LifeBuoy },
 ];

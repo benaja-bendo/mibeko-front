@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Settings, Mail, CreditCard, Bell, Sparkles, LogOut, ChevronUp, Menu, Activity, ClipboardList } from 'lucide-react';
+import { Settings, Mail, CreditCard, Bell, BellRing, Sparkles, LogOut, ChevronUp, Menu, Activity, ClipboardList } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
 
@@ -417,6 +417,10 @@ export default function Sidebar({ space }: SidebarProps) {
                 <DropdownMenuItem className="gap-2" onClick={() => navigate('/settings/notifications')}>
                   <Bell className="w-4 h-4" />
                   <span>Notifications</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2" onClick={() => navigate('/settings/veille')}>
+                  <BellRing className="w-4 h-4" />
+                  <span>Veille légale</span>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

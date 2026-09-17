@@ -74,6 +74,7 @@ const AdminAbonnements = lazy(() => import('@/pages/admin/Abonnements'));
 const AdminOnboarding = lazy(() => import('@/pages/admin/Onboarding'));
 const SettingsAccount = lazy(() => import('@/pages/settings/Account'));
 const SettingsNotifications = lazy(() => import('@/pages/settings/Notifications'));
+const SettingsWatches = lazy(() => import('@/pages/settings/Watches'));
 const SettingsBilling = lazy(() => import('@/pages/settings/Billing'));
 const SettingsSupport = lazy(() => import('@/pages/settings/Support'));
 
@@ -278,6 +279,13 @@ export function SettingsAccountRoutePage() {
  */
 export function SettingsNotificationsRoutePage() {
   return <LazyPage Component={SettingsNotifications} />;
+}
+
+/**
+ * Rend la page « Veille légale » des paramètres en lazy loading.
+ */
+export function SettingsWatchesRoutePage() {
+  return <LazyPage Component={SettingsWatches} />;
 }
 
 /**
