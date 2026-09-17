@@ -55,6 +55,12 @@ export const handlers = [
   http.get('*/api/v1/dossiers', () =>
     HttpResponse.json({ success: true, data: [] })
   ),
+  // Abonnements de veille (mibeko-dashboard#125) : liste vide par défaut — le
+  // lecteur de document et la vue thème l'interrogent tous les deux pour
+  // savoir si le bouton « Suivre » doit s'afficher actif.
+  http.get('*/api/v1/watches', () =>
+    HttpResponse.json({ success: true, data: [] })
+  ),
   // Entitlements (mibeko-dashboard#63) : compte libre, quota entamé mais loin
   // d'être épuisé par défaut — les tests des trois états de mibeko-front#7
   // la surchargent avec server.use().
