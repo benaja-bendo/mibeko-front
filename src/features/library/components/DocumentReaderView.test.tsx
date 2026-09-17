@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/msw/server';
@@ -119,5 +119,54 @@ describe('DocumentReaderView — PDF Mibeko (entitlement Pro)', () => {
 
     expect(toastErrorSpy).toHaveBeenCalled();
     expect(openSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('DocumentReaderView — suivi (mibeko-dashboard#125)', () => {
+  beforeEach(() => {
+    mockDocumentEndpoints();
+    mockEntitlements(false);
+  });
+
+  it('bascule suivre/ne plus suivre le texte lu', async () => {
+    const user = userEvent.setup();
+    let watches: Record<string, unknown>[] = [];
+    let posted: Record<string, unknown> | null = null;
+    let deletedId: string | null = null;
+
+    server.use(
+      http.get('*/api/v1/watches', () => HttpResponse.json({ success: true, data: watches })),
+      http.post('*/api/v1/watches', async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        const created = {
+          id: 'w1',
+          watchable_type: 'App\\Models\\LegalDocument',
+          watchable_id: DOCUMENT_ID,
+          watchable: { id: DOCUMENT_ID, titre_officiel: 'Loi de test' },
+          created_at: '2026-09-17T00:00:00Z',
+        };
+        watches = [...watches, created];
+        return HttpResponse.json({ success: true, data: created }, { status: 201 });
+      }),
+      http.delete('*/api/v1/watches/:id', ({ params }) => {
+        deletedId = params.id as string;
+        watches = watches.filter((w) => w.id !== deletedId);
+        return HttpResponse.json({ success: true, message: 'Abonnement retiré.', data: null });
+      }),
+    );
+
+    renderWithProviders(<DocumentReaderView documentId={DOCUMENT_ID} />);
+
+    const button = await screen.findByTitle('Suivre');
+    await user.click(button);
+
+    await screen.findByTitle('Suivi');
+    await waitFor(() =>
+      expect(posted).toMatchObject({ watchable_type: 'document', watchable_id: DOCUMENT_ID }),
+    );
+
+    await user.click(screen.getByTitle('Suivi'));
+    await screen.findByTitle('Suivre');
+    await waitFor(() => expect(deletedId).toBe('w1'));
   });
 });

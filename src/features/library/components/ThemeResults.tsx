@@ -1,7 +1,8 @@
-import { X, FileText } from 'lucide-react';
+import { X, FileText, Bell, BellRing } from 'lucide-react';
 import { useThemeDocuments } from '@/features/library/hooks/useThemes';
 import { DocumentCard } from '@/features/library/components/LibraryHomeView';
 import { themeIcon } from '@/features/library/components/themeIcon';
+import { useWatchTheme } from '@/features/watches/hooks/useWatches';
 import type { LibraryHomeDocument } from '@/features/library/types';
 
 /**
@@ -20,6 +21,9 @@ export default function ThemeResults({
 }) {
   const { data, isLoading, isError } = useThemeDocuments(slug);
   const documents = data?.documents ?? [];
+  const watch = useWatchTheme(
+    data?.theme ? { id: data.theme.id, name: data.theme.name, slug: data.theme.slug, icon: data.theme.icon } : null,
+  );
 
   return (
     <div className="space-y-3">
@@ -35,13 +39,34 @@ export default function ThemeResults({
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClear}
-          className="flex items-center gap-1 shrink-0 rounded-lg border border-b1 bg-s1 px-2 py-1 text-[11px] text-t3 transition-colors hover:text-gold"
-        >
-          <X className="h-3.5 w-3.5" /> Effacer
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {data?.theme && (
+            <button
+              type="button"
+              onClick={watch.toggle}
+              title={watch.isWatching ? 'Ne plus suivre ce thème' : 'Suivre ce thème'}
+              className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${
+                watch.isWatching
+                  ? 'border-green/30 bg-green-d text-green'
+                  : 'border-b1 bg-s1 text-t3 hover:border-gold/30 hover:text-t1'
+              }`}
+            >
+              {watch.isWatching ? (
+                <BellRing className="h-3.5 w-3.5" />
+              ) : (
+                <Bell className="h-3.5 w-3.5" />
+              )}
+              {watch.isWatching ? 'Suivi' : 'Suivre'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClear}
+            className="flex items-center gap-1 rounded-lg border border-b1 bg-s1 px-2 py-1 text-[11px] text-t3 transition-colors hover:text-gold"
+          >
+            <X className="h-3.5 w-3.5" /> Effacer
+          </button>
+        </div>
       </div>
 
       {isLoading ? (

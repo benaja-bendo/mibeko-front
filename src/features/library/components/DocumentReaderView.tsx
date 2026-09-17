@@ -31,6 +31,8 @@ import {
   List,
   Sparkles,
   X,
+  BellRing,
+  Bell,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -39,6 +41,7 @@ import {
   ResizablePanelGroup,
 } from '@/shared/components/ui/Resizable';
 import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
+import { useWatchDocument } from '@/features/watches/hooks/useWatches';
 import {
   sourcePdfUrl,
   mintMibekoExportUrl,
@@ -173,6 +176,14 @@ export default function DocumentReaderView({
   const { data, isLoading, error } = useDocumentData(documentId);
   const { data: entitlements } = useEntitlements();
   const canExportPdf = entitlements?.features.export ?? false;
+  // Construit avant les retours anticipés ci-dessous : les hooks ne peuvent
+  // pas être appelés conditionnellement, seule sa cible (nulle tant que le
+  // document n'est pas chargé) varie.
+  const watch = useWatchDocument(
+    data?.document
+      ? { id: documentId, titre_officiel: data.document.titre_officiel ?? null }
+      : null,
+  );
 
   // mibeko-dashboard#86 : le PDF Mibeko est réservé aux comptes Pro. Un
   // compte non-Pro voit une explication (toast) plutôt qu'un onglet qui
@@ -369,6 +380,18 @@ export default function DocumentReaderView({
                 `/app/assistant?q=${encodeURIComponent(`Explique le document : ${title}`)}`,
               )
             }
+          />
+          <ActionButton
+            icon={
+              watch.isWatching ? (
+                <BellRing className="h-3.5 w-3.5" />
+              ) : (
+                <Bell className="h-3.5 w-3.5" />
+              )
+            }
+            label={watch.isWatching ? 'Suivi' : 'Suivre'}
+            onClick={watch.toggle}
+            active={watch.isWatching}
           />
           {onAddToDossier && (
             <ActionButton
