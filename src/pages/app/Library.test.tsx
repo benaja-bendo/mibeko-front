@@ -165,6 +165,114 @@ describe('Library', () => {
 });
 
 /**
+ * front#34 — une recherche sans résultat ne doit jamais être une impasse
+ * muette : retrait des filtres actifs, reformulation, et une sortie utile
+ * (« demander ce texte »). L'erreur réseau doit rester distincte, avec un
+ * moyen de réessayer.
+ */
+// Le texte « Aucun texte pour «...». » est ecrit avec des espaces insecables (&nbsp;).
+const NBSP = String.fromCharCode(160);
+const normalizeNbsp = (text: string | null | undefined) => (text ?? '').split(NBSP).join(' ');
+const emptyStateTextMatcher = (query: string) => (_: string, el: Element | null) =>
+  normalizeNbsp(el?.textContent) === `Aucun texte pour « ${query} ».`;
+
+describe('Library — sortie utile sur recherche vide (front#34)', () => {
+  beforeEach(() => {
+    localStorage.setItem('mibeko_tour_library_seen', '1');
+    server.use(
+      http.get('*/api/v1/library/home', () =>
+        HttpResponse.json({ success: true, data: homePayload }),
+      ),
+    );
+  });
+
+  it('propose de retirer les filtres actifs quand la recherche filtrée ne trouve rien', async () => {
+    server.use(
+      http.get('*/api/v1/library/search', () =>
+        HttpResponse.json({ success: true, data: [], pagination: { total: 0, per_page: 12, current_page: 1, last_page: 1 } }),
+      ),
+    );
+
+    renderWithProviders(<Library />, { route: '/app/library?q=xyzintrouvable&scope=ohada' });
+
+    await screen.findAllByText(emptyStateTextMatcher('xyzintrouvable'));
+    const resetButtons = screen.getAllByRole('button', { name: /Retirer les 1 filtre actif et relancer/ });
+    expect(resetButtons.length).toBeGreaterThan(0);
+
+    await userEvent.click(resetButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.queryAllByRole('button', { name: /Retirer/ }).length).toBe(0);
+    });
+  });
+
+  it("n'affiche pas de bouton de retrait de filtres quand aucun filtre n'est actif", async () => {
+    server.use(
+      http.get('*/api/v1/library/search', () =>
+        HttpResponse.json({ success: true, data: [], pagination: { total: 0, per_page: 12, current_page: 1, last_page: 1 } }),
+      ),
+    );
+
+    renderWithProviders(<Library />, { route: '/app/library?q=xyzintrouvable' });
+
+    await screen.findAllByText(emptyStateTextMatcher('xyzintrouvable'));
+    expect(screen.queryAllByRole('button', { name: /Retirer/ }).length).toBe(0);
+    expect(screen.getAllByRole('button', { name: 'Demander ce texte' }).length).toBeGreaterThan(0);
+  });
+
+  it('distingue une panne réseau (avec réessai) d\'une recherche sans résultat', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/v1/library/search', () => {
+        calls += 1;
+        return HttpResponse.json({ message: 'Le service de recherche est indisponible.' }, { status: 500 });
+      }),
+    );
+
+    renderWithProviders(<Library />, { route: '/app/library?q=panne' });
+
+    await screen.findAllByText('Le service de recherche est indisponible.');
+    expect(screen.queryAllByText(emptyStateTextMatcher('panne')).length).toBe(0);
+
+    const retryButtons = await screen.findAllByRole('button', { name: 'Réessayer' });
+    const callsBeforeRetry = calls;
+    await userEvent.click(retryButtons[0]);
+
+    await waitFor(() => expect(calls).toBeGreaterThan(callsBeforeRetry));
+  });
+
+  it('envoie une demande de texte manquant et affiche l\'accusé de réception', async () => {
+    server.use(
+      http.get('*/api/v1/library/search', () =>
+        HttpResponse.json({ success: true, data: [], pagination: { total: 0, per_page: 12, current_page: 1, last_page: 1 } }),
+      ),
+    );
+    let receivedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post('*/api/v1/library/missing-text-requests', async ({ request }) => {
+        receivedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { success: true, data: { id: 'flag_1', description: receivedBody.description, resolved: false, resolved_at: null, created_at: '2026-09-18T00:00:00+00:00' } },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderWithProviders(<Library />, { route: '/app/library?q=code+minier' });
+
+    await screen.findAllByText(emptyStateTextMatcher('code minier'));
+    const [openButton] = screen.getAllByRole('button', { name: 'Demander ce texte' });
+    await userEvent.click(openButton);
+
+    const submitButton = await screen.findByRole('button', { name: 'Envoyer la demande' });
+    await userEvent.click(submitButton);
+
+    await screen.findByText('Demande enregistrée');
+    expect(receivedBody).toMatchObject({ description: 'code minier' });
+  });
+});
+
+/**
  * front#45 — Défaut 1 : « Suivant »/« Précédent » dans le lecteur changeaient
  * l'article affiché sans jamais remonter l'information à `Library.tsx`, seul
  * propriétaire du paramètre `article` de l'URL — un lien copié ou un

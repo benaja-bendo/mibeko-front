@@ -32,6 +32,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import AppLayout from '@/widgets/layout/AppLayout';
+import { Button } from '@/shared/components/ui/Button';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -53,6 +54,7 @@ import ThemeBrowseStrip from '@/features/library/components/ThemeBrowseStrip';
 import ThemeResults from '@/features/library/components/ThemeResults';
 import LibraryResultItem from '@/features/library/components/LibraryResultItem';
 import LibraryPagination from '@/features/library/components/LibraryPagination';
+import EmptySearchState from '@/features/library/components/EmptySearchState';
 import DocumentReaderView from '@/features/library/components/DocumentReaderView';
 import LibraryAiPanel from '@/features/library/components/LibraryAiPanel';
 import { useDossier } from '@/features/dossiers/hooks/useDossiers';
@@ -250,7 +252,7 @@ export default function Library() {
     setSelected((prev) => (prev ? { ...prev, articleId: nextArticleId } : prev));
   };
 
-  const { data, isFetching, isError } = useLibrarySearch({
+  const { data, isFetching, isError, error, refetch } = useLibrarySearch({
     q: submittedQuery,
     type: filters.typeCode,
     legalScope: filters.legalScope,
@@ -515,25 +517,27 @@ export default function Library() {
                 </div>
               )}
 
-              {/* Erreur */}
+              {/* Erreur réseau/serveur — distincte d'une recherche sans résultat */}
               {isError && (
                 <div className="flex flex-col items-center gap-2 py-12 text-center">
                   <SearchX className="h-7 w-7 text-red" />
-                  <p className="text-sm text-t2">La recherche a échoué.</p>
+                  <p className="text-sm text-t2">
+                    {error?.message || 'La recherche a échoué.'}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    Réessayer
+                  </Button>
                 </div>
               )}
 
-              {/* Aucun résultat */}
+              {/* Aucun résultat : jamais une impasse muette (mibeko-front#34) */}
               {!isFetching && !isError && results.length === 0 && (
-                <div className="flex flex-col items-center gap-2 py-12 text-center">
-                  <SearchX className="h-7 w-7 text-t3" />
-                  <p className="text-sm text-t2">
-                    Aucun texte pour «&nbsp;{submittedQuery}&nbsp;».
-                  </p>
-                  <p className="text-xs text-t3">
-                    Reformulez ou élargissez les filtres.
-                  </p>
-                </div>
+                <EmptySearchState
+                  query={submittedQuery}
+                  activeFilterCount={activeFilterCount}
+                  onResetFilters={resetFilters}
+                  onReformulate={runSearch}
+                />
               )}
 
               {/* Liste */}

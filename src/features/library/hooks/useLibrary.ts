@@ -52,6 +52,14 @@ export function useLibrarySearch(params: SearchParams) {
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
+    // mibeko-front#34 : sans ce plafond, une vraie panne réseau ne se
+    // distingue d'une recherche vide qu'après le triple essai silencieux par
+    // défaut de TanStack Query (plusieurs secondes, avec appui exponentiel) —
+    // le visiteur voit un panneau vide sans explication entre-temps. Un seul
+    // essai, immédiat, suffit à absorber un aléa réseau ponctuel sans faire
+    // attendre le message d'erreur.
+    retry: 1,
+    retryDelay: 0,
   });
 }
 
