@@ -67,6 +67,7 @@ const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
 const AdminSante = lazy(() => import('@/pages/admin/Sante'));
 const AdminReferentiels = lazy(() => import('@/pages/admin/Referentiels'));
 const AdminSignalements = lazy(() => import('@/pages/admin/Signalements'));
+const AdminRecherches = lazy(() => import('@/pages/admin/Recherches'));
 const AdminUtilisateurs = lazy(() => import('@/pages/admin/Utilisateurs'));
 const AdminAudit = lazy(() => import('@/pages/admin/Audit'));
 const AdminMessages = lazy(() => import('@/pages/admin/Messages'));
@@ -244,6 +245,13 @@ export function AdminReferentielsRoutePage() {
  */
 export function AdminSignalementsRoutePage() {
   return <LazyPage Component={AdminSignalements} />;
+}
+
+/**
+ * Rend l'écran « requêtes fréquentes / sans résultat » (admin) en lazy loading.
+ */
+export function AdminRecherchesRoutePage() {
+  return <LazyPage Component={AdminRecherches} />;
 }
 
 /**

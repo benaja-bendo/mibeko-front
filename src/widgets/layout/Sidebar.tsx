@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
-import { Settings, Mail, CreditCard, Bell, BellRing, Sparkles, LogOut, ChevronUp, Menu, Activity, ClipboardList } from 'lucide-react';
+import { Settings, Mail, CreditCard, Bell, BellRing, Sparkles, LogOut, ChevronUp, Menu, Activity, ClipboardList, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
 
@@ -228,6 +228,7 @@ const ADMIN_NAV = [
     ),
     label: 'Signalements',
   },
+  { to: '/admin/recherches', exact: false, icon: <Search className="w-4 h-4" />, label: 'Recherches' },
   {
     to: '/admin/audit',
     exact: false,
