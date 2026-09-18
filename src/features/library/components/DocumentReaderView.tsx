@@ -58,6 +58,12 @@ import { toast } from '@/shared/store/useToast';
 interface DocumentReaderViewProps {
   documentId: string;
   articleId?: string | null;
+  /**
+   * Remonte l'article réellement affiché (Précédent/Suivant, sommaire) au
+   * parent, seul propriétaire de l'URL — sans ce rappel, l'adresse reste
+   * figée sur l'article d'ouverture pendant que la lecture avance (front#45).
+   */
+  onArticleChange?: (articleId: string) => void;
   /** Demande une explication IA de l'article lu (panneau droit). */
   onExplainArticle?: (payload: {
     articleId: string;
@@ -166,6 +172,7 @@ function ActionButton({
 export default function DocumentReaderView({
   documentId,
   articleId,
+  onArticleChange,
   onExplainArticle,
   onClose,
   closeOnEscape,
@@ -252,13 +259,16 @@ export default function DocumentReaderView({
   const title = doc?.titre_officiel || doc?.title || 'Document';
   const scope = (doc?.legal_scope as LegalScope) ?? null;
 
-  const currentArticle = useMemo(
-    () =>
-      articleSequence.find((n) => n.id === currentId) ??
-      articleSequence[0] ??
-      null,
-    [articleSequence, currentId],
-  );
+  // Un `currentId` renseigné mais absent de la séquence est une référence
+  // rompue (lien copié vers un article renuméroté/supprimé) : elle doit être
+  // dite, jamais remplacée en silence par le premier article du document
+  // (front#45, Défaut 2). Seule l'ouverture sans article précis (`currentId`
+  // nul) retombe sur le premier article — un repli raisonnable.
+  const currentArticle = useMemo(() => {
+    if (currentId) return articleSequence.find((n) => n.id === currentId) ?? null;
+    return articleSequence[0] ?? null;
+  }, [articleSequence, currentId]);
+  const articleNotFound = currentId !== null && currentArticle === null;
   const currentIndex = currentArticle
     ? articleSequence.findIndex((n) => n.id === currentArticle.id)
     : -1;
@@ -279,12 +289,20 @@ export default function DocumentReaderView({
     return () => clearTimeout(timer);
   }, [view, currentArticle, data]);
 
+  // Point de passage unique pour tout changement d'article déclenché par
+  // l'utilisateur (Précédent/Suivant, sommaire) : remonte toujours au parent,
+  // seul propriétaire de l'URL (front#45, Défaut 1).
+  const focusArticle = (id: string) => {
+    setCurrentId(id);
+    onArticleChange?.(id);
+  };
+
   const jumpTo = (id: string) => {
     document
       .getElementById(`reader-node-${id}`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // Garde le focus article synchronisé si l'on clique un article du sommaire.
-    if (articleSequence.some((n) => n.id === id)) setCurrentId(id);
+    if (articleSequence.some((n) => n.id === id)) focusArticle(id);
   };
 
   if (isLoading) {
@@ -443,7 +461,7 @@ export default function DocumentReaderView({
               </span>
               <button
                 type="button"
-                onClick={() => prevArticle && setCurrentId(prevArticle.id)}
+                onClick={() => prevArticle && focusArticle(prevArticle.id)}
                 disabled={!prevArticle}
                 title="Article précédent"
                 className="flex h-7 w-7 items-center justify-center rounded-md border border-b1 bg-s1 text-t2 transition-colors hover:text-t1 disabled:opacity-40"
@@ -452,7 +470,7 @@ export default function DocumentReaderView({
               </button>
               <button
                 type="button"
-                onClick={() => nextArticle && setCurrentId(nextArticle.id)}
+                onClick={() => nextArticle && focusArticle(nextArticle.id)}
                 disabled={!nextArticle}
                 title="Article suivant"
                 className="flex h-7 w-7 items-center justify-center rounded-md border border-b1 bg-s1 text-t2 transition-colors hover:text-t1 disabled:opacity-40"
@@ -509,7 +527,7 @@ export default function DocumentReaderView({
                   <div className="mt-8 flex items-center justify-between gap-3 border-t border-b1 pt-4">
                     <button
                       type="button"
-                      onClick={() => prevArticle && setCurrentId(prevArticle.id)}
+                      onClick={() => prevArticle && focusArticle(prevArticle.id)}
                       disabled={!prevArticle}
                       className="flex items-center gap-1.5 rounded-lg border border-b1 bg-s1 px-2.5 py-1.5 text-[11px] font-medium text-t2 transition-colors hover:text-t1 disabled:opacity-40"
                     >
@@ -526,7 +544,7 @@ export default function DocumentReaderView({
                     </button>
                     <button
                       type="button"
-                      onClick={() => nextArticle && setCurrentId(nextArticle.id)}
+                      onClick={() => nextArticle && focusArticle(nextArticle.id)}
                       disabled={!nextArticle}
                       className="flex items-center gap-1.5 rounded-lg border border-b1 bg-s1 px-2.5 py-1.5 text-[11px] font-medium text-t2 transition-colors hover:text-t1 disabled:opacity-40"
                     >
@@ -535,6 +553,26 @@ export default function DocumentReaderView({
                     </button>
                   </div>
                 </>
+              ) : articleNotFound ? (
+                <div className="flex flex-col items-center gap-2 py-16 text-center">
+                  <FileWarning className="h-7 w-7 text-red" />
+                  <p className="text-sm text-t2">
+                    Cet article est introuvable dans « {title} ».
+                  </p>
+                  <p className="text-xs text-t3">
+                    Le lien pointe peut-être vers un article renuméroté ou
+                    supprimé depuis.
+                  </p>
+                  {hasArticles && (
+                    <button
+                      type="button"
+                      onClick={() => setView('document')}
+                      className="mt-1 text-xs font-medium text-gold hover:underline"
+                    >
+                      Voir le sommaire du document
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-16 text-center">
                   <BookOpenText className="h-7 w-7 text-t3" />

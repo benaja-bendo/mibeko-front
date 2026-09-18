@@ -19,7 +19,7 @@
  * mode « ajout au dossier ».
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   SearchX,
@@ -207,6 +207,11 @@ export default function Library() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Dernier `selected` déjà écrit dans l'URL, pour distinguer un pas d'un
+  // article à l'autre au sein du MÊME document (Précédent/Suivant, sommaire)
+  // des autres changements d'état (nouvelle recherche, nouveau document…).
+  const lastSyncedSelectedRef = useRef(selected);
+
   // L'URL reflète l'état complet : partageable et restaurée au rechargement.
   useEffect(() => {
     const params = new URLSearchParams();
@@ -225,8 +230,25 @@ export default function Library() {
       if (selected.articleId) params.set('article', selected.articleId);
     }
     if (addToDossierId) params.set('addTo', addToDossierId);
-    setSearchParams(params, { replace: true });
+
+    // Un pas Précédent/Suivant (ou un clic sommaire) au sein du même document
+    // pousse une entrée d'historique : sinon le retour navigateur saute
+    // toute la lecture au lieu de revenir à l'article précédent (front#45).
+    const prevSelected = lastSyncedSelectedRef.current;
+    const isArticleStepWithinDocument =
+      !!selected &&
+      !!prevSelected &&
+      selected.documentId === prevSelected.documentId &&
+      selected.articleId !== prevSelected.articleId;
+    setSearchParams(params, { replace: !isArticleStepWithinDocument });
+    lastSyncedSelectedRef.current = selected;
   }, [submittedQuery, filters, page, selected, addToDossierId, setSearchParams]);
+
+  /** Article réellement affiché par le lecteur (Précédent/Suivant, sommaire) :
+   * seul `Library` écrit l'URL, ce rappel la garde alignée sur la lecture. */
+  const handleArticleFocusChange = (nextArticleId: string) => {
+    setSelected((prev) => (prev ? { ...prev, articleId: nextArticleId } : prev));
+  };
 
   const { data, isFetching, isError } = useLibrarySearch({
     q: submittedQuery,
@@ -557,6 +579,7 @@ export default function Library() {
     <DocumentReaderView
       documentId={selected.documentId}
       articleId={selected.articleId}
+      onArticleChange={handleArticleFocusChange}
       onExplainArticle={explainFromReader}
       // Desktop : bouton X + Échap. Mobile : la fermeture passe par le Sheet.
       onClose={isDesktop ? closeRightPanel : undefined}

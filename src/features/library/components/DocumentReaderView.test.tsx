@@ -170,3 +170,86 @@ describe('DocumentReaderView — suivi (mibeko-dashboard#125)', () => {
     await waitFor(() => expect(deletedId).toBe('w1'));
   });
 });
+
+/**
+ * front#45 — Défaut 1 : « Suivant »/« Précédent » changeaient l'article
+ * affiché sans jamais remonter l'information à `Library.tsx`, seul
+ * propriétaire du paramètre `article` de l'URL. Un lien copié ou un
+ * rechargement ramenait alors sur un article différent de celui lu.
+ */
+describe('DocumentReaderView — adresse alignée sur l\'article lu (front#45)', () => {
+  const TREE_DOCUMENT_ID = 'doc-audcg';
+
+  function mockTreeDocument() {
+    server.use(
+      http.get(`*/api/v1/legal-documents/${TREE_DOCUMENT_ID}`, () =>
+        HttpResponse.json({
+          data: { id: TREE_DOCUMENT_ID, titre_officiel: "Acte uniforme", legal_scope: 'ohada' },
+        }),
+      ),
+      http.get(`*/api/v1/legal-documents/${TREE_DOCUMENT_ID}/tree`, () =>
+        HttpResponse.json({
+          data: [
+            { id: 'art-101', type: 'ARTICLE', number: '101', content: 'Contenu de l\'article 101.' },
+            { id: 'art-102', type: 'ARTICLE', number: '102', content: 'Contenu de l\'article 102.' },
+            { id: 'art-103', type: 'ARTICLE', number: '103', content: 'Contenu de l\'article 103.' },
+          ],
+        }),
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    mockTreeDocument();
+    mockEntitlements(false);
+  });
+
+  it('notifie le parent avec le nouvel article au clic sur « Suivant »', async () => {
+    const onArticleChange = vi.fn();
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <DocumentReaderView
+        documentId={TREE_DOCUMENT_ID}
+        articleId="art-101"
+        onArticleChange={onArticleChange}
+      />,
+    );
+
+    await screen.findByText('Article 101');
+    await user.click(screen.getByRole('button', { name: 'Suivant' }));
+
+    await screen.findByText('Article 102');
+    expect(onArticleChange).toHaveBeenCalledWith('art-102');
+  });
+
+  it('notifie aussi le parent au clic sur un article du sommaire', async () => {
+    const onArticleChange = vi.fn();
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <DocumentReaderView
+        documentId={TREE_DOCUMENT_ID}
+        articleId="art-101"
+        onArticleChange={onArticleChange}
+      />,
+    );
+
+    await screen.findByText('Article 101');
+    // Bascule en mode Document pour accéder au sommaire.
+    await user.click(screen.getByRole('button', { name: 'Document' }));
+    await user.click(screen.getByTitle('Art. 103'));
+
+    expect(onArticleChange).toHaveBeenCalledWith('art-103');
+  });
+
+  it('affiche un message explicite pour un lien direct vers un article inexistant, jamais le premier article à sa place', async () => {
+    renderWithProviders(
+      <DocumentReaderView documentId={TREE_DOCUMENT_ID} articleId="art-999-disparu" />,
+    );
+
+    await screen.findByText(/introuvable/i);
+    expect(screen.queryByText('Article 101')).not.toBeInTheDocument();
+    expect(screen.queryByText(/contenu de l'article 101/i)).not.toBeInTheDocument();
+  });
+});

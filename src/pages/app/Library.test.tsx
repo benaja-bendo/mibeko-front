@@ -1,6 +1,8 @@
-import { screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { server } from '../../test/msw/server';
 import { renderWithProviders } from '../../test/render';
 import Library from './Library';
@@ -159,5 +161,76 @@ describe('Library', () => {
     await waitFor(() =>
       expect(receivedBody).toMatchObject({ event_type: 'search_useful', surface: 'web', reference_id: 'art_1' }),
     );
+  });
+});
+
+/**
+ * front#45 — Défaut 1 : « Suivant »/« Précédent » dans le lecteur changeaient
+ * l'article affiché sans jamais remonter l'information à `Library.tsx`, seul
+ * propriétaire du paramètre `article` de l'URL — un lien copié ou un
+ * rechargement ramenait alors sur un article différent de celui lu.
+ */
+describe("Library — l'adresse désigne l'article lu (front#45)", () => {
+  const DOCUMENT_ID = 'doc-audcg';
+
+  beforeEach(() => {
+    localStorage.setItem('mibeko_tour_library_seen', '1');
+    server.use(
+      http.get('*/api/v1/library/home', () =>
+        HttpResponse.json({ success: true, data: homePayload }),
+      ),
+      http.get(`*/api/v1/legal-documents/${DOCUMENT_ID}`, () =>
+        HttpResponse.json({
+          data: { id: DOCUMENT_ID, titre_officiel: 'Acte uniforme', legal_scope: 'ohada' },
+        }),
+      ),
+      http.get(`*/api/v1/legal-documents/${DOCUMENT_ID}/tree`, () =>
+        HttpResponse.json({
+          data: [
+            { id: 'art-101', type: 'ARTICLE', number: '101', content: 'Contenu 101.' },
+            { id: 'art-102', type: 'ARTICLE', number: '102', content: 'Contenu 102.' },
+            { id: 'art-103', type: 'ARTICLE', number: '103', content: 'Contenu 103.' },
+          ],
+        }),
+      ),
+    );
+  });
+
+  it("« Suivant » met à jour l'URL, et le retour navigateur revient à l'article précédent — pas au premier", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([{ path: '*', element: <Library /> }], {
+      initialEntries: [`/app/library?doc=${DOCUMENT_ID}&article=art-101`],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Article 101').length).toBeGreaterThan(0),
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole('button', { name: 'Suivant' })[0]);
+    await waitFor(() =>
+      expect(screen.getAllByText('Article 102').length).toBeGreaterThan(0),
+    );
+    expect(router.state.location.search).toContain('article=art-102');
+
+    await user.click(screen.getAllByRole('button', { name: 'Suivant' })[0]);
+    await waitFor(() =>
+      expect(screen.getAllByText('Article 103').length).toBeGreaterThan(0),
+    );
+    expect(router.state.location.search).toContain('article=art-103');
+
+    // Retour navigateur : doit ressortir sur le 102 (l'étape précédente),
+    // jamais sur le 101 (le premier article du document).
+    await router.navigate(-1);
+    await waitFor(() =>
+      expect(router.state.location.search).toContain('article=art-102'),
+    );
+    expect(router.state.location.search).not.toContain('article=art-101');
   });
 });
