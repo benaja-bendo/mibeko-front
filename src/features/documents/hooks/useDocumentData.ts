@@ -231,9 +231,16 @@ export function useDocumentMutations(documentId: string) {
   });
 
   const addArticleVersion = useMutation({
-    mutationFn: async ({ id, content, start_date }: { id: string, content: string, start_date: string }) => {
+    mutationFn: async ({ id, content, start_date, modifie_par_document_id }: {
+      id: string,
+      content: string,
+      start_date: string,
+      // Amendement (dashboard#166) : le texte modificateur est obligatoire côté
+      // API, jamais déduit — sans lui la requête échoue en 422.
+      modifie_par_document_id: string,
+    }) => {
       return laravelClient
-        .post<unknown>(`articles/${id}/versions`, { content, start_date })
+        .post<unknown>(`articles/${id}/versions`, { content, start_date, modifie_par_document_id })
         .then((r) => r.data);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['document', documentId] }),

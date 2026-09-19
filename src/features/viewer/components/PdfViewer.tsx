@@ -7,6 +7,7 @@ import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Target, Maximize, MoveHoriz
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentData';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TreeNode } from '@/shared/types/database';
+import { findNodeById } from '@/features/viewer/lib/treeNodes';
 import { getStoredToken } from '@/features/auth/store/authStore';
 import { laravelClient } from '@/shared/api/laravelClient';
 
@@ -26,18 +27,6 @@ interface Zone {
   w: number;
   h: number;
   page: number;
-}
-
-/** Recherche un nœud par id dans l'arbre — utilisé au clic sur une zone comme à l'ouverture directe sur un article (`?article=`). */
-function findNodeById(nodes: TreeNode[], id: string): TreeNode | null {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    if (node.children) {
-      const found = findNodeById(node.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
 }
 
 // Espace vertical entre deux pages dans le défilement continu.

@@ -40,6 +40,11 @@ interface ViewerState {
   selectedNode: TreeNode | null;
   selectNode: (id: string, node: TreeNode) => void;
 
+  // Re-synchronise `selectedNode` après un refetch (correction, amendement…)
+  // SANS toucher à l'onglet actif ni au tiroir de structure — contrairement à
+  // `selectNode`, ce n'est pas une nouvelle sélection de l'éditeur.
+  syncSelectedNode: (node: TreeNode) => void;
+
   // « Localiser » dans l'arbre : surlignage transitoire d'un nœud + ticket de
   // défilement consommé par TreeView (le `nonce` re-déclenche même cible).
   highlightedId: string | null;
@@ -187,6 +192,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
     activeTab: 'content',
     structureDrawerOpen: false
   }),
+  syncSelectedNode: (node) => set({ selectedNode: node }),
 
   searchQuery: '',
   setSearchQuery: (searchQuery) => set({ searchQuery }),
