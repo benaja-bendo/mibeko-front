@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDocumentData } from '@/features/documents/hooks/useDocumentData';
 import { useViewerStore } from '@/features/viewer/store/useViewerStore';
+import { findNodeById } from '@/features/viewer/lib/treeNodes';
 import Topbar from '@/features/viewer/components/Topbar';
 import TreeView from '@/features/viewer/components/TreeView';
 import PdfViewer from '@/features/viewer/components/PdfViewer';
@@ -28,6 +29,8 @@ export default function Viewer() {
   const resetForDocument = useViewerStore((s) => s.resetForDocument);
   const sidePanelOpen = useViewerStore((s) => s.sidePanelOpen);
   const sidePanelPinned = useViewerStore((s) => s.sidePanelPinned);
+  const selectedNode = useViewerStore((s) => s.selectedNode);
+  const syncSelectedNode = useViewerStore((s) => s.syncSelectedNode);
 
   // Trois colonnes (structure · PDF · article) seulement à partir de 1024px :
   // en dessous, le panneau article reste un recouvrement plein écran, faute de
@@ -42,6 +45,18 @@ export default function Viewer() {
   useEffect(() => {
     resetForDocument();
   }, [id, resetForDocument]);
+
+  // `selectedNode` est une copie figée au moment de la sélection : une
+  // correction ou un amendement invalide et refetch `data.tree`, mais sans
+  // cette resynchronisation le panneau continuait d'afficher l'ancien contenu
+  // et l'ancien historique de versions après un enregistrement pourtant réussi.
+  useEffect(() => {
+    if (!selectedNode || !data?.tree) return;
+    const fresh = findNodeById(data.tree, selectedNode.id);
+    if (fresh && fresh !== selectedNode) {
+      syncSelectedNode(fresh);
+    }
+  }, [data?.tree, selectedNode, syncSelectedNode]);
 
   if (isLoading) {
     return (
