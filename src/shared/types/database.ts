@@ -149,4 +149,9 @@ export interface ArticleVersionUI {
   contenu_texte: string;
   prev?: string;
   pending?: boolean;
+  // Texte modificateur (dashboard#166) : présent uniquement pour un amendement
+  // enregistré via `POST articles/{id}/versions` — absent (jamais deviné) pour
+  // toute correction, qui ne fork plus de version depuis ce ticket.
+  modifie_par_document_id?: string | null;
+  modifie_par_document_titre?: string | null;
 }

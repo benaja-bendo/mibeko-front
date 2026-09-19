@@ -237,7 +237,7 @@ export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'ove
             ) : (
               <>
                 <div className="text-[9.5px] font-mono uppercase tracking-[0.09em] text-t3 mb-2 pb-1 border-b border-b1 flex justify-between items-center">
-                  <span>Texte en vigueur — édition rapide</span>
+                  <span>Texte en vigueur — correction</span>
                   {updateArticle.isPending && <Clock className="w-3 h-3 animate-spin" />}
                 </div>
                 <textarea
@@ -248,14 +248,19 @@ export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'ove
                     contentRef.current = e.target.value;
                   }}
                 />
-                <Button 
+                <p className="mt-1.5 text-[10px] text-t3 leading-[1.5] italic">
+                  Une correction (OCR, découpage) écrase le texte en vigueur sans créer de version — la
+                  vérité juridique n'a pas changé. Si un texte a réellement modifié cet article, utilisez
+                  « Enregistrer un amendement » dans l'onglet Versions.
+                </p>
+                <Button
                   onClick={handleSave}
                   disabled={updateArticle.isPending}
                   variant="gold"
                   className="w-full mt-2 h-9"
                 >
                   <Save className="w-3.5 h-3.5 mr-2" />
-                  {updateArticle.isPending ? 'Enregistrement...' : 'Sauvegarder'}
+                  {updateArticle.isPending ? 'Enregistrement...' : 'Corriger le texte'}
                 </Button>
 
                 {updateArticle.isError && (
@@ -327,6 +332,11 @@ export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'ove
                     <p className="text-[11px] text-t2 line-clamp-2 italic font-serif leading-relaxed">
                       {v.contenu_texte?.substring(0, 80)}...
                     </p>
+                    {v.modifie_par_document_titre && (
+                      <p className="mt-1 text-[9.5px] text-gold/80 font-mono truncate">
+                        Amendement — modifié par : {v.modifie_par_document_titre}
+                      </p>
+                    )}
                     {i === 0 && (
                       <span className="absolute -top-1.5 -right-1.5 bg-gold text-on-gold text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                         Active
@@ -334,11 +344,11 @@ export default function SidePanel({ mode = 'overlay' }: { mode?: 'docked' | 'ove
                     )}
                   </div>
                 ))}
-                <button 
+                <button
                   onClick={() => useViewerStore.getState().setVersionModalOpen(true)}
                   className="w-full h-[26px] rounded border border-dashed border-b2 text-t3 text-[10px] font-mono hover:border-gold hover:text-gold transition-colors uppercase tracking-widest"
                 >
-                  + Nouvelle version
+                  + Enregistrer un amendement
                 </button>
               </div>
             )}

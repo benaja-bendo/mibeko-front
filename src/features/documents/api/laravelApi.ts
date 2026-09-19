@@ -93,6 +93,8 @@ export interface LaravelArticleVersion {
   validation_status?: string;
   is_verified?: boolean;
   created_at?: string;
+  modifie_par_document_id?: string | null;
+  modifie_par_document_titre?: string | null;
 }
 
 export interface LaravelRelation {
@@ -141,15 +143,24 @@ export interface RawCatalogResponse {
 }
 
 /**
- * Extrait le message d'erreur lisible renvoyé par l'API Laravel (axios).
- * Préfère `message`, puis la première erreur de validation, sinon un repli.
+ * Extrait le message d'erreur lisible renvoyé par l'API Laravel.
+ *
+ * L'intercepteur de `laravelClient` rejette déjà avec un `Error` simple dont
+ * le message est `response.data.message` (ou `error.message`) — à ce stade
+ * `error.response` n'existe plus. Le repli sur `response` ci-dessous ne sert
+ * qu'un appelant hypothétique qui contournerait l'intercepteur ; en pratique
+ * c'est `error.message` qui porte le message Laravel (validation 422 comme
+ * erreurs métier `$this->error(...)`).
  */
 export function apiErrorMessage(error: unknown, fallback = 'Une erreur est survenue. Réessayez.'): string {
-  if (error && typeof error === 'object' && 'response' in error) {
+  if (error && typeof error === 'object') {
     const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response?.data;
     if (data?.message) return data.message;
     const firstError = data?.errors && Object.values(data.errors)[0]?.[0];
     if (firstError) return firstError;
+
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0 && message !== 'API error') return message;
   }
   return fallback;
 }
@@ -435,7 +446,14 @@ export const updateArticle = (id: string, payload: Partial<{
 export const deleteArticle = (id: string) =>
   laravelClient.delete(`articles/${id}`).then((r) => r.data);
 
-export const addArticleVersion = (id: string, payload: { content: string; start_date: string }) =>
+export const addArticleVersion = (id: string, payload: {
+  content: string;
+  start_date: string;
+  // Obligatoire côté API (dashboard#166) : un amendement sans texte identifié
+  // n'est plus accepté, pour ne pas reproduire les 2 486 fausses versions
+  // laissées par l'ancien mécanisme « jour différent → nouvelle version ».
+  modifie_par_document_id: string;
+}) =>
   laravelClient.post(`articles/${id}/versions`, payload).then((r) => r.data);
 
 // ---------------------------------------------------------------------------

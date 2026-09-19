@@ -152,8 +152,10 @@ export default function RenameNodeModal() {
                   placeholder="Texte de l'article..."
                 />
                 <p className="text-[10px] text-t3 leading-relaxed">
-                  Si le texte change, une nouvelle version datée d'aujourd'hui est créée
-                  automatiquement (l'historique reste consultable dans l'onglet Versions).
+                  Ceci est une correction (OCR, découpage) : elle écrase le texte en vigueur sans
+                  créer de version, quel que soit le jour. Pour enregistrer un amendement légal
+                  (un texte identifié a réellement modifié cet article), utilisez plutôt
+                  « Enregistrer un amendement » dans l'onglet Versions du panneau de l'article.
                 </p>
               </div>
             )}
