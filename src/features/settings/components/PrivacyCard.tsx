@@ -92,7 +92,13 @@ export function PrivacyCard({ consents }: PrivacyCardProps) {
         description="Téléchargez une copie de vos données personnelles (droit d'accès)."
       >
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-t2">Export au format JSON : compte, profil, préférences et notifications.</p>
+          {/* Liste détaillée : section 6 de la politique de confidentialité, alignée sur PrivacyController::export. */}
+          <p className="text-sm text-t2">
+            Export au format JSON : compte, profil, réglages, dossiers, favoris, conversations avec l'assistant, recherches et notifications.{' '}
+            <a href="https://mibeko.fr/confidentialite" target="_blank" rel="noopener noreferrer" className="text-gold underline">
+              Détail du contenu
+            </a>
+          </p>
           <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-2 shrink-0">
             <Download className="w-4 h-4" />
             {exporting ? 'Préparation…' : 'Exporter'}
