@@ -19,7 +19,11 @@ ENV VITE_UMAMI_WEBSITE_ID=$VITE_UMAMI_WEBSITE_ID
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+# Branche STABLE de nginx (numéro pair), jamais mainline (impair) : une branche
+# mainline meurt à la sortie de la suivante et son tag n'est plus reconstruit.
+# C'est arrivé à 1.27 (figée en avril 2025, OpenSSL et c-ares vulnérables).
+# Passer à la stable suivante quand elle sort, vers avril 2027.
+FROM nginx:1.30-alpine
 
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
