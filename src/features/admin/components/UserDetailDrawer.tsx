@@ -17,10 +17,11 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import RolesPermissionsEditor from './RolesPermissionsEditor';
 import SuspendDialog from './SuspendDialog';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
+import MarkEmailVerifiedDialog from './MarkEmailVerifiedDialog';
 import {
   ShieldCheck, ShieldOff, MailCheck, MailX, Ban, RotateCcw, KeyRound, LogIn, Trash2,
   Wifi, WifiOff, Lock, Unlock, Save, Clock, FolderOpen, MessagesSquare, Sparkles, Pencil, X,
-  Wallet,
+  Wallet, Send,
 } from 'lucide-react';
 
 function fmtDate(iso?: string | null): string {
@@ -62,7 +63,7 @@ function Fact({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
 export default function UserDetailDrawer({ userId, onClose }: { userId: string | null; onClose: () => void }) {
   const navigate = useNavigate();
   const { data, isLoading } = useUser(userId);
-  const { update, remove, restore, passwordReset, revokeTokens, verifyEmail, disableTwoFactor } =
+  const { update, remove, restore, passwordReset, revokeTokens, verifyEmail, resendVerification, disableTwoFactor } =
     useUserMutations(userId ?? undefined);
   const impersonate = useImpersonate();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
@@ -71,6 +72,7 @@ export default function UserDetailDrawer({ userId, onClose }: { userId: string |
   const [directPermissions, setDirectPermissions] = React.useState<string[]>([]);
   const [suspendOpen, setSuspendOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [markVerifiedOpen, setMarkVerifiedOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (data) {
@@ -128,12 +130,21 @@ export default function UserDetailDrawer({ userId, onClose }: { userId: string |
             onReactivate={() => userId && update.mutate({ userId, payload: { status: 'active' } })}
             onResetPassword={() => userId && passwordReset.mutate(userId)}
             onRevokeTokens={() => userId && revokeTokens.mutate(userId)}
-            onVerifyEmail={() => userId && verifyEmail.mutate(userId)}
+            onMarkEmailVerified={() => setMarkVerifiedOpen(true)}
+            onResendVerification={() => userId && resendVerification.mutate(userId)}
+            resendingVerification={resendVerification.isPending}
+            // Le tiroir survit au changement de compte : ne jamais afficher le
+            // succès d'un renvoi fait sur une autre fiche.
+            verificationResent={
+              resendVerification.isSuccess && resendVerification.variables === userId
+                ? resendVerification.data.data
+                : null
+            }
             onDisableTwoFactor={() => userId && disableTwoFactor.mutate(userId)}
             onImpersonate={handleImpersonate}
             onDelete={() => setDeleteOpen(true)}
             onRestore={() => userId && restore.mutate(userId)}
-            mutationError={(update.error || passwordReset.error || impersonate.error) as Error | null}
+            mutationError={(update.error || passwordReset.error || resendVerification.error || impersonate.error) as Error | null}
             passwordResetDone={passwordReset.isSuccess}
             impersonating={impersonate.isPending}
           />
@@ -153,6 +164,17 @@ export default function UserDetailDrawer({ userId, onClose }: { userId: string |
                   { userId, payload: { status: 'suspended', suspension_reason: reason || null } },
                   { onSuccess: () => setSuspendOpen(false) },
                 );
+              }}
+            />
+            <MarkEmailVerifiedDialog
+              open={markVerifiedOpen}
+              onOpenChange={setMarkVerifiedOpen}
+              email={data.email}
+              pending={verifyEmail.isPending}
+              error={verifyEmail.error as Error | null}
+              onConfirm={() => {
+                if (!userId) return;
+                verifyEmail.mutate(userId, { onSuccess: () => setMarkVerifiedOpen(false) });
               }}
             />
             <ConfirmDeleteDialog
@@ -189,7 +211,10 @@ function UserDetailBody(props: {
   onReactivate: () => void;
   onResetPassword: () => void;
   onRevokeTokens: () => void;
-  onVerifyEmail: () => void;
+  onMarkEmailVerified: () => void;
+  onResendVerification: () => void;
+  resendingVerification: boolean;
+  verificationResent: { remaining: number } | null;
   onDisableTwoFactor: () => void;
   onImpersonate: () => void;
   onDelete: () => void;
@@ -248,8 +273,14 @@ function UserDetailBody(props: {
           <Fact
             icon={data.email_verified ? <MailCheck className="w-3 h-3" /> : <MailX className="w-3 h-3" />}
             label="Email"
-            value={data.email_verified ? 'Vérifié' : 'Non vérifié'}
-            tone={data.email_verified ? 'ok' : 'warn'}
+            value={
+              data.email_verified
+                ? 'Vérifié'
+                : data.email_verification_required
+                  ? 'Non vérifié · bloqué'
+                  : 'Non vérifié · non requis'
+            }
+            tone={data.email_verified ? 'ok' : data.email_verification_required ? 'warn' : undefined}
           />
           <Fact
             icon={data.two_factor_enabled ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
@@ -342,6 +373,11 @@ function UserDetailBody(props: {
           {props.passwordResetDone && (
             <p className="text-emerald-400 text-[11px] font-mono">Code de réinitialisation envoyé.</p>
           )}
+          {props.verificationResent && (
+            <p className="text-emerald-400 text-[11px] font-mono">
+              Lien de vérification mis en file d’envoi. Encore {props.verificationResent.remaining} renvoi(s) possible(s) dans l’heure.
+            </p>
+          )}
           {props.mutationError && <p className="text-red text-[11px] font-mono">{props.mutationError.message}</p>}
 
           {props.isTrashed ? (
@@ -365,9 +401,20 @@ function UserDetailBody(props: {
               <Button variant="outline" size="sm" className="gap-2" onClick={props.onRevokeTokens}>
                 <ShieldOff className="w-3.5 h-3.5" /> Déconnecter
               </Button>
+              {!data.email_verified && data.status !== 'suspended' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={props.onResendVerification}
+                  disabled={props.resendingVerification}
+                >
+                  <Send className="w-3.5 h-3.5" /> {props.resendingVerification ? 'Envoi…' : 'Renvoyer le lien'}
+                </Button>
+              )}
               {!data.email_verified && (
-                <Button variant="outline" size="sm" className="gap-2" onClick={props.onVerifyEmail}>
-                  <MailCheck className="w-3.5 h-3.5" /> Vérifier email
+                <Button variant="outline" size="sm" className="gap-2" onClick={props.onMarkEmailVerified}>
+                  <MailCheck className="w-3.5 h-3.5" /> Marquer vérifié
                 </Button>
               )}
               {data.two_factor_enabled && (

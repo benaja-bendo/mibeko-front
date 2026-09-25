@@ -83,6 +83,8 @@ export interface AdminUserDetail {
   email: string;
   email_verified: boolean;
   email_verified_at: string | null;
+  /** mibeko-dashboard#203 : faux pour les comptes d'avant le 13/09/2026 ou créés par un admin — non vérifiés, mais pas bloqués. */
+  email_verification_required: boolean;
   status: UserStatus;
   suspended_at: string | null;
   suspension_reason: string | null;
@@ -236,8 +238,19 @@ export const revokeUserTokens = (id: string): Promise<{ revoked: number }> =>
     .post<Envelope<{ revoked: number }>>(`admin/users/${id}/revoke-tokens`)
     .then((r) => r.data.data);
 
+/** Marque l'adresse comme vérifiée SANS envoyer d'e-mail (support). */
 export const verifyUserEmail = (id: string): Promise<Envelope<null>> =>
   laravelClient.post<Envelope<null>>(`admin/users/${id}/verify-email`).then((r) => r.data);
+
+/**
+ * mibeko-dashboard#203 : renvoie le lien de vérification. L'e-mail est mis en
+ * file, pas encore parti ; `remaining` = renvois encore possibles dans l'heure
+ * pour ce compte (409 si déjà vérifié ou suspendu, 429 au-delà du quota).
+ */
+export const resendUserVerificationEmail = (id: string): Promise<Envelope<{ remaining: number }>> =>
+  laravelClient
+    .post<Envelope<{ remaining: number }>>(`admin/users/${id}/verification-email`)
+    .then((r) => r.data);
 
 export const disableUserTwoFactor = (id: string): Promise<Envelope<null>> =>
   laravelClient.delete<Envelope<null>>(`admin/users/${id}/two-factor`).then((r) => r.data);
