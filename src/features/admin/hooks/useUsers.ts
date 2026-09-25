@@ -10,6 +10,7 @@ import {
   sendUserPasswordReset,
   revokeUserTokens,
   verifyUserEmail,
+  resendUserVerificationEmail,
   disableUserTwoFactor,
   impersonateUser,
   setUserAiQuotaOverride,
@@ -99,12 +100,17 @@ export function useUserMutations(id?: string) {
     mutationFn: (userId: string) => verifyUserEmail(userId),
     onSuccess: invalidate,
   });
+  const resendVerification = useMutation({
+    mutationFn: (userId: string) => resendUserVerificationEmail(userId),
+    // Rien ne change sur le compte, mais la fiche affiche la trace d'audit.
+    onSuccess: invalidate,
+  });
   const disableTwoFactor = useMutation({
     mutationFn: (userId: string) => disableUserTwoFactor(userId),
     onSuccess: invalidate,
   });
 
-  return { create, update, remove, restore, passwordReset, revokeTokens, verifyEmail, disableTwoFactor };
+  return { create, update, remove, restore, passwordReset, revokeTokens, verifyEmail, resendVerification, disableTwoFactor };
 }
 
 export function useImpersonate() {
