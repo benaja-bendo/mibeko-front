@@ -58,5 +58,5 @@ Le dashboard utilise par défaut **« Mibeko Classique »** (`DEFAULT_THEME_ID =
 ## Conventions de travail
 - Commits en français, `type(scope): titre` à l'impératif ou au substantif ; corps qui explique le **POURQUOI** (pas la liste des fichiers). Petits commits atomiques, un sujet par commit. **Aucune mention d'agent IA dans les commits** (pas de trailer `Co-Authored-By`) — retiré le 07/08/2026 (`docs/decisions.md`).
 - **Jamais de commit, de push ou de tag sans l'accord explicite de l'utilisateur** — donner les commandes et attendre la réponse.
-- Toute décision structurante = une ligne datée dans `docs/decisions.md` (dépôt `docs/`, transverse).
+- Toute décision structurante s'écrit au format du registre (D-001) : dans `docs/decisions.md` de ce dépôt (préfixe `FRONT-`) si elle ne change que ce dépôt ; sinon dans le registre transverse, `docs/decisions.md` du monorepo (dépôt `mibeko-docs`, préfixe `D-`).
 - Avant de corriger un constat d'audit ou de doc, le **vérifier contre le code courant** : les références bougent vite, et les docs datées de ce dépôt peuvent avoir pris du retard (cas de la CSP ci-dessus).

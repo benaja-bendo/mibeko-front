@@ -8,6 +8,8 @@ architecture Feature-Sliced Design. Ce dossier regroupe la documentation
 transverse du dépôt (voir le `README.md` racine pour l'installation, le
 développement et le build).
 
+**Décisions propres à ce dépôt** : [`decisions.md`](./decisions.md) (identifiants `FRONT-`). Les décisions transverses sont dans le registre `docs/decisions.md` du monorepo (dépôt `mibeko-docs`).
+
 ## Architecture (Feature-Sliced Design)
 
 Le code de `src/` est découpé en couches FSD, de la plus haute (composition) à
