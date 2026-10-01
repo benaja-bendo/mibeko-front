@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AppLayout from '@/widgets/layout/AppLayout';
 import { useJournalsList, useJournalYears } from '@/features/journals/hooks/useJournals';
 import { getJournalPdfUrl, type OfficialJournal } from '@/features/journals/api/journalsApi';
+import { journalContentLabel } from '@/shared/lib/labels';
 import {
   Newspaper, FileText, ChevronLeft, ChevronRight, ArrowRight, Download, Sparkles,
 } from 'lucide-react';
@@ -54,7 +55,7 @@ function JournalCard({ journal }: { journal: OfficialJournal }) {
 
       <p className="mt-3 flex items-center gap-1.5 font-mono text-[10px] text-t3">
         <FileText className="h-3 w-3" />
-        {journal.legal_documents_count ?? 0} texte{(journal.legal_documents_count ?? 0) > 1 ? 's' : ''}
+        {journalContentLabel(journal.legal_documents_count)}
         <ArrowRight className="ml-auto h-3 w-3 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100 text-gold" />
       </p>
     </Link>
@@ -111,7 +112,7 @@ export default function ProJournals() {
                     {latest.title}
                   </h2>
                   <p className="mt-0.5 text-xs text-t3">
-                    {fmtDate(latest.publication_date)} · {latest.legal_documents_count ?? 0} texte{(latest.legal_documents_count ?? 0) > 1 ? 's' : ''} publié{(latest.legal_documents_count ?? 0) > 1 ? 's' : ''}
+                    {fmtDate(latest.publication_date)} · {journalContentLabel(latest.legal_documents_count)}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
