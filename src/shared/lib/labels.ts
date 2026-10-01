@@ -114,3 +114,15 @@ export function ingestionErrorClassLabel(errorClass: string | null | undefined):
       return errorClass || '';
   }
 }
+
+/**
+ * Ce que contient un numéro du Journal officiel, annoncé au lecteur. Un numéro
+ * publié sans texte structuré reste lisible par son PDF officiel : on dit ce
+ * qu'il contient, jamais « 0 texte », qui le ferait passer pour vide (décision
+ * D-056). Mêmes libellés que l'application mobile.
+ */
+export function journalContentLabel(count: number | null | undefined): string {
+  const n = count ?? 0;
+  if (n <= 0) return 'Texte intégral (PDF)';
+  return `${n} texte${n > 1 ? 's' : ''} publié${n > 1 ? 's' : ''}`;
+}

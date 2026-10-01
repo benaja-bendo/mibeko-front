@@ -36,6 +36,7 @@ import { useDossiers } from '@/features/dossiers/hooks/useDossiers';
 import { useLibraryHome } from '@/features/library/hooks/useLibrary';
 import StatusBadge from '@/features/dossiers/components/StatusBadge';
 import { formatCompactNumber } from '@/shared/lib/formatNumber';
+import { journalContentLabel } from '@/shared/lib/labels';
 
 /** Formate une date ISO en jj/mm/aaaa (ou tiret si absente). */
 function fmtDate(iso?: string | null): string {
@@ -301,7 +302,7 @@ export default function AppDashboard() {
                             <Clock className="h-2.5 w-2.5" />
                             {fmtDate(journal.publication_date)}
                             <span>·</span>
-                            {journal.legal_documents_count ?? 0} texte{(journal.legal_documents_count ?? 0) > 1 ? 's' : ''}
+                            {journalContentLabel(journal.legal_documents_count)}
                           </p>
                         </div>
                       </Link>

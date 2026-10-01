@@ -10,6 +10,7 @@ import AppLayout from '@/widgets/layout/AppLayout';
 import { useJournal } from '@/features/journals/hooks/useJournals';
 import { getJournalPdfUrl } from '@/features/journals/api/journalsApi';
 import JournalPdfPreview from '@/features/journals/components/JournalPdfPreview';
+import { journalContentLabel } from '@/shared/lib/labels';
 import {
   ArrowLeft, Newspaper, FileText, Download, ArrowUpRight, BookOpenText, Loader2,
 } from 'lucide-react';
@@ -79,7 +80,7 @@ export default function JournalView() {
               </h1>
               <p className="mt-1 font-mono text-[11px] text-t3">
                 {journal.number ? `n° ${journal.number} · ` : ''}
-                {fmtDate(journal.publication_date)} · {documents.length} texte{documents.length > 1 ? 's' : ''}
+                {fmtDate(journal.publication_date)} · {journalContentLabel(documents.length)}
               </p>
             </div>
             <button
@@ -100,9 +101,21 @@ export default function JournalView() {
               </header>
 
               {documents.length === 0 ? (
-                <p className="px-4 py-10 text-center text-xs text-t3">
-                  Les textes de ce numéro sont en cours d'intégration.
-                </p>
+                // Un numéro publié sans texte structuré se lit par son PDF
+                // officiel (D-056) : ne rien promettre, montrer où lire. Le
+                // vis-à-vis PDF est masqué sur petit écran, d'où le bouton.
+                <div className="px-4 py-10 text-center">
+                  <p className="text-xs text-t3">
+                    Les textes de ce numéro ne sont pas structurés dans Mibeko.
+                    Son texte intégral se lit dans le PDF original.
+                  </p>
+                  <button
+                    onClick={() => window.open(getJournalPdfUrl(journal.id), '_blank')}
+                    className="mx-auto mt-4 flex h-9 items-center gap-2 rounded-lg bg-gold px-4 text-xs font-semibold text-on-gold transition-opacity hover:opacity-90"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Lire le PDF original
+                  </button>
+                </div>
               ) : (
                 <ol className="divide-y divide-b1/60">
                   {documents.map((doc, i) => (

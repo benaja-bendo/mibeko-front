@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { documentRoleLabel, documentRoleHint, legalScopeLabel, usageContextLabel } from './labels';
+import { documentRoleLabel, documentRoleHint, legalScopeLabel, usageContextLabel, journalContentLabel } from './labels';
 
 describe('labels métier', () => {
   it('traduit le rôle documentaire', () => {
@@ -32,5 +32,18 @@ describe('labels métier', () => {
     expect(usageContextLabel('professional')).toBe('Activité professionnelle');
     expect(usageContextLabel('other')).toBe('Autre');
     expect(usageContextLabel(undefined)).toBe('—');
+  });
+});
+
+describe('journalContentLabel', () => {
+  it("annonce le PDF d'un numéro sans texte structuré, jamais « 0 texte » (D-056)", () => {
+    expect(journalContentLabel(0)).toBe('Texte intégral (PDF)');
+    expect(journalContentLabel(null)).toBe('Texte intégral (PDF)');
+    expect(journalContentLabel(undefined)).toBe('Texte intégral (PDF)');
+  });
+
+  it('compte les textes publiés, au singulier et au pluriel', () => {
+    expect(journalContentLabel(1)).toBe('1 texte publié');
+    expect(journalContentLabel(16)).toBe('16 textes publiés');
   });
 });
