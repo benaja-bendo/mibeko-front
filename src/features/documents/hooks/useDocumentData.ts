@@ -156,6 +156,8 @@ export function useDocumentMutations(documentId: string) {
       themes?: string[],
       // Publication forcée : outrepasse le garde-fou des anomalies bloquantes.
       force?: boolean,
+      // Exigé par l'API pour sortir de `published` (dépublication, admins seuls).
+      motif?: string,
     }) => {
       return laravelClient.patch<unknown>(`legal-documents/${documentId}`, data).then((r) => r.data);
     },

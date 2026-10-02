@@ -16,6 +16,11 @@ import { apiErrorMessage } from '@/features/documents/api/laravelApi';
 import { cn } from '@/shared/lib/utils';
 import { UploadCloud, CheckCircle2, Undo2, AlertTriangle } from 'lucide-react';
 
+// L'API refuse toute sortie de `published` sans motif (réservée aux admins,
+// cf. LegalDocument::guardUnpublishing). Le motif part dans les journaux : un
+// mot seul n'explique rien à qui relira l'historique.
+const MOTIF_RETRAIT_MIN = 10;
+
 const WORKFLOW = [
   { id: 'draft', label: 'Brouillon' },
   { id: 'review', label: 'Révision' },
@@ -33,6 +38,7 @@ export default function PublishModal({ document }: { document?: LegalDocument })
   const { publishModalOpen, setPublishModalOpen } = useViewerStore();
   const { updateDocument } = useDocumentMutations(documentId || '');
   const [assumeDateInconnue, setAssumeDateInconnue] = useState(false);
+  const [motif, setMotif] = useState('');
 
   if (!document) return null;
 
@@ -59,8 +65,10 @@ export default function PublishModal({ document }: { document?: LegalDocument })
         ...(target === 'published' && dateManquante && assumeDateInconnue
           ? { date_entree_vigueur_inconnue: true }
           : {}),
+        ...(target === 'review' && isPublished ? { motif: motif.trim() } : {}),
       });
 
+      setMotif('');
       setPublishModalOpen(false);
     } catch {
       // L'erreur est rendue par `updateDocument.isError` juste en dessous.
@@ -68,6 +76,7 @@ export default function PublishModal({ document }: { document?: LegalDocument })
   };
 
   const publicationBloquee = !isPublished && dateManquante && !assumeDateInconnue;
+  const motifTropCourt = motif.trim().length < MOTIF_RETRAIT_MIN;
 
   return (
     <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>
@@ -134,10 +143,35 @@ export default function PublishModal({ document }: { document?: LegalDocument })
           </label>
         )}
 
+        {isPublished && (
+          <div className="space-y-1.5">
+            <label htmlFor="motif-retrait" className="block text-t2 text-[11px] font-semibold">
+              Motif du retrait
+            </label>
+            <textarea
+              id="motif-retrait"
+              value={motif}
+              onChange={(e) => setMotif(e.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="Pourquoi ce document quitte-t-il le fonds public ?"
+              className="w-full bg-s2 border border-b1 rounded px-3 py-2 text-[12px] text-t1 placeholder:text-t3 focus:outline-none focus:border-gold"
+            />
+            <p className="text-t3 text-[10px] leading-relaxed">
+              Obligatoire, {MOTIF_RETRAIT_MIN} caractères au moins. Il est conservé dans les journaux.
+              Le document quitte le catalogue, la bibliothèque, la recherche et l'application mobile ;
+              ses articles restent en base.
+            </p>
+          </div>
+        )}
+
         {updateDocument.isError && (
           <div className="space-y-2">
             <p className="text-red text-[11px] font-mono bg-red-d border border-red/20 rounded px-3 py-2">
-              {apiErrorMessage(updateDocument.error, 'La publication a échoué. Réessayez.')}
+              {apiErrorMessage(
+                updateDocument.error,
+                isPublished ? 'Le retrait a échoué. Réessayez.' : 'La publication a échoué. Réessayez.',
+              )}
             </p>
             {!isPublished && (
               <div className="bg-amber-d border border-amber/20 rounded px-3 py-2.5">
@@ -168,12 +202,13 @@ export default function PublishModal({ document }: { document?: LegalDocument })
           {isPublished ? (
             <Button
               variant="outline"
-              disabled={updateDocument.isPending}
+              disabled={updateDocument.isPending || motifTropCourt}
+              title={motifTropCourt ? 'Indiquez d\'abord le motif du retrait.' : undefined}
               onClick={() => handleAction('review')}
               className="gap-2"
             >
               <Undo2 className="w-3.5 h-3.5" />
-              {updateDocument.isPending ? 'En cours...' : 'Repasser en révision'}
+              {updateDocument.isPending ? 'En cours...' : 'Retirer de la publication'}
             </Button>
           ) : (
             <Button
