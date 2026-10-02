@@ -97,7 +97,7 @@ export default function Utilisateurs() {
 
   const { data: stats, isLoading: statsLoading } = useUserStats();
   const usersQuery = useUsers(filters);
-  const invitationsQuery = useInvitations();
+  const invitationsQuery = useInvitations('pending', tab === 'invitations');
 
   const users = usersQuery.data?.data ?? [];
   const pagination = usersQuery.data?.pagination;
@@ -323,6 +323,8 @@ function UserRow({ user, onClick }: { user: AdminUserRow; onClick: () => void })
 function InvitationsPanel({ query }: { query: ReturnType<typeof useInvitations> }) {
   const { resend, remove } = useInvitationMutations();
   const invitations = query.data ?? [];
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const historyQuery = useInvitations('history', historyOpen);
   const [feedback, setFeedback] = React.useState<{ kind: 'success' | 'error'; message: string } | null>(null);
 
   // Le bandeau de confirmation s'efface tout seul après quelques secondes.
@@ -365,79 +367,116 @@ function InvitationsPanel({ query }: { query: ReturnType<typeof useInvitations> 
 
       {query.isLoading ? (
         <p className="text-t4 text-[12px] py-10 text-center">Chargement…</p>
+      ) : query.isError ? (
+        <p role="alert" className="text-red-400 text-[12px] py-6 text-center">
+          {query.error.message} <Button variant="outline" size="sm" onClick={() => query.refetch()}>Réessayer</Button>
+        </p>
       ) : invitations.length === 0 ? (
         <div className="text-center py-12">
           <Mail className="w-8 h-8 text-t4 mx-auto mb-2" />
-          <p className="text-t3 text-[13px]">Aucune invitation</p>
+          <p className="text-t3 text-[13px]">Aucune invitation en attente</p>
           <p className="text-t4 text-[11px] mt-1">Invitez un membre via le bouton « Ajouter ».</p>
         </div>
       ) : (
-        <div className="border border-b1 rounded-xl overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-s2 text-t4 text-[10px] font-mono uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Email</th>
-                <th className="px-4 py-2.5 font-medium hidden md:table-cell">Rôles</th>
-                <th className="px-4 py-2.5 font-medium">Statut</th>
-                <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Expire</th>
-                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-b1">
-              {invitations.map((inv: InvitationRef) => {
-                const resending = resend.isPending && resend.variables === inv.id;
-                const cancelling = remove.isPending && remove.variables === inv.id;
-                return (
-                  <tr key={inv.id} className="hover:bg-s2/60 transition-colors">
-                    <td className="px-4 py-3 text-t1 text-[13px]">{inv.email}</td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {inv.roles.map((r) => (
-                          <span key={r} className="rounded border border-b1 bg-s2 px-1.5 py-0.5 text-[10px] font-mono text-t3">
-                            {ROLE_LABELS[r] ?? r}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={['rounded-md border px-2 py-0.5 text-[10px] font-mono', INVITE_BADGE[inv.status]].join(' ')}>
-                        {INVITE_LABEL[inv.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-[11px] text-t3">{fmtDate(inv.expires_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {inv.status !== 'accepted' && (
-                          <button
-                            onClick={() => handleResend(inv)}
-                            disabled={resending}
-                            className="flex items-center gap-1 text-[11px] text-t3 hover:text-gold px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
-                            title="Renvoyer"
-                          >
-                            {resending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                            {resending ? 'Envoi…' : 'Renvoyer'}
-                          </button>
-                        )}
-                        {inv.status !== 'accepted' && (
-                          <button
-                            onClick={() => handleCancel(inv)}
-                            disabled={cancelling}
-                            className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
-                            title="Annuler"
-                          >
-                            {cancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                            {cancelling ? 'Annulation…' : 'Annuler'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <InvitationTable invitations={invitations} onResend={handleResend} onCancel={handleCancel} resendingId={resend.isPending ? resend.variables : undefined} cancellingId={remove.isPending ? remove.variables : undefined} />
       )}
+
+      <section className="border-t border-b1 pt-4">
+        <button
+          type="button"
+          aria-expanded={historyOpen}
+          onClick={() => setHistoryOpen((open) => !open)}
+          className="text-t2 text-[12px] hover:text-gold"
+        >
+          {historyOpen ? 'Masquer l’historique des invitations' : 'Afficher l’historique des invitations'}
+        </button>
+        {historyOpen && (
+          <div className="mt-3">
+            {historyQuery.isLoading ? (
+              <p className="text-t4 text-[12px]">Chargement de l’historique…</p>
+            ) : historyQuery.isError ? (
+              <p role="alert" className="text-red-400 text-[12px]">
+                {historyQuery.error.message} <Button variant="outline" size="sm" onClick={() => historyQuery.refetch()}>Réessayer</Button>
+              </p>
+            ) : historyQuery.data?.length ? (
+              <InvitationTable invitations={historyQuery.data} history onResend={handleResend} onCancel={handleCancel} resendingId={resend.isPending ? resend.variables : undefined} cancellingId={remove.isPending ? remove.variables : undefined} />
+            ) : (
+              <p className="text-t4 text-[12px]">Aucune invitation acceptée ou expirée.</p>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function InvitationTable({ invitations, history = false, onResend, onCancel, resendingId, cancellingId }: {
+  invitations: InvitationRef[];
+  history?: boolean;
+  onResend: (invitation: InvitationRef) => void;
+  onCancel: (invitation: InvitationRef) => void;
+  resendingId?: string;
+  cancellingId?: string;
+}) {
+  return (
+    <div className="border border-b1 rounded-xl overflow-hidden">
+      <table className="w-full text-left">
+        <thead className="bg-s2 text-t4 text-[10px] font-mono uppercase tracking-wide">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Email</th>
+            <th className="px-4 py-2.5 font-medium hidden md:table-cell">Rôles</th>
+            <th className="px-4 py-2.5 font-medium">Statut</th>
+            <th className="px-4 py-2.5 font-medium hidden sm:table-cell">{history ? 'Acceptée / expiration' : 'Expire'}</th>
+            <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-b1">
+          {invitations.map((invitation) => (
+            <tr key={invitation.id} className="hover:bg-s2/60 transition-colors">
+              <td className="px-4 py-3 text-t1 text-[13px]">{invitation.email}</td>
+              <td className="px-4 py-3 hidden md:table-cell">
+                <div className="flex flex-wrap gap-1">
+                  {invitation.roles.map((role) => (
+                    <span key={role} className="rounded border border-b1 bg-s2 px-1.5 py-0.5 text-[10px] font-mono text-t3">
+                      {ROLE_LABELS[role] ?? role}
+                    </span>
+                  ))}
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <span className={['rounded-md border px-2 py-0.5 text-[10px] font-mono', INVITE_BADGE[invitation.status]].join(' ')}>
+                  {INVITE_LABEL[invitation.status]}
+                </span>
+              </td>
+              <td className="px-4 py-3 hidden sm:table-cell text-[11px] text-t3">{fmtDate(invitation.accepted_at ?? invitation.expires_at)}</td>
+              <td className="px-4 py-3">
+                {invitation.status !== 'accepted' && (
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => onResend(invitation)}
+                      disabled={resendingId === invitation.id}
+                      className="flex items-center gap-1 text-[11px] text-t3 hover:text-gold px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
+                      title="Renvoyer"
+                    >
+                      {resendingId === invitation.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                      {resendingId === invitation.id ? 'Envoi…' : 'Renvoyer'}
+                    </button>
+                    <button
+                      onClick={() => onCancel(invitation)}
+                      disabled={cancellingId === invitation.id}
+                      className="flex items-center gap-1 text-[11px] text-t3 hover:text-red-400 px-2 py-1 rounded-md hover:bg-s2 disabled:opacity-60"
+                      title="Annuler"
+                    >
+                      {cancellingId === invitation.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                      {cancellingId === invitation.id ? 'Annulation…' : 'Annuler'}
+                    </button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

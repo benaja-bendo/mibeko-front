@@ -293,8 +293,10 @@ export const revokeUserProPlan = (id: string): Promise<Envelope<null>> =>
 // Invitations
 // ---------------------------------------------------------------------------
 
-export const listInvitations = (): Promise<InvitationRef[]> =>
-  laravelClient.get<Envelope<InvitationRef[]>>('admin/invitations').then((r) => r.data.data);
+export type InvitationListStatus = 'pending' | 'history';
+
+export const listInvitations = (status: InvitationListStatus = 'pending'): Promise<InvitationRef[]> =>
+  laravelClient.get<Envelope<InvitationRef[]>>('admin/invitations', { params: { status } }).then((r) => r.data.data);
 
 export const createInvitation = (payload: CreateInvitationPayload): Promise<InvitationRef> =>
   laravelClient.post<Envelope<InvitationRef>>('admin/invitations', payload).then((r) => r.data.data);

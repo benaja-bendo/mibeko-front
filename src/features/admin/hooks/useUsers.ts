@@ -26,6 +26,7 @@ import {
   type UpdateUserPayload,
   type CreateInvitationPayload,
   type GrantProPlanInput,
+  type InvitationListStatus,
 } from '@/features/admin/api/usersApi';
 import { createPaymentOrder, type CreatePaymentOrderInput } from '@/features/admin/api/adminBillingApi';
 
@@ -123,11 +124,12 @@ export function useImpersonate() {
 // Invitations
 // ---------------------------------------------------------------------------
 
-export function useInvitations() {
+export function useInvitations(status: InvitationListStatus = 'pending', enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'invitations'],
-    queryFn: listInvitations,
+    queryKey: ['admin', 'invitations', status],
+    queryFn: () => listInvitations(status),
     staleTime: STALE,
+    enabled,
   });
 }
 
