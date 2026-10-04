@@ -1,7 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { logout } from '@/features/auth/api/authApi';
-import logoMibeko from '@/assets/logo_mibeko.svg';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +20,7 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/Dialog';
 import { Button } from '@/shared/components/ui/Button';
+import { MibekoLogo } from '@/shared/components/ui/MibekoLogo';
 import { Settings, Mail, CreditCard, Bell, BellRing, Sparkles, LogOut, ChevronUp, Menu, Activity, ClipboardList, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import QuotaIndicator from '@/features/entitlements/components/QuotaIndicator';
@@ -308,7 +308,7 @@ export default function Sidebar({ space }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-b1 shrink-0">
         <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
-          <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
+          <MibekoLogo size={32} />
         </div>
         <div>
           <div className="text-t1 font-display text-sm font-semibold leading-none">Mibeko</div>
@@ -445,7 +445,7 @@ export default function Sidebar({ space }: SidebarProps) {
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-s1 border-b border-b1 z-40 flex items-center px-4 justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 flex items-center justify-center overflow-hidden">
-            <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
+            <MibekoLogo size={28} />
           </div>
           <div className="text-t1 font-display text-sm font-semibold leading-none">Mibeko</div>
         </div>

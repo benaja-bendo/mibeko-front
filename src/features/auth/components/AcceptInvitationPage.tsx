@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { acceptInvitation } from '@/features/admin/api/usersApi';
 import { isEditorOrAbove, type User } from '@/shared/types/auth';
-import logoMibeko from '@/assets/logo_mibeko.svg';
+import { MibekoLogo } from '@/shared/components/ui/MibekoLogo';
 
 function getDefaultRedirect(user: User | null): string {
   if (!user) return '/auth/login';
@@ -61,7 +61,7 @@ export default function AcceptInvitationPage() {
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-10 justify-center">
           <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-            <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
+            <MibekoLogo size={48} />
           </div>
           <div>
             <div className="text-t1 font-display text-xl font-semibold leading-tight">Mibeko</div>
