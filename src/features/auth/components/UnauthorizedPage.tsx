@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { isEditorOrAbove } from '@/shared/types/auth';
-import logoMibeko from '@/assets/logo_mibeko.svg';
+import { MibekoLogo } from '@/shared/components/ui/MibekoLogo';
 
 interface UnauthorizedPageProps {
   /** Le rôle minimum requis pour accéder à cette page */
@@ -81,7 +81,7 @@ export default function UnauthorizedPage({ requiredRole = 'user_pro' }: Unauthor
       {/* Top Logo */}
       <div className="absolute top-8 left-8 flex items-center gap-3">
         <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
-          <img src={logoMibeko} alt="Mibeko Logo" className="w-full h-full object-contain" />
+          <MibekoLogo size={40} />
         </div>
         <div>
           <div className="text-t1 font-display text-lg font-semibold leading-tight">Mibeko</div>

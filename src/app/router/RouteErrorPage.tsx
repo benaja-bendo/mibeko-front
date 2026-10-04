@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useRouteError } from 'react-router-dom';
-import logoMibeko from '@/assets/logo_mibeko.svg';
 import { Button } from '@/shared/components/ui/Button';
+import { MibekoLogo } from '@/shared/components/ui/MibekoLogo';
 import { isChunkLoadError, reloadForNewBuild } from '@/shared/lib/chunkReload';
 
 /**
@@ -63,7 +63,7 @@ function ErrorShell({ title, children }: { title: string; children: ReactNode })
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-10 justify-center">
           <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-            <img src={logoMibeko} alt="" className="w-full h-full object-contain" />
+            <MibekoLogo size={48} alt="" />
           </div>
           <div className="text-t1 font-display text-xl font-semibold leading-tight">Mibeko</div>
         </div>
