@@ -11,10 +11,11 @@ import { findNodeById } from '@/features/viewer/lib/treeNodes';
 import { getStoredToken } from '@/features/auth/store/authStore';
 import { laravelClient } from '@/shared/api/laravelClient';
 
-// Le worker pdf.js est configuré dans main.tsx. `<Page>` vit désormais dans
-// PdfPage.tsx (une page du défilement continu), pas ici.
+// `<Page>` vit désormais dans PdfPage.tsx (une page du défilement continu),
+// pas ici.
 import { Document } from 'react-pdf';
 
+import '@/shared/lib/pdfWorker';
 import { PDF_OPTIONS } from '@/shared/lib/pdfOptions';
 import PdfPage from './PdfPage';
 
