@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom';
 import { RequireAuth, RedirectIfAuthenticated, RootRedirect } from './guards';
+import { RouteErrorPage } from './RouteErrorPage';
 import {
   AcceptInvitationRoutePage,
   AdminDashboardRoutePage,
@@ -41,7 +42,7 @@ import {
   ViewerRoutePage,
 } from './routeElements';
 
-export const router = createBrowserRouter([
+const routes: RouteObject[] = [
   // ─── Auth ─────────────────────────────────────────────────────────────────
   {
     path: '/auth/login',
@@ -370,4 +371,11 @@ export const router = createBrowserRouter([
 
   // ─── Catch-all ─────────────────────────────────────────────────────────────
   { path: '*', element: <Navigate to="/" replace /> },
+];
+
+// mibeko-front#68 : une route racine sans chemin porte la frontière d'erreur de
+// toutes les pages. Elle recharge l'onglet resté sur un build remplacé par un
+// déploiement, et remplace l'écran de développement de React Router.
+export const router = createBrowserRouter([
+  { errorElement: <RouteErrorPage />, children: routes },
 ]);
