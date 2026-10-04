@@ -2,6 +2,7 @@ import React from 'react';
 import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import '@/shared/lib/pdfWorker';
 import { PDF_OPTIONS } from '@/shared/lib/pdfOptions';
 import { getJournalPdfUrl } from '@/features/journals/api/journalsApi';
 import { getStoredToken } from '@/features/auth/store/authStore';

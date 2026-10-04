@@ -106,7 +106,14 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          if (id.includes('react-pdf') || id.includes('pdfjs-dist')) return 'pdf';
+          // react-pdf et pdfjs-dist restent hors de tout groupe nommé :
+          // rolldown les range dans un chunk que seules les trois pages qui
+          // affichent un PDF chargent (il le nomme d'après un module qu'il
+          // contient, aujourd'hui `pdfOptions-*.js`). Un groupe `pdf`
+          // embarquait aussi leurs dépendances communes (runtime JSX, clsx,
+          // helper de préchargement de Vite) : l'entrée l'important, chaque
+          // page le préchargeait (mibeko-front#69).
+          if (id.includes('react-pdf') || id.includes('pdfjs-dist')) return;
           if (id.includes('react-router')) return 'router';
           if (id.includes('@tanstack')) return 'tanstack';
           if (id.includes('lucide-react')) return 'icons';
