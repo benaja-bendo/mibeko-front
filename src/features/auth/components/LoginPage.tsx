@@ -45,12 +45,12 @@ export default function LoginPage() {
         <>
           <p>
             Pas encore de compte ?{' '}
-            <Link to="/auth/register" className="text-gold hover:underline">
+            <Link to="/auth/register" className="text-gold underline underline-offset-2">
               Créer un compte
             </Link>
           </p>
           <p>
-            <Link to="/auth/mot-de-passe-oublie" className="text-gold hover:underline">
+            <Link to="/auth/mot-de-passe-oublie" className="text-gold underline underline-offset-2">
               Mot de passe oublié ?
             </Link>
           </p>

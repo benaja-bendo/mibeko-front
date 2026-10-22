@@ -18,7 +18,7 @@ interface AuthShellProps {
  */
 export default function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+    <main className="min-h-screen bg-bg flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <Link to="/auth/login" className="flex items-center gap-3 mb-10 justify-center">
           <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
@@ -43,6 +43,6 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
 
         {footer && <div className="mt-5 text-center text-sm text-t3 space-y-1.5">{footer}</div>}
       </div>
-    </div>
+    </main>
   );
 }
