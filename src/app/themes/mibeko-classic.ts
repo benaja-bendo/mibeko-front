@@ -24,7 +24,7 @@ export const mibekoClassic: ThemeDefinition = {
     b3: 'rgba(27,28,28,.26)',
     t1: '#1b1c1c',
     t2: '#414844',
-    t3: '#727974',
+    t3: '#626965',
     t4: '#a8aea9',
     gold: '#1e6b47', // Vert forêt plus prononcé (au lieu de #03271a qui paraissait noir)
     onGold: '#ffffff',
