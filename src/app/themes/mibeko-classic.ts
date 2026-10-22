@@ -45,8 +45,6 @@ export const mibekoClassic: ThemeDefinition = {
     display: "'Inter', sans-serif",
     body: "'Inter', sans-serif",
     mono: "'JetBrains Mono', monospace",
-    googleFontsHref:
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap',
   },
   radii: {
     sm: '4px',
