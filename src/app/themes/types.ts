@@ -58,8 +58,11 @@ export interface ThemeFonts {
   body: string;
   /** Données techniques, labels, métadonnées. */
   mono: string;
-  /** Feuille Google Fonts à charger pour ce thème (injectée à la volée). */
-  googleFontsHref: string;
+  /**
+   * Feuille Google Fonts à charger pour ce thème (injectée à la volée). Absente
+   * quand les polices sont auto-hébergées dans le bundle (cf. `main.tsx`).
+   */
+  googleFontsHref?: string;
 }
 
 /** Rayons de bordure du contrat (consommés par rounded-sm/md/lg). */

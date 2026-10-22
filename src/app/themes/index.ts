@@ -76,15 +76,24 @@ export function themeToCssVars(theme: ThemeDefinition): Record<string, string> {
   };
 }
 
-/** Charge la feuille Google Fonts du thème (sans doublonner). */
+/**
+ * Charge la feuille Google Fonts du thème (sans doublonner). Un thème sans
+ * `googleFontsHref` a ses polices dans le bundle : on retire alors la feuille
+ * laissée par le thème précédent.
+ */
 export function ensureThemeFontsLoaded(theme: ThemeDefinition): void {
   const existing = document.getElementById(FONTS_LINK_ID) as HTMLLinkElement | null;
-  if (existing?.href === theme.fonts.googleFontsHref) return;
+  const href = theme.fonts.googleFontsHref;
+  if (!href) {
+    existing?.remove();
+    return;
+  }
+  if (existing?.href === href) return;
 
   const link = existing ?? document.createElement('link');
   link.id = FONTS_LINK_ID;
   link.rel = 'stylesheet';
-  link.href = theme.fonts.googleFontsHref;
+  link.href = href;
   if (!existing) document.head.appendChild(link);
 }
 
